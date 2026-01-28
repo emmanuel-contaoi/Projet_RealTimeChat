@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-// Structure User (ce qu'on stocke en base de données)
+// Structure User (c ce  qu'on stocke en base de données)
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {
     pub id: Uuid,
@@ -14,7 +14,7 @@ pub struct User {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-// Requête d'inscription (ce que le frontend envoie)
+// Requête d inscription (ce que le frontend envoie)
 #[derive(Debug, Deserialize)]
 pub struct RegisterRequest {
     pub username: String,
@@ -44,7 +44,7 @@ pub struct LoginResponse {
     pub user: UserResponse,
 }
 
-// Infos utilisateur (sans le password_hash)
+// Infos utilisateur (sans le password_hash question sécurité)
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub id: Uuid,
