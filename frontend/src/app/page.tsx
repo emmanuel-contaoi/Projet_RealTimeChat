@@ -8,15 +8,15 @@ export default function Home() {
         <div className="flex items-center gap-3 text-sm font-semibold">
           <a
             className="hidden rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-slate-200 transition hover:bg-[var(--surface-strong)] md:inline-flex"
-            href="#"
+            href="/connexion"
           >
             Connexion
           </a>
           <a
             className="rounded-full bg-[var(--brand-1)] px-4 py-2 text-white shadow-[0_10px_24px_rgba(88,101,242,0.45)] transition hover:-translate-y-0.5"
-            href="#"
+            href="/inscription"
           >
-            Ouvrir un serveur
+            Inscription
           </a>
         </div>
       </header>
