@@ -1,5 +1,6 @@
 [package]
 name = "backend"
+name = "rtc-backend"
 version = "0.1.0"
 edition = "2021"
 
@@ -19,3 +20,22 @@ dotenv = "0.15"
 uuid = { version = "1.6", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
+# Framework web
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors"] }
+
+# Base de données PostgreSQL
+sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "uuid"] }
+
+# Serialization JSON
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Auth & sécurité
+jsonwebtoken = "9"
+bcrypt = "0.15"
+
+# Utilitaires
+uuid = { version = "1", features = ["v4", "serde"] }
+dotenvy = "0.15"

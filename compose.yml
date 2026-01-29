@@ -1,4 +1,5 @@
 services:
+
   frontend:
     build:
       context: ./frontend
@@ -15,6 +16,39 @@ services:
     networks:
       - rtc_network
 
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: rtc_postgres
+    ports:
+      - "5432:5432"  
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chat_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rtc_network
+
+  # --- MONGODB 
+  mongo:
+    image: mongo:6.0
+    container_name: rtc_mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - rtc_network
+
 networks:
   rtc_network:
     driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
