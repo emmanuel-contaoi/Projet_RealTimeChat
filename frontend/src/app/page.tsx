@@ -4,17 +4,17 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.45),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
+      <header className="relative z-10 mx-auto flex w-full max-w-none items-center justify-between px-8 py-6 md:px-12">
         <img src="/logo.svg" alt="Logo Nexus" className="h-12 w-auto" />
-        <div className="flex items-center gap-3 text-sm font-semibold">
+        <div className="flex items-center gap-4 text-base font-semibold">
           <a
-            className="hidden rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-slate-200 transition hover:-translate-y-0.5 transition hover:bg-[var(--surface-strong)] md:inline-flex"
+            className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-slate-200 transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]"
             href="/connexion"
           >
             Connexion
           </a>
           <a
-            className="rounded-full bg-[var(--brand-1)] px-4 py-2 text-white shadow-[0_10px_24px_rgba(88,101,242,0.45)] transition hover:-translate-y-0.5 transition hover:bg-[var(--surface-strong)] md:inline-flex"
+            className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-white shadow-[0_10px_24px_rgba(88,101,242,0.45)] transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)] md:inline-flex"
             href="/inscription"
           >
             Inscription
@@ -22,7 +22,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-12 px-6 pb-20 pt-10">
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-20 pt-10">
         <section className="flex flex-col gap-6 text-center">
           <div className="mx-auto flex max-w-2xl flex-col gap-5">
           
@@ -35,8 +35,8 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <a
-                className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(71,82,196,0.3)] transition hover:-translate-y-0.5 transition hover:bg-[var(--surface-strong)] md:inline-flex"
-                href="#features"
+                className="rounded-full bg-[var(--brand-1)] px-7 py-3.5 text-base font-semibold text-white shadow-[0_12px_28px_rgba(71,82,196,0.3)] transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)] md:inline-flex"
+                href="/conversations"
               >
                 Commencer
               </a>
