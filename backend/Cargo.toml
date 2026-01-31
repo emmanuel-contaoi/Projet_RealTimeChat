@@ -1,41 +1,28 @@
 [package]
 name = "backend"
-name = "rtc-backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Web Server
-actix-web = "4"
-actix-cors = "0.6"
+# --- Serveur Web (Axum) ---
+axum = "0.7" 
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] } # Pour que le frontend puisse te parler
 
-# Base de données (Postgres + Mongo)
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "macros"] }
+# --- Base de données SQL (Postgres) ---
+# Note: J'ai mis "rustls" pour éviter ton erreur d'installation (OpenSSL) précédente
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "macros"] }
+
+# --- Base de données NoSQL (Mongo) ---
 mongodb = "2.8.0"
 
-# Utilitaires (JSON, ID, Dates, Env)
+# --- Données & Utilitaires ---
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-dotenv = "0.15"
-uuid = { version = "1.6", features = ["serde", "v4"] }
+uuid = { version = "1.8", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1", features = ["full"] }
-# Framework web
-axum = "0.8"
-tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.6", features = ["cors"] }
+dotenvy = "0.15" # Pour lire le fichier .env
 
-# Base de données PostgreSQL
-sqlx = { version = "0.8", features = ["postgres", "runtime-tokio", "uuid"] }
-
-# Serialization JSON
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
-# Auth & sécurité
+# --- Sécurité (Pour plus tard) ---
 jsonwebtoken = "9"
 bcrypt = "0.15"
-
-# Utilitaires
-uuid = { version = "1", features = ["v4", "serde"] }
-dotenvy = "0.15"

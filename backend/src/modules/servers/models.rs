@@ -3,7 +3,6 @@ use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::NaiveDateTime;
 
-
 #[derive(Serialize, FromRow)]
 pub struct Server {
     pub id: Uuid,
@@ -12,12 +11,10 @@ pub struct Server {
     pub created_at: Option<NaiveDateTime>,
 }
 
-
 #[derive(Deserialize)]
 pub struct CreateServerRequest {
     pub name: String,
 }
-
 
 #[derive(Serialize)]
 pub struct ServerResponse {

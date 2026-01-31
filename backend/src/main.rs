@@ -1,35 +1,38 @@
-fn main() {
-    println!("Hello, world!");
-mod db;
-
 use axum::Router;
+use sqlx::postgres::PgPoolOptions;
+use dotenvy::dotenv;
+use std::env;
 use std::net::SocketAddr;
+
+
+mod db;
+mod modules;
 
 #[tokio::main]
 async fn main() {
-    // Charger les variables du fichier .env
-    dotenvy::dotenv().ok();
     
-    //  variable pour récupérer l'URL de la base de données
-    let database_url = std::env::var("DATABASE_URL")
-        .expect("DATABASE_URL doit être défini dans .env");
+    dotenv().ok();
+
     
-    // variable pour se co a la db  PostgreSQL
-    let pool = db::create_pool(&database_url)
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL manquante dans .env");
+    
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
         .await
-        .expect("Impossible de se connecter à PostgreSQL");
+        .expect("Erreur de connexion à Postgres");
+
+    println!(" Connecté à Postgres");
+
     
-    println!("✅ Connecté à PostgreSQL");
+    let app = Router::new()
+        .nest("/servers", modules::servers::router())
+        .with_state(pool); 
+
     
-    // Router 
-    let app = Router::new();
-    
-    // variable pour démarrer le serveur
-    let port = std::env::var("PORT").unwrap_or("3000".to_string());
-    let addr = SocketAddr::from(([0, 0, 0, 0], port.parse::<u16>().unwrap()));
-    
-    println!(" Serveur lancé sur http://localhost:{}", port);
-    
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    println!(" Serveur Axum lancé sur http://{}", addr);
+
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

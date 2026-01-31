@@ -1,4 +1,2 @@
-pub mod postgres;
-
-// Re-exporte pour simplifier les imports
-pub use postgres::create_pool;
+// On mettra la config Mongo ici plus tard.
+// Pour l'instant, Postgres est géré dans le main.rs.
