@@ -15,6 +15,22 @@ services:
     networks:
       - rtc_network
 
+  postgres:
+    image: postgres:15
+    container_name: rtc_postgres
+    environment:
+      POSTGRES_USER: rtc
+      POSTGRES_PASSWORD: rtc_password
+      POSTGRES_DB: rtc_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rtc_network
 networks:
   rtc_network:
     driver: bridge
+
+volumes:
+  postgres_data:
