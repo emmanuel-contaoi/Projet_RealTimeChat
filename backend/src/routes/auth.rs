@@ -74,7 +74,7 @@ pub async fn login(
         return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()));
     }
     
-    // Créer le token JWT
+    // Créer le token JWT (fonction login)
     let token = create_token(user.id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     
@@ -82,4 +82,14 @@ pub async fn login(
         token,
         user: user.into(),
     }))
+    
 }
+
+pub async fn me(
+    State(_pool): State<PgPool>,
+    axum::extract::Extension(crate::utils::auth::AuthUser(user)): axum::extract::Extension<crate::utils::auth::AuthUser>,
+) -> Result<Json<UserResponse>, (StatusCode, String)> {
+    Ok(Json(user.into()))
+}
+
+

@@ -3,7 +3,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Clone, sqlx::FromRow, serde::Serialize, serde::Deserialize)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
