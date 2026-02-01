@@ -33,11 +33,17 @@ pub struct Channel {
     pub server_id: Uuid,
     pub name: String,
     pub r#type: String, 
-    
 }
 
 #[derive(Deserialize)]
 pub struct CreateChannelRequest {
     pub name: String,
     pub r#type: String, 
+}
+
+// --- JOIN ---
+
+#[derive(Deserialize)]
+pub struct JoinServerRequest {
+    pub invite_code: String,
 }
