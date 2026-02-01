@@ -8,6 +8,7 @@ edition = "2021"
 axum = "0.8"
 tower-http = { version = "0.6", features = ["cors"] }
 
+
 # Base de données (Postgres + Mongo)
 sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "macros"] }
 mongodb = "2.8.0"

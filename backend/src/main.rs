@@ -9,6 +9,8 @@ use axum::{
     middleware,
 };
 use std::net::SocketAddr;
+use tower_http::cors::{CorsLayer, Any};
+
 
 #[tokio::main]
 async fn main() {
@@ -39,10 +41,17 @@ async fn main() {
         ));
     
     // Combiner les routes
-    let app = Router::new()
+        let app = Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .layer(
+            CorsLayer::new()
+                .allow_origin(Any)
+                .allow_methods(Any)
+                .allow_headers(Any)
+        )
         .with_state(pool);
+
     
     let port = std::env::var("PORT").unwrap_or("3000".to_string());
     let addr = SocketAddr::from(([0, 0, 0, 0], port.parse::<u16>().unwrap()));
