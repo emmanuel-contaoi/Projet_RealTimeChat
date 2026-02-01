@@ -5,12 +5,16 @@ use axum::{
 };
 use sqlx::PgPool;
 use uuid::Uuid;
+// Imports pour MongoDB
+use mongodb::bson::doc;
+use futures::stream::TryStreamExt;
 
+// Imports de tes modules
+use crate::state::AppState;
 use crate::modules::servers::models::{
-    CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest
+    CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest, Message
 };
 
-// ID utilisateur fictif
 const HARDCODED_USER_ID: &str = "11111111-1111-1111-1111-111111111111";
 
 // --- Route 1 : CRÉER SERVEUR ---
@@ -43,7 +47,7 @@ pub async fn create_server(
             (StatusCode::CREATED, Json(server)).into_response()
         }
         Err(e) => {
-            println!(" Erreur SQL Create Server: {:?}", e);
+            println!("Erreur SQL Create Server: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Erreur création").into_response()
         }
     }
@@ -67,7 +71,7 @@ pub async fn list_servers(
     match servers {
         Ok(data) => (StatusCode::OK, Json(data)).into_response(),
         Err(e) => {
-            println!(" Erreur SQL List: {:?}", e);
+            println!("Erreur SQL List: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Erreur récupération").into_response()
         }
     }
@@ -92,7 +96,7 @@ pub async fn create_channel(
     match new_channel {
         Ok(channel) => (StatusCode::CREATED, Json(channel)).into_response(),
         Err(e) => {
-            println!(" Erreur SQL Create Channel: {:?}", e);
+            println!("Erreur SQL Create Channel: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Erreur lors de la création du salon").into_response()
         }
     }
@@ -114,7 +118,7 @@ pub async fn list_channels(
     match channels {
         Ok(data) => (StatusCode::OK, Json(data)).into_response(),
         Err(e) => {
-            println!(" Erreur SQL List Channels: {:?}", e);
+            println!("Erreur SQL List Channels: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Erreur récupération des salons").into_response()
         }
     }
@@ -136,7 +140,6 @@ pub async fn join_server(
 
     match server {
         Ok(Some(server)) => {
-            // Le serveur existe, on ajoute le membre
             let result = sqlx::query(
                 "INSERT INTO members (server_id, user_id, role) VALUES ($1, $2, 'guest') 
                  ON CONFLICT DO NOTHING" 
@@ -160,4 +163,32 @@ pub async fn join_server(
             (StatusCode::INTERNAL_SERVER_ERROR, "Erreur serveur").into_response()
         }
     }
+}
+
+// --- Route 6 : HISTORIQUE MONGO (Celle qui manquait !) ---
+pub async fn get_chat_history(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+) -> impl IntoResponse {
+    
+    let collection = state.mongo
+        .database("chat")
+        .collection::<Message>("messages");
+
+    let filter = doc! { "channel_id": channel_id.to_string() };
+
+    let mut cursor = match collection.find(filter, None).await {
+        Ok(cursor) => cursor,
+        Err(e) => {
+            println!("Erreur Mongo Find: {:?}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Erreur Mongo").into_response();
+        }
+    };
+
+    let mut messages: Vec<Message> = Vec::new();
+    while let Ok(Some(msg)) = cursor.try_next().await {
+        messages.push(msg);
+    }
+
+    (StatusCode::OK, Json(messages)).into_response()
 }

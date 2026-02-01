@@ -5,16 +5,13 @@ use axum::{
     routing::{get, post}, 
     Router
 };
-use sqlx::PgPool;
 
-pub fn router() -> Router<PgPool> {
+use crate::state::AppState; 
+
+pub fn router() -> Router<AppState> {
     Router::new()
-        
         .route("/", get(handlers::list_servers).post(handlers::create_server))
-        
-        
         .route("/join", post(handlers::join_server))
-        
-        
-        .route("/:id/channels", get(handlers::list_channels).post(handlers::create_channel)) 
+        .route("/:id/channels", get(handlers::list_channels).post(handlers::create_channel))
+        .route("/channels/:id/messages", get(handlers::get_chat_history))
 }

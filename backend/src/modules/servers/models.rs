@@ -3,8 +3,6 @@ use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::NaiveDateTime;
 
-// --- SERVERS ---
-
 #[derive(Serialize, FromRow)]
 pub struct Server {
     pub id: Uuid,
@@ -25,8 +23,6 @@ pub struct ServerResponse {
     pub invite_code: String,
 }
 
-// --- CHANNELS ---
-
 #[derive(Serialize, FromRow)]
 pub struct Channel {
     pub id: Uuid,
@@ -41,9 +37,15 @@ pub struct CreateChannelRequest {
     pub r#type: String, 
 }
 
-// --- JOIN ---
-
 #[derive(Deserialize)]
 pub struct JoinServerRequest {
     pub invite_code: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Message {
+    pub channel_id: String,
+    pub user_id: String,
+    pub content: String,
+    pub username: String,
 }
