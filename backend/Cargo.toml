@@ -1,10 +1,10 @@
-[package]
+package]
 name = "backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# --- Serveur Web (Axum) ---
+# --- Serveur Web (Axum 0.7) ---
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["cors"] }
@@ -21,8 +21,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "1.8", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-dotenvy = "0.15" # On utilise dotenvy (version maintenue) pour lire le .env
-dotenv = "0.15"  # On garde celui-ci aussi car tu l'utilises dans mongo.rs
+dotenvy = "0.15"
+dotenv = "0.15"
 
 # --- Sécurité ---
 jsonwebtoken = "9"
