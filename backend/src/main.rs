@@ -22,11 +22,12 @@ async fn main() {
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL doit être défini dans .env");
     
-    let pool = db::create_pool(&database_url)
-        .await
-        .expect("Impossible de se connecter à PostgreSQL");
-    
-    println!(" Connecté à PostgreSQL");
+    let pool = sqlx::postgres::PgPoolOptions::new()
+    .max_connections(5)
+    .connect(&database_url)
+    .await
+    .expect("Impossible de se connecter à PostgreSQL");
+
     
     // 2. Connexion MongoDB
     let mongo_client = db::mongo::init_mongo().await;
