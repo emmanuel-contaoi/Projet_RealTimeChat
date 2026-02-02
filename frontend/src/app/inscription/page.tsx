@@ -71,7 +71,7 @@ export default function InscriptionPage() {
             <label className="flex flex-col gap-2 text-sm text-slate-200">
               Numéro
               <input
-                className="w-full rounded-2xl border border-[var(--stroke)] bg-transparent px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]"
+                className="w-full rounded-2xl border border-[var(--scroll)] bg-transparent px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]"
                 name="phone"
                 type="tel"
                 placeholder="+33 6 12 34 56 78"

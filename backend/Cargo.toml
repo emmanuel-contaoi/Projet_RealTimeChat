@@ -1,0 +1,29 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# --- Serveur Web (Axum) ---
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] }
+
+# --- Base de données SQL (Postgres) ---
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "macros"] }
+
+# --- Base de données NoSQL (MongoDB) ---
+mongodb = "2.8.0"
+futures = "0.3"
+
+# --- Données & Utilitaires ---
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.8", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+dotenv = "0.15"
+
+# --- Sécurité ---
+jsonwebtoken = "9"
+bcrypt = "0.15"
