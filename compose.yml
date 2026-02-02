@@ -1,5 +1,4 @@
 services:
-
   frontend:
     build:
       context: ./frontend
@@ -16,22 +15,26 @@ services:
     networks:
       - rtc_network
 
-
   postgres:
-    image: postgres:15-alpine
+    image: postgres:15
     container_name: rtc_postgres
-    ports:
-      - "5432:5432"  
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: chat_db
+      POSTGRES_USER: rtc
+      POSTGRES_PASSWORD: rtc_password
+      POSTGRES_DB: rtc_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations/seed.sql:/docker-entrypoint-initdb.d/seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rtc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - rtc_network
 
-  # --- MONGODB 
   mongo:
     image: mongo:6.0
     container_name: rtc_mongo
