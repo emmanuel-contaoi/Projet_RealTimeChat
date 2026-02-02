@@ -12,6 +12,6 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/", get(handlers::list_servers).post(handlers::create_server))
         .route("/join", post(handlers::join_server))
-        .route("/:id/channels", get(handlers::list_channels).post(handlers::create_channel))
-        .route("/channels/:id/messages", get(handlers::get_chat_history))
+        .route("/{id}/channels", get(handlers::list_channels).post(handlers::create_channel))
+        .route("/channels/{id}/messages", get(handlers::get_chat_history))
 }
