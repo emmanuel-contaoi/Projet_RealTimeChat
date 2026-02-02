@@ -1,114 +1,197 @@
 use axum::{
-    extract::ws::{WebSocket, WebSocketUpgrade, Message},
+    extract::{ws::{WebSocket, WebSocketUpgrade, Message}, State},
     response::Response,
 };
-use crate::websocket::events::{ClientEvent, ServerEvent};
+use futures::{sink::SinkExt, stream::StreamExt};
+use tokio::sync::mpsc;
+use crate::websocket::{
+    events::{ClientEvent, ServerEvent},
+    state::AppState,
+};
 
 // Upgrade la connexion HTTP vers WebSocket
-pub async fn websocket_handler(ws: WebSocketUpgrade) -> Response {
-    ws.on_upgrade(handle_socket)
+pub async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+) -> Response {
+    ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
 // Gère une connexion WebSocket individuelle
-async fn handle_socket(mut socket: WebSocket) {
-    println!("WebSocket connecté");
+async fn handle_socket(socket: WebSocket, state: AppState) {
+    // Générer un ID unique pour cette connexion
+    let connection_id = uuid::Uuid::new_v4().to_string();
+    println!("WebSocket connecté: {}", connection_id);
 
-    // Boucle qui écoute les messages du client
-    while let Some(msg) = socket.recv().await {
-        match msg {
-            // Message texte reçu
-            Ok(Message::Text(text)) => {
-                println!("Reçu: {}", text);
-                
-                // Parser le JSON en ClientEvent
-                match serde_json::from_str::<ClientEvent>(&text) {
-                    Ok(event) => {
-                        // Router vers la bonne action
-                        handle_client_event(event, &mut socket).await;
-                    }
-                    Err(e) => {
-                        println!("JSON invalide: {}", e);
-                        
-                        let error = ServerEvent::Error {
-                            message: format!("JSON invalide: {}", e),
-                        };
-                        
-                        if let Ok(json) = error.to_json() {
-                            let _ = socket.send(Message::Text(json.into())).await;
+    let (mut ws_sender, mut ws_receiver) = socket.split();
+
+    // Créer un channel pour envoyer des messages à cette connexion
+    let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
+
+    state.add_connection(connection_id.clone(), tx).await;
+
+    let state_clone = state.clone();
+    let connection_id_clone = connection_id.clone();
+
+    let mut send_task = tokio::spawn(async move {
+        while let Some(msg) = rx.recv().await {
+            if ws_sender.send(msg).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    let mut recv_task = tokio::spawn(async move {
+        while let Some(Ok(msg)) = ws_receiver.next().await {
+            match msg {
+                Message::Text(text) => {
+                    println!("Reçu de {}: {}", connection_id_clone, text);
+
+                    match serde_json::from_str::<ClientEvent>(&text) {
+                        Ok(event) => {
+                            handle_client_event(
+                                event,
+                                &connection_id_clone,
+                                &state_clone
+                            ).await;
+                        }
+                        Err(e) => {
+                            println!("JSON invalide: {}", e);
+
+                            let error = ServerEvent::Error {
+                                message: format!("JSON invalide: {}", e),
+                            };
+
+                            if let Ok(json) = error.to_json() {
+                                let _ = state_clone.connections
+                                    .read()
+                                    .await
+                                    .get(&connection_id_clone)
+                                    .map(|sender| sender.send(Message::Text(json.into())));
+                            }
                         }
                     }
                 }
-            }
-            
-            // Le client a fermé la connexion
-            Ok(Message::Close(_)) => {
-                println!("Connexion fermée");
-                break;
-            }
-            
-            // Répondre aux pings pour garder la connexion
-            Ok(Message::Ping(data)) => {
-                if socket.send(Message::Pong(data)).await.is_err() {
+                Message::Close(_) => {
+                    println!("Connexion fermée: {}", connection_id_clone);
                     break;
                 }
+                Message::Ping(data) => {
+                    if let Some(sender) = state_clone.connections.read().await.get(&connection_id_clone) {
+                        let _ = sender.send(Message::Pong(data));
+                    }
+                }
+                _ => {}
             }
-            
-            Err(e) => {
-                println!("Erreur: {}", e);
-                break;
-            }
-            
-            _ => {}
         }
+    });
+
+    // Attendre que l'une des tâches se termine
+    tokio::select! {
+        _ = &mut send_task => recv_task.abort(),
+        _ = &mut recv_task => send_task.abort(),
     }
 
-    println!("Déconnecté");
+    state.remove_connection(&connection_id).await;
+    println!("Déconnecté: {}", connection_id);
 }
 
 // Route les événements des client vers les bonnes actions
-async fn handle_client_event(event: ClientEvent, socket: &mut WebSocket) {
+async fn handle_client_event(
+    event: ClientEvent,
+    connection_id: &str,
+    state: &AppState,
+) {
     match event {
         ClientEvent::MessageSend { channel_id, content } => {
-            println!("Message pour channel {}: {}", channel_id, content);
-            
+            println!("Message de {} pour channel {}: {}", connection_id, channel_id, content);
+
             // TODO: faire la sauvegarde des messages dans MongoDB
-            // TODO: Broadcaster à tous les users du channel
-            
-            // Pour l'instant on fait un echo amélioré pour pouvoir tester le websocket
+
+            // Créer l'événement à broadcaster
             let response = ServerEvent::MessageNew {
                 id: uuid::Uuid::new_v4().to_string(),
                 channel_id: channel_id.clone(),
-                user_id: "test-user".to_string(),
-                username: "TestUser".to_string(),
+                user_id: connection_id.to_string(), // TODO: Utiliser le vrai user_id du JWT
+                username: "TestUser".to_string(),   // TODO: Utiliser le vrai username du JWT
                 content: content.clone(),
                 created_at: chrono::Utc::now().to_rfc3339(),
             };
-            
+
             if let Ok(json) = response.to_json() {
-                let _ = socket.send(Message::Text(json.into())).await;
+                state.broadcast_to_channel(
+                    &channel_id,
+                    Message::Text(json.into()),
+                    None
+                ).await;
             }
         }
-        
+
         ClientEvent::TypingStart { channel_id } => {
-            println!("Utilisateur tape dans channel {}", channel_id);
-            
-            // TODO: Broadcaster aux autres users
+            println!("Utilisateur {} tape dans channel {}", connection_id, channel_id);
+
+            let typing_event = ServerEvent::UserTyping {
+                channel_id: channel_id.clone(),
+                user_id: connection_id.to_string(),
+                username: "TestUser".to_string(),
+            };
+
+            if let Ok(json) = typing_event.to_json() {
+                state.broadcast_to_channel(
+                    &channel_id,
+                    Message::Text(json.into()),
+                    Some(connection_id)
+                ).await;
+            }
         }
-        
+
         ClientEvent::TypingStop { channel_id } => {
-            println!("Utilisateur arrête de taper dans channel {}", channel_id);
+            println!("Utilisateur {} arrête de taper dans channel {}", connection_id, channel_id);
         }
-        
+
         ClientEvent::JoinChannel { channel_id } => {
-            println!("Utilisateur rejoint channel {}", channel_id);
-            
-            // TODO: Ajouter à la room avec RoomManager
+            println!("Utilisateur {} rejoint channel {}", connection_id, channel_id);
+
+            state.room_manager
+                .lock()
+                .await
+                .join_room(&channel_id, connection_id)
+                .await;
+
+            let connected_event = ServerEvent::UserConnected {
+                user_id: connection_id.to_string(),
+                username: "TestUser".to_string(),
+            };
+
+            if let Ok(json) = connected_event.to_json() {
+                state.broadcast_to_channel(
+                    &channel_id,
+                    Message::Text(json.into()),
+                    Some(connection_id)
+                ).await;
+            }
         }
-        
+
         ClientEvent::LeaveChannel { channel_id } => {
-            println!("Utilisateur quitte channel {}", channel_id);
-            
-            // TODO: Retirer de la room
+            println!("Utilisateur {} quitte channel {}", connection_id, channel_id);
+
+            state.room_manager
+                .lock()
+                .await
+                .leave_room(&channel_id, connection_id)
+                .await;
+
+            let disconnected_event = ServerEvent::UserDisconnected {
+                user_id: connection_id.to_string(),
+            };
+
+            if let Ok(json) = disconnected_event.to_json() {
+                state.broadcast_to_channel(
+                    &channel_id,
+                    Message::Text(json.into()),
+                    Some(connection_id)
+                ).await;
+            }
         }
     }
 }

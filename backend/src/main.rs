@@ -3,6 +3,7 @@ mod websocket;
 
 use axum::{Router, routing::get};
 use std::net::SocketAddr;
+use websocket::AppState;
 
 #[tokio::main]
 async fn main() {
@@ -19,12 +20,16 @@ async fn main() {
         .expect("Impossible de se connecter à PostgreSQL");
     
     println!("Connecté à PostgreSQL");
+
+    // Créer l'état partagé pour les WebSockets
+    let ws_state = AppState::new();
     
     // Router avec 2 routes de test + WebSocket
     let app = Router::new()
         .route("/", get(|| async { "Backend fonctionne !" }))
         .route("/health", get(|| async { "OK" }))
-        .route("/ws", get(websocket::websocket_handler));
+        .route("/ws", get(websocket::websocket_handler))
+        .with_state(ws_state);
     
     // Variable pour démarrer le serveur
     let port = std::env::var("PORT").unwrap_or("3000".to_string());
