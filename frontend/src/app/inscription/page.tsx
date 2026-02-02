@@ -1,4 +1,17 @@
+"use client";
+
+import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
+
 export default function InscriptionPage() {
+  const router = useRouter();
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    localStorage.setItem("nexus-auth", "true");
+    router.push("/conversations");
+  };
+
   return (
     <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,77,255,0.35),_transparent_55%)]" />
@@ -17,7 +30,10 @@ export default function InscriptionPage() {
           </p>
         </div>
 
-        <form className="w-full max-w-2xl rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-6 text-left shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
+        <form
+          className="w-full max-w-2xl rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-6 text-left shadow-[0_14px_30px_rgba(6,10,20,0.5)]"
+          onSubmit={handleSubmit}
+        >
           <div className="grid gap-4 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-200">
               Nom
