@@ -1,26 +1,29 @@
 [package]
-name = "rtc-backend"
+name = "backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# Framework web (AXUM - choisi pour le projet)
+# --- Serveur Web (Axum) ---
 axum = "0.8"
-tower-http = { version = "0.6", features = ["cors"] }
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["cors"] }
 
-
-# Base de données (Postgres + Mongo)
+# --- Base de données SQL (Postgres) ---
 sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "macros"] }
-mongodb = "2.8.0"
 
-# Utilitaires (JSON, ID, Dates, Env)
+# --- Base de données NoSQL (MongoDB) ---
+mongodb = "2.8.0"
+futures = "0.3"
+
+# --- Données & Utilitaires ---
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-uuid = { version = "1.6", features = ["serde", "v4"] }
+uuid = { version = "1.8", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
-tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
+dotenv = "0.15"
 
-# Auth & sécurité
+# --- Sécurité ---
 jsonwebtoken = "9"
 bcrypt = "0.15"
