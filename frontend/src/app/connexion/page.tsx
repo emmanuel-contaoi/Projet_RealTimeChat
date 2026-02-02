@@ -18,7 +18,7 @@ export default function ConnexionPage() {
 
     try {
       await authService.login(email, password);
-      router.push('/'); // Redirige vers la page d'accueil
+      router.push('/conversations'); // Redirige vers le dashboard de ton ami
     } catch (err: any) {
       setError(err.response?.data || 'Identifiants invalides');
     } finally {
