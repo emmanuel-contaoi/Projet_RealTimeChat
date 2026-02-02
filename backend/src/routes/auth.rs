@@ -11,10 +11,10 @@ use crate::models::{RegisterRequest, LoginRequest, AuthResponse, User, UserRespo
 use crate::utils::jwt::create_token;
 
 pub async fn register(
-    State(pool): State<PgPool>, // state(pool) pour se co a postgreesql
+    State(pool): State<PgPool>,
     Json(payload): Json<RegisterRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, String)> {
-    // Variable pour voir si l'email existe déjà
+    // Vérifier si l'email existe déjà
     let existing_user = sqlx::query_as::<_, User>(
         "SELECT * FROM users WHERE email = $1"
     )
@@ -31,16 +31,27 @@ pub async fn register(
     let password_hash = hash(payload.password.as_bytes(), DEFAULT_COST)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to hash password: {}", e)))?;
     
-    // Créer l'utilisateur
+    // Créer l'utilisateur avec les nouveaux champs
     let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3) RETURNING *"
+        "INSERT INTO users (id, email, password_hash, first_name, last_name, username, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
+         RETURNING *"
     )
     .bind(Uuid::new_v4())
     .bind(&payload.email)
     .bind(&password_hash)
+    .bind(&payload.first_name)
+    .bind(&payload.last_name)
+    .bind(&payload.username)
     .fetch_one(&pool)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create user: {}", e)))?;
+    .map_err(|e| {
+        if e.to_string().contains("unique") {
+            (StatusCode::CONFLICT, "Email ou pseudo déjà utilisé".to_string())
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create user: {}", e))
+        }
+    })?;
     
     // Créer le token JWT
     let token = create_token(user.id)
@@ -74,7 +85,7 @@ pub async fn login(
         return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()));
     }
     
-    // Créer le token JWT (fonction login)
+    // Créer le token JWT
     let token = create_token(user.id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     
@@ -82,7 +93,6 @@ pub async fn login(
         token,
         user: user.into(),
     }))
-    
 }
 
 pub async fn me(
@@ -91,5 +101,3 @@ pub async fn me(
 ) -> Result<Json<UserResponse>, (StatusCode, String)> {
     Ok(Json(user.into()))
 }
-
-

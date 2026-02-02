@@ -28,8 +28,14 @@ api.interceptors.request.use(
 
 // Service d'authentification
 export const authService = {
-  register: async (email, password) => {
-    const response = await api.post('/auth/register', { email, password });
+  register: async (email, password, firstName, lastName, username) => {
+    const response = await api.post('/auth/register', { 
+      email, 
+      password,
+      first_name: firstName,
+      last_name: lastName,
+      username
+    });
     if (typeof window !== 'undefined' && response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
