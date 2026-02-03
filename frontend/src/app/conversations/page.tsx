@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const servers = [
@@ -61,15 +61,41 @@ const messages = [
 export default function ConversationsPage() {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const isAuthed = localStorage.getItem("nexus-auth") === "true";
+    const isAuthed = !!localStorage.getItem("token");
     if (!isAuthed) {
       router.replace("/connexion");
       return;
     }
     setIsReady(true);
   }, [router]);
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/");
+  };
+
+  const handleSwitchAccount = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    router.push("/connexion");
+  };
 
   if (!isReady) {
     return (
@@ -88,9 +114,69 @@ export default function ConversationsPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-none flex-wrap items-center justify-between gap-4 px-8 py-6 md:px-12">
+      <header className="relative z-30 mx-auto flex w-full max-w-none flex-wrap items-center justify-between gap-4 px-8 py-6 md:px-12">
         <div className="flex items-center gap-3">
-          <img src="/logo.svg" alt="Logo Nexus" className="h-10 w-auto" />
+          <div className="relative z-20" ref={menuRef}>
+            <button
+              className="flex items-center gap-3 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              type="button"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--brand-1)]">
+                <svg
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M20 21a8 8 0 0 0-16 0"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </span>
+              Profil
+            </button>
+
+            {isMenuOpen ? (
+              <div className="absolute left-0 z-50 mt-3 w-56 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-2 text-sm shadow-[0_14px_30px_rgba(6,10,20,0.55)]">
+                <button
+                  className="w-full rounded-xl px-3 py-2 text-left text-slate-200 transition hover:bg-[var(--surface-strong)]"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    router.push("/inscription");
+                  }}
+                  type="button"
+                >
+                  Modifier le compte
+                </button>
+                <button
+                  className="w-full rounded-xl px-3 py-2 text-left text-slate-200 transition hover:bg-[var(--surface-strong)]"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleSwitchAccount();
+                  }}
+                  type="button"
+                >
+                  Changer de compte
+                </button>
+                <button
+                  className="w-full rounded-xl px-3 py-2 text-left text-rose-200 transition hover:bg-[rgba(255,77,255,0.12)]"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    handleLogout();
+                  }}
+                  type="button"
+                >
+                  Deconnexion
+                </button>
+              </div>
+            ) : null}
+          </div>
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
               Conversations
