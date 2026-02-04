@@ -1,4 +1,5 @@
 mod db;
+mod websocket;
 mod models;
 mod routes;
 mod utils;
@@ -11,6 +12,7 @@ use axum::{
     middleware,
 };
 use std::net::SocketAddr;
+use websocket::AppState;
 use tower_http::cors::{CorsLayer, Any};
 use crate::state::AppState;
 
@@ -53,6 +55,17 @@ async fn main() {
             utils::auth::auth_middleware,
         ));
     
+    println!("Connecté à PostgreSQL");
+
+    // Créer l'état partagé pour les WebSockets
+    let ws_state = AppState::new();
+    
+    // Router avec 2 routes de test + WebSocket
+    let app = Router::new()
+        .route("/", get(|| async { "Backend fonctionne !" }))
+        .route("/health", get(|| async { "OK" }))
+        .route("/ws", get(websocket::websocket_handler))
+        .with_state(ws_state);
     // 6. Routes servers (de ton ami)
     let server_routes = Router::new()
         .nest("/servers", modules::servers::router());
@@ -73,6 +86,8 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or("3001".to_string());
     let addr = SocketAddr::from(([0, 0, 0, 0], port.parse::<u16>().unwrap()));
     
+    println!("Serveur lancé sur http://localhost:{}", port);
+    println!("WebSocket disponible sur ws://localhost:{}/ws", port);
     println!(" Serveur lancé sur http://localhost:{}", port);
     println!(" Routes disponibles :");
     println!("   GET  /");

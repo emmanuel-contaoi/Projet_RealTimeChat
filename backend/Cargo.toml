@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Framework web (AXUM - choisi pour le projet)
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
 # --- Serveur Web (Axum) ---
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
@@ -27,3 +30,6 @@ dotenv = "0.15"
 # --- Sécurité ---
 jsonwebtoken = "9"
 bcrypt = "0.15"
+
+# WebSocket
+futures = "0.3"
