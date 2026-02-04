@@ -7,10 +7,7 @@ edition = "2021"
 # Framework web (AXUM - choisi pour le projet)
 axum = { version = "0.8", features = ["ws"] }
 tower-http = { version = "0.6", features = ["cors"] }
-# --- Serveur Web (Axum) ---
-axum = "0.8"
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.5", features = ["cors"] }
 
 # --- Base de données SQL (Postgres) ---
 sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres", "uuid", "chrono", "macros"] }
@@ -30,6 +27,3 @@ dotenv = "0.15"
 # --- Sécurité ---
 jsonwebtoken = "9"
 bcrypt = "0.15"
-
-# WebSocket
-futures = "0.3"

@@ -12,7 +12,6 @@ use axum::{
     middleware,
 };
 use std::net::SocketAddr;
-use websocket::AppState;
 use tower_http::cors::{CorsLayer, Any};
 use crate::state::AppState;
 
@@ -25,24 +24,28 @@ async fn main() {
         .expect("DATABASE_URL doit être défini dans .env");
     
     let pool = sqlx::postgres::PgPoolOptions::new()
-    .max_connections(5)
-    .connect(&database_url)
-    .await
-    .expect("Impossible de se connecter à PostgreSQL");
-
+        .max_connections(5)
+        .connect(&database_url)
+        .await
+        .expect("Impossible de se connecter à PostgreSQL");
+    
+    println!("Connecté à PostgreSQL");
     
     // 2. Connexion MongoDB
     let mongo_client = db::mongo::init_mongo().await;
+    println!("Connecté à MongoDB");
     
-    // 3. Création du State global
+    // 3. Création du State global (pour auth + serveurs + WebSocket)
     let state = AppState {
         pool: pool.clone(),
         mongo: mongo_client,
+        connections: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
+        room_manager: std::sync::Arc::new(tokio::sync::Mutex::new(websocket::rooms::RoomManager::new())),
     };
     
     // 4. Routes publiques (sans authentification)
     let public_routes = Router::new()
-        .route("/", get(|| async { " Backend fonctionne !" }))
+        .route("/", get(|| async { "Backend RTC fonctionne !" }))
         .route("/health", get(|| async { "OK" }))
         .route("/auth/register", post(routes::auth::register))
         .route("/auth/login", post(routes::auth::login));
@@ -51,30 +54,24 @@ async fn main() {
     let protected_routes = Router::new()
         .route("/auth/me", get(routes::auth::me))
         .layer(middleware::from_fn_with_state(
-            pool.clone(),
+            state.clone(),
             utils::auth::auth_middleware,
-        ));
+        )); 
     
-    println!("Connecté à PostgreSQL");
-
-    // Créer l'état partagé pour les WebSockets
-    let ws_state = AppState::new();
-    
-    // Router avec 2 routes de test + WebSocket
-    let app = Router::new()
-        .route("/", get(|| async { "Backend fonctionne !" }))
-        .route("/health", get(|| async { "OK" }))
-        .route("/ws", get(websocket::websocket_handler))
-        .with_state(ws_state);
-    // 6. Routes servers (de ton ami)
+    // 6. Routes servers
     let server_routes = Router::new()
         .nest("/servers", modules::servers::router());
     
-    // 7. Combiner toutes les routes
+    // 7. Route WebSocket
+    let ws_route = Router::new()
+        .route("/ws", get(websocket::websocket_handler));
+    
+    // 8. Combiner toutes les routes
     let app = Router::new()
         .merge(public_routes)
         .merge(protected_routes)
         .merge(server_routes)
+        .merge(ws_route)
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -88,14 +85,14 @@ async fn main() {
     
     println!("Serveur lancé sur http://localhost:{}", port);
     println!("WebSocket disponible sur ws://localhost:{}/ws", port);
-    println!(" Serveur lancé sur http://localhost:{}", port);
-    println!(" Routes disponibles :");
-    println!("   GET  /");
-    println!("   GET  /health");
-    println!("   POST /auth/register");
-    println!("   POST /auth/login");
-    println!("   GET  /auth/me (protégée)");
-    println!("   *    /servers/* (routes serveurs)");
+    println!("Routes disponibles :");
+    println!("   GET    /");
+    println!("   GET    /health");
+    println!("   POST   /auth/register");
+    println!("   POST   /auth/login");
+    println!("   GET    /auth/me (protégée)");
+    println!("   *      /servers/* (routes serveurs)");
+    println!("   WS     /ws (WebSocket)");
     
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

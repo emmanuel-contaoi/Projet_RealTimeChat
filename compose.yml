@@ -1,42 +1,19 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: rtc_postgres
-    environment:
-      POSTGRES_DB: rtc_db
-      POSTGRES_USER: rtc_user
-      POSTGRES_PASSWORD: rtc_password
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rtc_frontend
     ports:
-      - "5432:5432"
+      - "3000:3000"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
     networks:
       - rtc_network
-    healthcheck:
-    # Vérifie que PostgreSQL est prêt à accepter des connexions
-    # Évite les erreurs "connexion refusé" au démarrage du backend
-      test: ["CMD-SHELL", "pg_isready -U rtc_user -d rtc_db"]
-      interval: 10s      # Vérifie toutes les 10 secondes
-      timeout: 5s        # Max 5 secondes pour répondre
-      retries: 5         # 5 essais avant de considérer comme "unhealthy"
-
-  mongodb:
-    image: mongo:7
-    container_name: rtc_mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: rtc_user
-      MONGO_INITDB_ROOT_PASSWORD: rtc_password
-      MONGO_INITDB_DATABASE: rtc_messages
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - rtc_network
-
-volumes:
-  postgres_data:
-  mongodb_data:
 
   postgres:
     image: postgres:16
