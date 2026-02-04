@@ -12,11 +12,14 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://host.docker.internal:3001
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - rtc_network
 
   postgres:
-    image: postgres:16
+    image: postgres:15
     container_name: rtc_postgres
     environment:
       POSTGRES_USER: rtc
@@ -28,7 +31,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/migrations/seed.sql:/docker-entrypoint-initdb.d/seed.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rtc_user -d rtc_db"]
+      test: ["CMD-SHELL", "pg_isready -U rtc -d rtc_db"]
       interval: 5s
       timeout: 5s
       retries: 5
