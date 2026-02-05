@@ -8,15 +8,17 @@ use uuid::Uuid;
 use mongodb::bson::doc;
 use futures::stream::TryStreamExt;
 
-// Imports de tes modules
+// Imports des modules
 use crate::state::AppState;
+// UpdateChannelRequest et CreateMessageRequest
 use crate::modules::servers::models::{
-    CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest, Message
+    CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest, 
+    Message, UpdateChannelRequest, CreateMessageRequest
 };
 
 const HARDCODED_USER_ID: &str = "11111111-1111-1111-1111-111111111111";
 
-// --- Route 1 : CRÉER SERVEUR ---
+// Route 1 : CRÉER SERVEUR 
 pub async fn create_server(
     State(state): State<AppState>, 
     Json(payload): Json<CreateServerRequest>,
@@ -52,7 +54,7 @@ pub async fn create_server(
     }
 }
 
-// --- Route 2 : LISTER SERVEURS ---
+// LISTER SERVEURS ---
 pub async fn list_servers(
     State(state): State<AppState>,  
 ) -> impl IntoResponse {
@@ -76,7 +78,7 @@ pub async fn list_servers(
     }
 }
 
-// --- Route 3 : CRÉER SALON ---
+//  CRÉER SALON 
 pub async fn create_channel(
     State(state): State<AppState>,
     Path(server_id): Path<Uuid>, 
@@ -101,7 +103,7 @@ pub async fn create_channel(
     }
 }
 
-// --- Route 4 : LISTER SALONS ---
+// LISTER SALONS
 pub async fn list_channels(
     State(state): State<AppState>,
     Path(server_id): Path<Uuid>,
@@ -123,7 +125,7 @@ pub async fn list_channels(
     }
 }
 
-// --- Route 5 : REJOINDRE SERVEUR ---
+//  REJOINDRE SERVEUR 
 pub async fn join_server(
     State(state): State<AppState>, 
     Json(payload): Json<JoinServerRequest>,
@@ -164,7 +166,7 @@ pub async fn join_server(
     }
 }
 
-// --- Route 6 : HISTORIQUE MONGO ---
+//  HISTORIQUE MONGO 
 pub async fn get_chat_history(
     State(state): State<AppState>, 
     Path(channel_id): Path<Uuid>,
@@ -190,4 +192,80 @@ pub async fn get_chat_history(
     }
 
     (StatusCode::OK, Json(messages)).into_response()
+}
+
+
+// GET /channels/:id (Détails d'un salon)
+pub async fn get_channel(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let channel = sqlx::query_as::<_, Channel>("SELECT * FROM channels WHERE id = $1")
+        .bind(channel_id)
+        .fetch_optional(&state.pool)
+        .await;
+
+    match channel {
+        Ok(Some(c)) => (StatusCode::OK, Json(c)).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "Salon introuvable").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erreur SQL").into_response(),
+    }
+}
+
+// PUT channels/
+pub async fn update_channel(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+    Json(payload): Json<UpdateChannelRequest>,
+) -> impl IntoResponse {
+    let updated = sqlx::query_as::<_, Channel>(
+        "UPDATE channels SET name = $1, type = COALESCE($2, type) WHERE id = $3 RETURNING *"
+    )
+    .bind(&payload.name)
+    .bind(&payload.r#type)
+    .bind(channel_id)
+    .fetch_optional(&state.pool)
+    .await;
+
+    match updated {
+        Ok(Some(c)) => (StatusCode::OK, Json(c)).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "Salon introuvable").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erreur modification").into_response(),
+    }
+}
+
+// DELETE channels
+pub async fn delete_channel(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let result = sqlx::query("DELETE FROM channels WHERE id = $1")
+        .bind(channel_id)
+        .execute(&state.pool)
+        .await;
+
+    match result {
+        Ok(_) => (StatusCode::NO_CONTENT, ()).into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response(),
+    }
+}
+
+pub async fn send_message(
+    State(state): State<AppState>,
+    Path(channel_id): Path<Uuid>,
+    Json(payload): Json<CreateMessageRequest>,
+) -> impl IntoResponse {
+    let collection = state.mongo.database("chat").collection::<Message>("messages");
+
+    let new_message = Message {
+        channel_id: channel_id.to_string(),
+        user_id: payload.user_id,
+        content: payload.content,
+        username: payload.username,
+    };
+
+    match collection.insert_one(new_message, None).await {
+        Ok(_) => (StatusCode::CREATED, "Message envoyé").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erreur Mongo").into_response(),
+    }
 }

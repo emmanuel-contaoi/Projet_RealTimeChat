@@ -49,3 +49,17 @@ pub struct Message {
     pub content: String,
     pub username: String,
 }
+
+
+#[derive(Deserialize)]
+pub struct UpdateChannelRequest {
+    pub name: String,
+    pub r#type: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct CreateMessageRequest {
+    pub content: String,
+    pub user_id: String,
+    pub username: String,
+}
