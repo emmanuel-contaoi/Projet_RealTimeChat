@@ -2,18 +2,56 @@ type ChannelsPanelProps = {
   channels: string[];
   selectedChannel: string;
   onSelectChannel: (channel: string) => void;
+  onAddMember?: () => void;
 };
 
 export default function ChannelsPanel({
   channels,
   selectedChannel,
   onSelectChannel,
+  onAddMember,
 }: ChannelsPanelProps) {
   return (
     <section className="h-full rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-white">Channels</p>
-        <span className="text-xs text-slate-400">{channels.length}</span>
+        <button
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-[var(--brand-1)] transition hover:-translate-y-0.5 hover:bg-[var(--surface)]"
+          onClick={onAddMember}
+          type="button"
+          aria-label="Ajouter un ami au serveur"
+          title="Ajouter un ami"
+        >
+          <svg
+            aria-hidden="true"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M6 21v-2a4 4 0 0 1 4 -4h4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M16 19h6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M19 16v6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
       </div>
       <div className="mt-4 flex flex-col gap-2">
         {channels.length ? (

@@ -4,7 +4,9 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { friendsService } from "@/services/api";
 import AddChannelModal from "./components/AddChannelModal";
+import AddServerMemberModal from "./components/AddServerMemberModal";
 import ChannelsPanel from "./components/ChannelsPanel";
 import ChatPanel from "./components/ChatPanel";
 import ConversationsHeader from "./components/ConversationsHeader";
@@ -29,9 +31,7 @@ export default function ConversationsPage() {
     initialServers[0]?.channels?.[0] ?? ""
   );
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
-  const [selectedFriend, setSelectedFriend] = useState(
-    initialFriends[0]?.name ?? ""
-  );
+  const [selectedFriend, setSelectedFriend] = useState("");
   const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
   const [friendSearch, setFriendSearch] = useState("");
   const [friendResults, setFriendResults] = useState<UserSearchResult[]>([]);
@@ -45,6 +45,10 @@ export default function ConversationsPage() {
   const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [channelList, setChannelList] = useState<string[]>([]);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [serverMembers, setServerMembers] = useState<Record<string, string[]>>(
+    {}
+  );
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -111,28 +115,71 @@ export default function ConversationsPage() {
     setSelectedFriend(friendName);
   };
 
-  const handleRemoveFriend = (friendName: string) => {
-    setFriendList((prev) => prev.filter((friend) => friend.name !== friendName));
+  const handleRemoveFriend = async (friendId: string) => {
+    try {
+      await friendsService.remove(friendId);
+      setFriendList((prev) => prev.filter((friend) => friend.id !== friendId));
+    } catch (error) {
+      setFriendSearchError("Impossible de supprimer cet ami.");
+    }
   };
 
-  const handleAddFriend = (user: UserSearchResult) => {
-    const label = formatUserLabel(user);
-    setFriendList((prev) => {
-      if (
-        prev.some((friend) => friend.name.toLowerCase() === label.toLowerCase())
-      ) {
+  const handleAddFriend = async (user: UserSearchResult) => {
+    try {
+      const added = await friendsService.add(user.id);
+      const label = formatUserLabel(added);
+      setFriendList((prev) => {
+        if (prev.some((friend) => friend.id === added.id)) {
+          return prev;
+        }
+        return [
+          ...prev,
+          { id: added.id, name: label, status: "Actif", lastMessage: "" },
+        ];
+      });
+      setSelectedFriend(label);
+      setFriendSearch("");
+      setFriendResults([]);
+      setFriendSearchError("");
+    } catch (error) {
+      setFriendSearchError("Impossible d'ajouter cet ami.");
+    }
+  };
+
+  const handleAddServerMember = (friendId: string) => {
+    if (!selectedServer) return;
+    setServerMembers((prev) => {
+      const current = prev[selectedServer] ?? [];
+      if (current.includes(friendId)) {
         return prev;
       }
-      return [
+      return {
         ...prev,
-        { name: label, status: "Nouveau", lastMessage: "Demande envoyee." },
-      ];
+        [selectedServer]: [...current, friendId],
+      };
     });
-    setSelectedFriend(label);
-    setFriendSearch("");
-    setFriendResults([]);
-    setFriendSearchError("");
   };
+
+  useEffect(() => {
+    if (!isReady) return;
+    (async () => {
+      try {
+        const data = await friendsService.list();
+        const mapped = data.map((user: UserSearchResult) => ({
+          id: user.id,
+          name: formatUserLabel(user),
+          status: "Actif",
+          lastMessage: "",
+        }));
+        setFriendList(mapped);
+        if (!selectedFriend && mapped.length) {
+          setSelectedFriend(mapped[0].name);
+        }
+      } catch (error) {
+        setFriendSearchError("Impossible de charger la liste d'amis.");
+      }
+    })();
+  }, [isReady]);
 
   useEffect(() => {
     const channels = getServerChannels(selectedServer);
@@ -275,6 +322,9 @@ export default function ConversationsPage() {
   }
 
   const channelsForServer = getServerChannels(selectedServer);
+  const currentServerMembers = selectedServer
+    ? serverMembers[selectedServer] ?? []
+    : [];
   const currentMessages = selectedChannel
     ? channelMessages[selectedChannel] ?? []
     : [];
@@ -318,6 +368,7 @@ export default function ConversationsPage() {
             channels={channelsForServer}
             selectedChannel={selectedChannel}
             onSelectChannel={setSelectedChannel}
+            onAddMember={() => setIsAddMemberOpen(true)}
           />
         ) : null}
 
@@ -359,6 +410,15 @@ export default function ConversationsPage() {
         onClose={() => setIsAddChannelOpen(false)}
         onChannelNameChange={setNewChannelName}
         onSubmit={handleAddChannel}
+      />
+
+      <AddServerMemberModal
+        isOpen={isAddMemberOpen}
+        serverName={selectedServer}
+        friends={friendList}
+        members={currentServerMembers}
+        onClose={() => setIsAddMemberOpen(false)}
+        onAddMember={handleAddServerMember}
       />
     </div>
   );

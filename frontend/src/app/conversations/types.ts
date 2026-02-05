@@ -6,6 +6,7 @@ export type Server = {
 };
 
 export type Friend = {
+  id: string;
   name: string;
   status: string;
   lastMessage: string;

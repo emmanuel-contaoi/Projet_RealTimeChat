@@ -15,23 +15,7 @@ export const initialServers: Server[] = [
   },
 ];
 
-export const initialFriends: Friend[] = [
-  {
-    name: "Alex",
-    status: "En ligne",
-    lastMessage: "Salut !",
-  },
-  {
-    name: "Sarah",
-    status: "Actif",
-    lastMessage: "Tu es dispo ce soir ?",
-  },
-  {
-    name: "Nina",
-    status: "Absent",
-    lastMessage: "Je te reponds plus tard.",
-  },
-];
+export const initialFriends: Friend[] = [];
 
 export const channelMessages: Record<string, ChannelMessage[]> = {
   general: [

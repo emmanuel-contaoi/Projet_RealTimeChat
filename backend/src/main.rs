@@ -8,7 +8,7 @@ mod state;
 
 use axum::{
     Router,
-    routing::{get, post},
+    routing::{get, post, delete},
     middleware,
 };
 use std::net::SocketAddr;
@@ -55,6 +55,8 @@ async fn main() {
         .route("/auth/me", get(routes::auth::me))
         .route("/users/search", get(routes::users::search_users))
         .route("/users", get(routes::users::list_users))
+        .route("/friends", get(routes::friends::list_friends).post(routes::friends::add_friend))
+        .route("/friends/{friend_id}", delete(routes::friends::remove_friend))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             utils::auth::auth_middleware,
