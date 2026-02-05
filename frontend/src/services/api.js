@@ -80,4 +80,20 @@ export const authService = {
   },
 };
 
+export const friendsService = {
+  list: async () => {
+    const response = await api.get('/friends');
+    return response.data;
+  },
+
+  add: async (friendId) => {
+    const response = await api.post('/friends', { friend_id: friendId });
+    return response.data;
+  },
+
+  remove: async (friendId) => {
+    await api.delete(`/friends/${friendId}`);
+  },
+};
+
 export default api;

@@ -12,7 +12,7 @@ type SidebarProps = {
   onSelectServer: (serverName: string) => void;
   onCreateServer: () => void;
   onSelectFriend: (friendName: string) => void;
-  onRemoveFriend: (friendName: string) => void;
+  onRemoveFriend: (friendId: string) => void;
 };
 
 export default function Sidebar({

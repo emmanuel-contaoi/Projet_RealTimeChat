@@ -4,7 +4,7 @@ type FriendListProps = {
   friendList: Friend[];
   selectedFriend: string;
   onSelectFriend: (friendName: string) => void;
-  onRemoveFriend: (friendName: string) => void;
+  onRemoveFriend: (friendId: string) => void;
 };
 
 export default function FriendList({
@@ -17,7 +17,7 @@ export default function FriendList({
     <div className="mt-4 flex flex-col gap-3">
       {friendList.map((friend) => (
         <div
-          key={friend.name}
+          key={friend.id}
           className={`flex cursor-pointer flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition ${
             selectedFriend === friend.name
               ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.12)]"
@@ -42,7 +42,7 @@ export default function FriendList({
                 className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface)] text-slate-300 transition hover:bg-[rgba(255,77,255,0.12)]"
                 onClick={(event) => {
                   event.stopPropagation();
-                  onRemoveFriend(friend.name);
+                  onRemoveFriend(friend.id);
                 }}
                 type="button"
                 aria-label={`Supprimer ${friend.name}`}
