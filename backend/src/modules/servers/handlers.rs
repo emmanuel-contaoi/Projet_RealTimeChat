@@ -3,7 +3,6 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json},
 };
-use sqlx::PgPool;
 use uuid::Uuid;
 // Imports pour MongoDB
 use mongodb::bson::doc;
@@ -19,7 +18,7 @@ const HARDCODED_USER_ID: &str = "11111111-1111-1111-1111-111111111111";
 
 // --- Route 1 : CRÉER SERVEUR ---
 pub async fn create_server(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>, 
     Json(payload): Json<CreateServerRequest>,
 ) -> impl IntoResponse {
     
@@ -31,7 +30,7 @@ pub async fn create_server(
     )
     .bind(&payload.name)
     .bind(&invite_code)
-    .fetch_one(&pool)
+    .fetch_one(&state.pool) 
     .await;
 
     match new_server {
@@ -41,7 +40,7 @@ pub async fn create_server(
             )
             .bind(server.id)
             .bind(user_id)
-            .execute(&pool)
+            .execute(&state.pool)
             .await;
 
             (StatusCode::CREATED, Json(server)).into_response()
@@ -55,7 +54,7 @@ pub async fn create_server(
 
 // --- Route 2 : LISTER SERVEURS ---
 pub async fn list_servers(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,  
 ) -> impl IntoResponse {
     let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
 
@@ -65,7 +64,7 @@ pub async fn list_servers(
          WHERE m.user_id = $1"
     )
     .bind(user_id)
-    .fetch_all(&pool)
+    .fetch_all(&state.pool) 
     .await;
 
     match servers {
@@ -79,7 +78,7 @@ pub async fn list_servers(
 
 // --- Route 3 : CRÉER SALON ---
 pub async fn create_channel(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Path(server_id): Path<Uuid>, 
     Json(payload): Json<CreateChannelRequest>,
 ) -> impl IntoResponse {
@@ -90,7 +89,7 @@ pub async fn create_channel(
     .bind(server_id)
     .bind(&payload.name)
     .bind(&payload.r#type) 
-    .fetch_one(&pool)
+    .fetch_one(&state.pool)  
     .await;
 
     match new_channel {
@@ -104,7 +103,7 @@ pub async fn create_channel(
 
 // --- Route 4 : LISTER SALONS ---
 pub async fn list_channels(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse {
     
@@ -112,7 +111,7 @@ pub async fn list_channels(
         "SELECT * FROM channels WHERE server_id = $1"
     )
     .bind(server_id)
-    .fetch_all(&pool)
+    .fetch_all(&state.pool) 
     .await;
 
     match channels {
@@ -126,7 +125,7 @@ pub async fn list_channels(
 
 // --- Route 5 : REJOINDRE SERVEUR ---
 pub async fn join_server(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>, 
     Json(payload): Json<JoinServerRequest>,
 ) -> impl IntoResponse {
     let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
@@ -135,7 +134,7 @@ pub async fn join_server(
         "SELECT * FROM servers WHERE invite_code = $1"
     )
     .bind(&payload.invite_code)
-    .fetch_optional(&pool) 
+    .fetch_optional(&state.pool) 
     .await;
 
     match server {
@@ -146,7 +145,7 @@ pub async fn join_server(
             )
             .bind(server.id)
             .bind(user_id)
-            .execute(&pool)
+            .execute(&state.pool)
             .await;
 
             match result {
@@ -165,9 +164,9 @@ pub async fn join_server(
     }
 }
 
-// --- Route 6 : HISTORIQUE MONGO (Celle qui manquait !) ---
+// --- Route 6 : HISTORIQUE MONGO ---
 pub async fn get_chat_history(
-    State(state): State<AppState>,
+    State(state): State<AppState>, 
     Path(channel_id): Path<Uuid>,
 ) -> impl IntoResponse {
     

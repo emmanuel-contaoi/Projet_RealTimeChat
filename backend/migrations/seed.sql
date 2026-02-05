@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Table des amis
+CREATE TABLE IF NOT EXISTS user_friends (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, friend_id),
+    CHECK (user_id <> friend_id)
+);
+
 -- Utilisateur de test
 -- Email: test@example.com
 -- Password: password123

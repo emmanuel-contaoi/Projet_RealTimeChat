@@ -2,7 +2,7 @@
 
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
 // Instance axios
 const api = axios.create({
@@ -77,6 +77,22 @@ export const authService = {
       return user ? JSON.parse(user) : null;
     }
     return null;
+  },
+};
+
+export const friendsService = {
+  list: async () => {
+    const response = await api.get('/friends');
+    return response.data;
+  },
+
+  add: async (friendId) => {
+    const response = await api.post('/friends', { friend_id: friendId });
+    return response.data;
+  },
+
+  remove: async (friendId) => {
+    await api.delete(`/friends/${friendId}`);
   },
 };
 

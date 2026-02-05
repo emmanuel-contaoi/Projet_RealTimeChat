@@ -57,3 +57,9 @@ impl From<User> for UserResponse {
         }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Claims {
+    pub user_id: uuid::Uuid,
+    pub exp: i64,
+}

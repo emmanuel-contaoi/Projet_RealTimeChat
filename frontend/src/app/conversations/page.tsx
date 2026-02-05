@@ -1,67 +1,54 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const servers = [
-  {
-    name: "Gaming",
-    members: "120 membres",
-    status: "En ligne",
-  },
-  {
-    name: "Travail",
-    members: "45 membres",
-    status: "Actif",
-  },
-];
-
-const conversations = [
-  {
-    title: "Chat gaming",
-    preview: "Salut",
-    time: "Il y a 2 min",
-    badge: "1",
-  },
-  {
-    title: "Bureau",
-    preview: "Bonjour",
-    time: "Il y a 12 min",
-    badge: null,
-  },
-  {
-    title: "Amis",
-    preview: "Tu veux jouer ce soir ?",
-    time: "Il y a 1 h",
-    badge: "2",
-  },
-];
-
-const messages = [
-  {
-    sender: "Alex",
-    text: "Salut !",
-    time: "18:42",
-    me: false,
-  },
-  {
-    sender: "Moi",
-    text: "Salut, tu veux jouer ?",
-    time: "18:43",
-    me: true,
-  },
-  {
-    sender: "Alex",
-    text: "Oui, une petite partie ?",
-    time: "18:44",
-    me: false,
-  },
-];
+import { friendsService } from "@/services/api";
+import AddChannelModal from "./components/AddChannelModal";
+import AddServerMemberModal from "./components/AddServerMemberModal";
+import ChannelsPanel from "./components/ChannelsPanel";
+import ChatPanel from "./components/ChatPanel";
+import ConversationsHeader from "./components/ConversationsHeader";
+import CreateServerModal from "./components/CreateServerModal";
+import FriendsPanel from "./components/FriendsPanel";
+import LoadingScreen from "./components/LoadingScreen";
+import Sidebar from "./components/Sidebar";
+import { channelMessages, initialFriends, initialServers } from "./data/mockData";
+import type { UserSearchResult } from "./types";
+import { formatUserLabel } from "./utils";
 
 export default function ConversationsPage() {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [serverList, setServerList] = useState(initialServers);
+  const [friendList, setFriendList] = useState(initialFriends);
+  const [selectedServer, setSelectedServer] = useState(
+    initialServers[0]?.name ?? ""
+  );
+  const [selectedChannel, setSelectedChannel] = useState(
+    initialServers[0]?.channels?.[0] ?? ""
+  );
+  const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
+  const [selectedFriend, setSelectedFriend] = useState("");
+  const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
+  const [friendSearch, setFriendSearch] = useState("");
+  const [friendResults, setFriendResults] = useState<UserSearchResult[]>([]);
+  const [allUsers, setAllUsers] = useState<UserSearchResult[]>([]);
+  const [allUsersLoading, setAllUsersLoading] = useState(false);
+  const [friendSearchLoading, setFriendSearchLoading] = useState(false);
+  const [friendSearchError, setFriendSearchError] = useState("");
+  const [newServerName, setNewServerName] = useState("");
+  const [newServerMembers, setNewServerMembers] = useState("");
+  const [newServerStatus, setNewServerStatus] = useState("Actif");
+  const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [channelList, setChannelList] = useState<string[]>([]);
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [serverMembers, setServerMembers] = useState<Record<string, string[]>>(
+    {}
+  );
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,231 +84,342 @@ export default function ConversationsPage() {
     router.push("/connexion");
   };
 
+  const handleEditProfile = () => {
+    setIsMenuOpen(false);
+    router.push("/inscription");
+  };
+
+  const handleMenuSwitchAccount = () => {
+    setIsMenuOpen(false);
+    handleSwitchAccount();
+  };
+
+  const handleMenuLogout = () => {
+    setIsMenuOpen(false);
+    handleLogout();
+  };
+
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
+
+  const getServerChannels = (serverName: string) =>
+    serverList.find((server) => server.name === serverName)?.channels ?? [];
+
+  const handleSelectServer = (serverName: string) => {
+    setSelectedServer(serverName);
+    const channels = getServerChannels(serverName);
+    setSelectedChannel(channels[0] ?? "");
+  };
+
+  const handleSelectFriend = (friendName: string) => {
+    setSelectedFriend(friendName);
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
+    try {
+      await friendsService.remove(friendId);
+      setFriendList((prev) => prev.filter((friend) => friend.id !== friendId));
+    } catch (error) {
+      setFriendSearchError("Impossible de supprimer cet ami.");
+    }
+  };
+
+  const handleAddFriend = async (user: UserSearchResult) => {
+    try {
+      const added = await friendsService.add(user.id);
+      const label = formatUserLabel(added);
+      setFriendList((prev) => {
+        if (prev.some((friend) => friend.id === added.id)) {
+          return prev;
+        }
+        return [
+          ...prev,
+          { id: added.id, name: label, status: "Actif", lastMessage: "" },
+        ];
+      });
+      setSelectedFriend(label);
+      setFriendSearch("");
+      setFriendResults([]);
+      setFriendSearchError("");
+    } catch (error) {
+      setFriendSearchError("Impossible d'ajouter cet ami.");
+    }
+  };
+
+  const handleAddServerMember = (friendId: string) => {
+    if (!selectedServer) return;
+    setServerMembers((prev) => {
+      const current = prev[selectedServer] ?? [];
+      if (current.includes(friendId)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [selectedServer]: [...current, friendId],
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (!isReady) return;
+    (async () => {
+      try {
+        const data = await friendsService.list();
+        const mapped = data.map((user: UserSearchResult) => ({
+          id: user.id,
+          name: formatUserLabel(user),
+          status: "Actif",
+          lastMessage: "",
+        }));
+        setFriendList(mapped);
+        if (!selectedFriend && mapped.length) {
+          setSelectedFriend(mapped[0].name);
+        }
+      } catch (error) {
+        setFriendSearchError("Impossible de charger la liste d'amis.");
+      }
+    })();
+  }, [isReady]);
+
+  useEffect(() => {
+    const channels = getServerChannels(selectedServer);
+    if (!channels.length) {
+      setSelectedChannel("");
+      return;
+    }
+    if (!channels.includes(selectedChannel)) {
+      setSelectedChannel(channels[0]);
+    }
+  }, [selectedServer, selectedChannel, serverList]);
+
+  useEffect(() => {
+    if (activeTab !== "friends") return;
+    if (!friendList.length) {
+      setSelectedFriend("");
+      return;
+    }
+    if (!selectedFriend || !friendList.some((friend) => friend.name === selectedFriend)) {
+      setSelectedFriend(friendList[0].name);
+    }
+  }, [activeTab, selectedFriend, friendList]);
+
+  useEffect(() => {
+    if (activeTab !== "friends") return;
+    const query = friendSearch.trim();
+    if (!query) {
+      setFriendResults([]);
+      setFriendSearchError("");
+      if (!allUsers.length) {
+        const controller = new AbortController();
+        (async () => {
+          try {
+            setAllUsersLoading(true);
+            const token = localStorage.getItem("token");
+            const response = await fetch(`${apiBaseUrl}/users`, {
+              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              throw new Error("Chargement impossible.");
+            }
+            const data = (await response.json()) as UserSearchResult[];
+            setAllUsers(data);
+          } catch (error) {
+            if ((error as Error).name === "AbortError") return;
+            setFriendSearchError(
+              "Impossible de charger la liste des utilisateurs."
+            );
+          } finally {
+            setAllUsersLoading(false);
+          }
+        })();
+        return () => controller.abort();
+      }
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      try {
+        setFriendSearchLoading(true);
+        setFriendSearchError("");
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${apiBaseUrl}/users/search?q=${encodeURIComponent(query)}`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Recherche impossible.");
+        }
+
+        const data = (await response.json()) as UserSearchResult[];
+        setFriendResults(data);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setFriendSearchError("Impossible de charger les utilisateurs.");
+      } finally {
+        setFriendSearchLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [activeTab, apiBaseUrl, friendSearch, allUsers.length]);
+
+  const handleCreateServer = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = newServerName.trim();
+    if (!trimmedName) return;
+
+    const membersValue = newServerMembers.trim() || "1 membre";
+    const channelsValue = channelList.length ? channelList : ["general"];
+
+    const nextServer = {
+      name: trimmedName,
+      members: membersValue,
+      status: newServerStatus,
+      channels: channelsValue,
+    };
+
+    setServerList((prev) => [nextServer, ...prev]);
+    setSelectedServer(trimmedName);
+    setSelectedChannel(channelsValue[0] ?? "");
+    setIsCreateServerOpen(false);
+    setNewServerName("");
+    setNewServerMembers("");
+    setNewServerStatus("Actif");
+    setChannelList([]);
+  };
+
+  const handleAddChannel = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = newChannelName.trim();
+    if (!trimmedName) return;
+
+    setChannelList((prev) => {
+      if (
+        prev.some(
+          (channel) => channel.toLowerCase() === trimmedName.toLowerCase()
+        )
+      ) {
+        return prev;
+      }
+      return [...prev, trimmedName];
+    });
+
+    setNewChannelName("");
+    setIsAddChannelOpen(false);
+  };
+
   if (!isReady) {
-    return (
-      <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
-        <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-none items-center justify-center px-6">
-          <p className="text-sm text-slate-300">Chargement...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
+  const channelsForServer = getServerChannels(selectedServer);
+  const currentServerMembers = selectedServer
+    ? serverMembers[selectedServer] ?? []
+    : [];
+  const currentMessages = selectedChannel
+    ? channelMessages[selectedChannel] ?? []
+    : [];
+
   return (
-    <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+    <div className="relative flex h-screen min-h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
-      <header className="relative z-30 mx-auto flex w-full max-w-none flex-wrap items-center justify-between gap-4 px-8 py-6 md:px-12">
-        <div className="flex items-center gap-3">
-          <div className="relative z-20" ref={menuRef}>
-            <button
-              className="flex items-center gap-3 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]"
-              onClick={() => setIsMenuOpen((prev) => !prev)}
-              type="button"
-            >
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--brand-1)]">
-                <svg
-                  aria-hidden="true"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M20 21a8 8 0 0 0-16 0"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </span>
-              Profil
-            </button>
+      <ConversationsHeader
+        isMenuOpen={isMenuOpen}
+        menuRef={menuRef}
+        onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
+        onEditProfile={handleEditProfile}
+        onSwitchAccount={handleMenuSwitchAccount}
+        onLogout={handleMenuLogout}
+      />
 
-            {isMenuOpen ? (
-              <div className="absolute left-0 z-50 mt-3 w-56 rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-2 text-sm shadow-[0_14px_30px_rgba(6,10,20,0.55)]">
-                <button
-                  className="w-full rounded-xl px-3 py-2 text-left text-slate-200 transition hover:bg-[var(--surface-strong)]"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    router.push("/inscription");
-                  }}
-                  type="button"
-                >
-                  Modifier le compte
-                </button>
-                <button
-                  className="w-full rounded-xl px-3 py-2 text-left text-slate-200 transition hover:bg-[var(--surface-strong)]"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    handleSwitchAccount();
-                  }}
-                  type="button"
-                >
-                  Changer de compte
-                </button>
-                <button
-                  className="w-full rounded-xl px-3 py-2 text-left text-rose-200 transition hover:bg-[rgba(255,77,255,0.12)]"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    handleLogout();
-                  }}
-                  type="button"
-                >
-                  Deconnexion
-                </button>
-              </div>
-            ) : null}
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-              Conversations
-            </p>
-            <h1 className="font-display text-2xl text-white">
-              Serveurs et discussions
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 text-base font-semibold">
-          <a
-            className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-slate-200 transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]"
-            href="/"
-          >
-            Retour
-          </a>
-          <button className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-white shadow-[0_10px_24px_rgba(0,212,255,0.35)] transition hover:-translate-y-0.5">
-            Nouvelle discussion
-          </button>
-        </div>
-      </header>
+      <main
+        className={`relative z-10 grid w-full max-w-none flex-1 gap-6 px-8 pb-0 md:px-12 ${
+          activeTab === "friends"
+            ? "grid-cols-[320px_1fr]"
+            : "grid-cols-[260px_220px_1fr]"
+        }`}
+      >
+        <Sidebar
+          activeTab={activeTab}
+          serverList={serverList}
+          friendList={friendList}
+          selectedServer={selectedServer}
+          selectedFriend={selectedFriend}
+          onTabChange={setActiveTab}
+          onSelectServer={handleSelectServer}
+          onCreateServer={() => setIsCreateServerOpen(true)}
+          onSelectFriend={handleSelectFriend}
+          onRemoveFriend={handleRemoveFriend}
+        />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-none flex-col gap-6 px-8 pb-16 md:px-12">
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">Serveurs</p>
-              <span className="text-xs text-slate-400">
-                {servers.length} actifs
-              </span>
-            </div>
-            <div className="mt-4 flex flex-col gap-3">
-              {servers.map((server) => (
-                <div
-                  key={server.name}
-                  className="flex flex-col gap-2 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-white">
-                      {server.name}
-                    </p>
-                    <span className="rounded-full bg-[rgba(0,212,255,0.2)] px-2 py-1 text-[10px] font-semibold text-[var(--brand-1)]">
-                      {server.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-400">{server.members}</p>
-                </div>
-              ))}
-            </div>
-          </aside>
+        {activeTab === "servers" ? (
+          <ChannelsPanel
+            channels={channelsForServer}
+            selectedChannel={selectedChannel}
+            onSelectChannel={setSelectedChannel}
+            onAddMember={() => setIsAddMemberOpen(true)}
+          />
+        ) : null}
 
-          <section className="rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-6 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-white">
-                  Conversations
-                </p>
-                <p className="text-xs text-slate-400">
-                  Toutes tes discussions en un coup d'oeil
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 grid gap-6 lg:grid-cols-[260px_1fr]">
-              <div className="grid gap-3">
-                {conversations.map((conversation) => (
-                  <div
-                    key={conversation.title}
-                    className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-4"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {conversation.title}
-                      </p>
-                      <p className="text-xs text-slate-300">
-                        {conversation.preview}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span>{conversation.time}</span>
-                      {conversation.badge ? (
-                        <span className="rounded-full bg-[var(--brand-2)] px-2 py-1 text-[10px] font-semibold text-white">
-                          {conversation.badge}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex h-full flex-col rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)]">
-                <div className="flex items-center justify-between border-b border-[var(--stroke)] px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-white">
-                      Chat gaming
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      En ligne il y a 2 min
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-[rgba(0,212,255,0.2)] px-2 py-1 text-[10px] font-semibold text-[var(--brand-1)]">
-                    Actif
-                  </span>
-                </div>
-
-                <div className="flex flex-1 flex-col gap-3 px-4 py-4">
-                  {messages.map((message, index) => (
-                    <div
-                      key={`${message.sender}-${index}`}
-                      className={`flex ${
-                        message.me ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-                          message.me
-                            ? "bg-[var(--brand-1)] text-slate-900"
-                            : "bg-[var(--surface)] text-slate-200"
-                        }`}
-                      >
-                        <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                          {message.sender}
-                        </p>
-                        <p>{message.text}</p>
-                        <p className="mt-1 text-[10px] text-slate-400">
-                          {message.time}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-3 border-t border-[var(--stroke)] px-4 py-3">
-                  <div className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-3 text-xs text-slate-400">
-                    Ecris un message...
-                  </div>
-                  <button className="rounded-full bg-[var(--brand-1)] px-5 py-2.5 text-sm font-semibold text-slate-900">
-                    Envoyer
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
+        {activeTab === "servers" ? (
+          <ChatPanel
+            selectedChannel={selectedChannel}
+            selectedServer={selectedServer}
+            messages={currentMessages}
+          />
+        ) : (
+          <FriendsPanel
+            friendSearch={friendSearch}
+            onFriendSearchChange={setFriendSearch}
+            friendSearchError={friendSearchError}
+            friendSearchLoading={friendSearchLoading}
+            friendResults={friendResults}
+            allUsersLoading={allUsersLoading}
+            allUsers={allUsers}
+            onAddFriend={handleAddFriend}
+          />
+        )}
       </main>
+
+      <CreateServerModal
+        isOpen={isCreateServerOpen}
+        newServerName={newServerName}
+        newServerMembers={newServerMembers}
+        channelList={channelList}
+        onClose={() => setIsCreateServerOpen(false)}
+        onOpenAddChannel={() => setIsAddChannelOpen(true)}
+        onServerNameChange={setNewServerName}
+        onServerMembersChange={setNewServerMembers}
+        onSubmit={handleCreateServer}
+      />
+
+      <AddChannelModal
+        isOpen={isAddChannelOpen}
+        newChannelName={newChannelName}
+        onClose={() => setIsAddChannelOpen(false)}
+        onChannelNameChange={setNewChannelName}
+        onSubmit={handleAddChannel}
+      />
+
+      <AddServerMemberModal
+        isOpen={isAddMemberOpen}
+        serverName={selectedServer}
+        friends={friendList}
+        members={currentServerMembers}
+        onClose={() => setIsAddMemberOpen(false)}
+        onAddMember={handleAddServerMember}
+      />
     </div>
   );
 }
