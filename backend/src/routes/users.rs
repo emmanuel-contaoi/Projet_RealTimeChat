@@ -4,9 +4,8 @@ use axum::{
     Json,
 };
 use serde::Deserialize;
-use sqlx::PgPool;
 
-use crate::models::{User, UserResponse};
+use crate::{models::{User, UserResponse}, state::AppState};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchUsersQuery {
@@ -14,7 +13,7 @@ pub struct SearchUsersQuery {
 }
 
 pub async fn search_users(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
     Query(params): Query<SearchUsersQuery>,
 ) -> Result<Json<Vec<UserResponse>>, (StatusCode, String)> {
     let query = params.q.unwrap_or_default().trim().to_string();
@@ -34,7 +33,7 @@ pub async fn search_users(
          LIMIT 20"
     )
     .bind(pattern)
-    .fetch_all(&pool)
+    .fetch_all(&state.pool)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e)))?;
 
@@ -44,14 +43,14 @@ pub async fn search_users(
 }
 
 pub async fn list_users(
-    State(pool): State<PgPool>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponse>>, (StatusCode, String)> {
     let users = sqlx::query_as::<_, User>(
         "SELECT * FROM users
          ORDER BY created_at DESC
          LIMIT 100"
     )
-    .fetch_all(&pool)
+    .fetch_all(&state.pool)
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e)))?;
 
