@@ -7,7 +7,7 @@ pub async fn init_mongo() -> Client {
     dotenv().ok();
 
 
-    let client_uri = env::var("MONGO_URL").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
+    let client_uri = env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
     
     println!("Connexion à MongoDB sur : {}", client_uri);
 

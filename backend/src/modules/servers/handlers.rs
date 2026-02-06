@@ -7,6 +7,7 @@ use uuid::Uuid;
 // Imports pour MongoDB
 use mongodb::bson::doc;
 use futures::stream::TryStreamExt;
+use chrono::Utc;
 
 // Imports des modules
 use crate::state::AppState;
@@ -262,6 +263,7 @@ pub async fn send_message(
         user_id: payload.user_id,
         content: payload.content,
         username: payload.username,
+        created_at: Some(Utc::now().to_rfc3339()),
     };
 
     match collection.insert_one(new_message, None).await {

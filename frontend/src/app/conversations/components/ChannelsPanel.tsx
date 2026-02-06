@@ -1,7 +1,9 @@
+import type { Channel } from "../types";
+
 type ChannelsPanelProps = {
-  channels: string[];
+  channels: Channel[];
   selectedChannel: string;
-  onSelectChannel: (channel: string) => void;
+  onSelectChannel: (channelId: string) => void;
   onAddMember?: () => void;
 };
 
@@ -57,16 +59,16 @@ export default function ChannelsPanel({
         {channels.length ? (
           channels.map((channel) => (
             <button
-              key={channel}
+              key={channel.id}
               className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
-                selectedChannel === channel
+                selectedChannel === channel.id
                   ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.12)] text-white"
                   : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-200 hover:bg-[var(--surface)]"
               }`}
-              onClick={() => onSelectChannel(channel)}
+              onClick={() => onSelectChannel(channel.id)}
               type="button"
             >
-              <span className="truncate">#{channel}</span>
+              <span className="truncate">#{channel.name}</span>
               <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
                 Actif
               </span>

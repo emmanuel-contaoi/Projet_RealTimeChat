@@ -1,8 +1,24 @@
 export type Server = {
+  id: string;
   name: string;
-  members: string;
-  status: string;
-  channels: string[];
+  invite_code: string;
+  created_at: string | null;
+};
+
+export type Channel = {
+  id: string;
+  server_id: string;
+  name: string;
+  type: string;
+};
+
+export type ChannelMessage = {
+  id?: string;
+  channel_id: string;
+  user_id: string;
+  username: string;
+  content: string;
+  created_at?: string;
 };
 
 export type Friend = {
@@ -10,13 +26,6 @@ export type Friend = {
   name: string;
   status: string;
   lastMessage: string;
-};
-
-export type ChannelMessage = {
-  sender: string;
-  text: string;
-  time: string;
-  me: boolean;
 };
 
 export type UserSearchResult = {

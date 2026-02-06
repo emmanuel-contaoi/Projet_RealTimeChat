@@ -80,6 +80,21 @@ export const authService = {
   },
 };
 
+export const serversService = {
+  list: () => api.get('/servers').then(r => r.data),
+  create: (name) => api.post('/servers', { name }).then(r => r.data),
+  join: (inviteCode) => api.post('/servers/join', { invite_code: inviteCode }).then(r => r.data),
+};
+
+export const channelsService = {
+  list: (serverId) => api.get(`/servers/${serverId}/channels`).then(r => r.data),
+  create: (serverId, name, type = 'text') => api.post(`/servers/${serverId}/channels`, { name, type }).then(r => r.data),
+};
+
+export const messagesService = {
+  history: (channelId) => api.get(`/servers/channels/${channelId}/messages`).then(r => r.data),
+};
+
 export const friendsService = {
   list: async () => {
     const response = await api.get('/friends');
