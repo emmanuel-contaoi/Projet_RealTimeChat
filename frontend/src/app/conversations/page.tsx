@@ -60,6 +60,7 @@ export default function ConversationsPage() {
   // WebSocket handler
   const onWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
+      console.log("[WS] Received event:", event.type, event);
       if (event.type === "message_new") {
         const msg: ChannelMessage = {
           id: event.id as string,
@@ -69,6 +70,7 @@ export default function ConversationsPage() {
           content: event.content as string,
           created_at: event.created_at as string,
         };
+        console.log("[WS] New message, user_id:", msg.user_id, "currentUserId:", localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!).id : "N/A");
         setMessages((prev) => [...prev, msg]);
       }
     },
@@ -88,6 +90,7 @@ export default function ConversationsPage() {
     }
     const user = authService.getCurrentUser();
     if (user?.id) {
+      console.log("[Auth] currentUserId set to:", user.id);
       setCurrentUserId(user.id);
     }
     setIsReady(true);
@@ -157,12 +160,16 @@ export default function ConversationsPage() {
     }
 
     if (isConnected) {
+      console.log("[WS] Joining channel:", selectedChannel);
       joinChannel(selectedChannel);
+    } else {
+      console.log("[WS] Not connected yet, cannot join channel:", selectedChannel);
     }
 
     (async () => {
       try {
         const data = await messagesService.history(selectedChannel);
+        console.log("[History] Loaded", data.length, "messages for channel", selectedChannel);
         setMessages(data);
       } catch {
         setMessages([]);

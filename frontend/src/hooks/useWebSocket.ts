@@ -35,6 +35,7 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
 
     // Close existing connection
     if (wsRef.current) {
+      wsRef.current.onclose = null; // prevent stale onclose from firing
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -42,6 +43,8 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     const ws = new WebSocket(`${WS_URL}?token=${token}`);
 
     ws.onopen = () => {
+      // Only act if this is still the active WS
+      if (wsRef.current !== ws) return;
       console.log("[WS] Connected");
       setIsConnected(true);
       onOpenRef.current?.();
@@ -57,6 +60,11 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     };
 
     ws.onclose = () => {
+      // Only act if this is still the active WS (prevents stale WS from corrupting state)
+      if (wsRef.current !== ws) {
+        console.log("[WS] Stale connection closed, ignoring");
+        return;
+      }
       console.log("[WS] Disconnected");
       wsRef.current = null;
       setIsConnected(false);
@@ -80,15 +88,19 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
       mountedRef.current = false;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) {
+        wsRef.current.onclose = null; // prevent stale onclose handler
         wsRef.current.close();
         wsRef.current = null;
       }
+      setIsConnected(false);
     };
   }, [connect]);
 
   const send = useCallback((data: object) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
+    } else {
+      console.log("[WS] Cannot send, ws not open. readyState:", wsRef.current?.readyState);
     }
   }, []);
 
@@ -101,6 +113,7 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
 
   const joinChannel = useCallback(
     (channelId: string) => {
+      console.log("[WS] Sending join_channel for:", channelId);
       send({ type: "join_channel", channel_id: channelId });
     },
     [send]

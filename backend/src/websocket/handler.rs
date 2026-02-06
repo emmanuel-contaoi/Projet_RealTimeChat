@@ -134,6 +134,9 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
         ClientEvent::MessageSend { channel_id, content } => {
             println!("Message de {} pour channel {}: {}", username, channel_id, content);
 
+            // Auto-join: ensure sender is in the room
+            state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
+
             let created_at = chrono::Utc::now().to_rfc3339();
             let msg_id = Uuid::new_v4().to_string();
 
@@ -160,6 +163,8 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
             };
 
             if let Ok(json) = response.to_json() {
+                let room_count = state.room_manager.lock().await.count_connections(&channel_id).await;
+                println!("Broadcasting to {} connections in channel {}", room_count, channel_id);
                 state.broadcast_to_channel(&channel_id, Message::Text(json.into()), None).await;
             }
         }

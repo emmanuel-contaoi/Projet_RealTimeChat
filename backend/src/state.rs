@@ -41,16 +41,26 @@ impl AppState {
             .get_room_connections(channel_id)
             .await;
 
+        println!("[broadcast] Channel {} has {} connections: {:?}", channel_id, connection_ids.len(), connection_ids);
+
         let connections = self.connections.read().await;
+        let total_connections = connections.len();
+        println!("[broadcast] Total active connections: {}", total_connections);
 
         for conn_id in connection_ids {
             if let Some(exclude) = exclude_connection {
                 if conn_id == exclude {
+                    println!("[broadcast] Skipping excluded connection: {}", conn_id);
                     continue;
                 }
             }
             if let Some(sender) = connections.get(&conn_id) {
-                let _ = sender.send(message.clone());
+                match sender.send(message.clone()) {
+                    Ok(_) => println!("[broadcast] Sent to connection: {}", conn_id),
+                    Err(e) => println!("[broadcast] Failed to send to {}: {}", conn_id, e),
+                }
+            } else {
+                println!("[broadcast] Connection {} not found in active connections!", conn_id);
             }
         }
     }
