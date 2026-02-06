@@ -30,7 +30,67 @@ async fn main() {
         .expect("Impossible de se connecter à PostgreSQL");
     
     println!("Connecté à PostgreSQL");
-    
+
+    // 1b. Appliquer les migrations (création des tables)
+    println!("Application des migrations...");
+    sqlx::query(
+        "CREATE EXTENSION IF NOT EXISTS \"pgcrypto\""
+    ).execute(&pool).await.expect("Erreur extension pgcrypto");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            username VARCHAR(50) UNIQUE NOT NULL,
+            email VARCHAR(100) UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            first_name VARCHAR(255),
+            last_name VARCHAR(255),
+            avatar_url TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )"
+    ).execute(&pool).await.expect("Erreur création table users");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS servers (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            name VARCHAR(255) NOT NULL,
+            invite_code VARCHAR(50) UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )"
+    ).execute(&pool).await.expect("Erreur création table servers");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS channels (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            server_id UUID REFERENCES servers(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            type VARCHAR(20) NOT NULL DEFAULT 'text',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )"
+    ).execute(&pool).await.expect("Erreur création table channels");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS members (
+            server_id UUID REFERENCES servers(id) ON DELETE CASCADE,
+            user_id UUID NOT NULL,
+            role VARCHAR(20) DEFAULT 'guest',
+            joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (server_id, user_id)
+        )"
+    ).execute(&pool).await.expect("Erreur création table members");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS user_friends (
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            PRIMARY KEY (user_id, friend_id),
+            CHECK (user_id <> friend_id)
+        )"
+    ).execute(&pool).await.expect("Erreur création table user_friends");
+
+    println!("Migrations appliquées avec succès");
+
     // 2. Connexion MongoDB
     let mongo_client = db::mongo::init_mongo().await;
     println!("Connecté à MongoDB");

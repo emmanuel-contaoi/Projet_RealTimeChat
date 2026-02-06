@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Path}, 
+    extract::{State, Path},
     http::StatusCode,
     response::{IntoResponse, Json},
 };
@@ -7,23 +7,24 @@ use uuid::Uuid;
 // Imports pour MongoDB
 use mongodb::bson::doc;
 use futures::stream::TryStreamExt;
+use chrono::Utc;
 
 // Imports des modules
 use crate::state::AppState;
 // UpdateChannelRequest et CreateMessageRequest
 use crate::modules::servers::models::{
-    CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest, 
+    CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest,
     Message, UpdateChannelRequest, CreateMessageRequest
 };
 
 const HARDCODED_USER_ID: &str = "11111111-1111-1111-1111-111111111111";
 
-// Route 1 : CRÉER SERVEUR 
+// Route 1 : CRÉER SERVEUR
 pub async fn create_server(
-    State(state): State<AppState>, 
+    State(state): State<AppState>,
     Json(payload): Json<CreateServerRequest>,
 ) -> impl IntoResponse {
-    
+
     let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
     let invite_code = Uuid::new_v4().to_string()[..8].to_string();
 
@@ -56,7 +57,7 @@ pub async fn create_server(
 
 // LISTER SERVEURS ---
 pub async fn list_servers(
-    State(state): State<AppState>,  
+    State(state): State<AppState>,
 ) -> impl IntoResponse {
     let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
 
@@ -125,9 +126,9 @@ pub async fn list_channels(
     }
 }
 
-//  REJOINDRE SERVEUR 
+//  REJOINDRE SERVEUR
 pub async fn join_server(
-    State(state): State<AppState>, 
+    State(state): State<AppState>,
     Json(payload): Json<JoinServerRequest>,
 ) -> impl IntoResponse {
     let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
@@ -262,6 +263,7 @@ pub async fn send_message(
         user_id: payload.user_id,
         content: payload.content,
         username: payload.username,
+        created_at: Some(Utc::now().to_rfc3339()),
     };
 
     match collection.insert_one(new_message, None).await {

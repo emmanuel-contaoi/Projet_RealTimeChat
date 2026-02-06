@@ -2,7 +2,7 @@ import type { RefObject } from "react";
 
 type ConversationsHeaderProps = {
   isMenuOpen: boolean;
-  menuRef: RefObject<HTMLDivElement>;
+  menuRef: RefObject<HTMLDivElement | null>;
   onToggleMenu: () => void;
   onEditProfile: () => void;
   onSwitchAccount: () => void;

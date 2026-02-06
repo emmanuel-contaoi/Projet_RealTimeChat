@@ -48,6 +48,8 @@ pub struct Message {
     pub user_id: String,
     pub content: String,
     pub username: String,
+    #[serde(default)]
+    pub created_at: Option<String>,
 }
 
 

@@ -9,7 +9,7 @@ type SidebarProps = {
   selectedServer: string;
   selectedFriend: string;
   onTabChange: (tab: "servers" | "friends") => void;
-  onSelectServer: (serverName: string) => void;
+  onSelectServer: (serverId: string) => void;
   onCreateServer: () => void;
   onSelectFriend: (friendName: string) => void;
   onRemoveFriend: (friendId: string) => void;

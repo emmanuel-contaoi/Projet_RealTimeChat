@@ -1,10 +1,11 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { friendsService } from "@/services/api";
+import { authService, friendsService, serversService, channelsService, messagesService } from "@/services/api";
+import useWebSocket from "@/hooks/useWebSocket";
 import AddChannelModal from "./components/AddChannelModal";
 import AddServerMemberModal from "./components/AddServerMemberModal";
 import ChannelsPanel from "./components/ChannelsPanel";
@@ -14,22 +15,20 @@ import CreateServerModal from "./components/CreateServerModal";
 import FriendsPanel from "./components/FriendsPanel";
 import LoadingScreen from "./components/LoadingScreen";
 import Sidebar from "./components/Sidebar";
-import { channelMessages, initialFriends, initialServers } from "./data/mockData";
-import type { UserSearchResult } from "./types";
+import { initialFriends } from "./data/mockData";
+import type { Channel, ChannelMessage, Server, UserSearchResult } from "./types";
 import { formatUserLabel } from "./utils";
 
 export default function ConversationsPage() {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [serverList, setServerList] = useState(initialServers);
+  const [serverList, setServerList] = useState<Server[]>([]);
   const [friendList, setFriendList] = useState(initialFriends);
-  const [selectedServer, setSelectedServer] = useState(
-    initialServers[0]?.name ?? ""
-  );
-  const [selectedChannel, setSelectedChannel] = useState(
-    initialServers[0]?.channels?.[0] ?? ""
-  );
+  const [selectedServer, setSelectedServer] = useState("");
+  const [selectedChannel, setSelectedChannel] = useState("");
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
   const [selectedFriend, setSelectedFriend] = useState("");
   const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
@@ -41,7 +40,6 @@ export default function ConversationsPage() {
   const [friendSearchError, setFriendSearchError] = useState("");
   const [newServerName, setNewServerName] = useState("");
   const [newServerMembers, setNewServerMembers] = useState("");
-  const [newServerStatus, setNewServerStatus] = useState("Actif");
   const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [channelList, setChannelList] = useState<string[]>([]);
@@ -49,17 +47,56 @@ export default function ConversationsPage() {
   const [serverMembers, setServerMembers] = useState<Record<string, string[]>>(
     {}
   );
+  const [currentUserId, setCurrentUserId] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+  const prevChannelRef = useRef<string>("");
 
+  // Get current channel name for display
+  const selectedChannelName =
+    channels.find((c) => c.id === selectedChannel)?.name ?? "";
+  const selectedServerName =
+    serverList.find((s) => s.id === selectedServer)?.name ?? "";
+
+  // WebSocket handler
+  const onWsMessage = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      console.log("[WS] Received event:", event.type, event);
+      if (event.type === "message_new") {
+        const msg: ChannelMessage = {
+          id: event.id as string,
+          channel_id: event.channel_id as string,
+          user_id: event.user_id as string,
+          username: event.username as string,
+          content: event.content as string,
+          created_at: event.created_at as string,
+        };
+        console.log("[WS] New message, user_id:", msg.user_id, "currentUserId:", localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!).id : "N/A");
+        setMessages((prev) => [...prev, msg]);
+      }
+    },
+    []
+  );
+
+  const { sendMessage, joinChannel, leaveChannel, isConnected } = useWebSocket({
+    onMessage: onWsMessage,
+  });
+
+  // Auth check
   useEffect(() => {
     const isAuthed = !!localStorage.getItem("token");
     if (!isAuthed) {
       router.replace("/connexion");
       return;
     }
+    const user = authService.getCurrentUser();
+    if (user?.id) {
+      console.log("[Auth] currentUserId set to:", user.id);
+      setCurrentUserId(user.id);
+    }
     setIsReady(true);
   }, [router]);
 
+  // Close menu on outside click
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       if (!menuRef.current) return;
@@ -71,6 +108,96 @@ export default function ConversationsPage() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Load servers from API
+  useEffect(() => {
+    if (!isReady) return;
+    (async () => {
+      try {
+        const data = await serversService.list();
+        setServerList(data);
+        if (data.length && !selectedServer) {
+          setSelectedServer(data[0].id);
+        }
+      } catch {
+        // servers will stay empty
+      }
+    })();
+  }, [isReady]);
+
+  // Load channels when server changes
+  useEffect(() => {
+    if (!selectedServer) {
+      setChannels([]);
+      return;
+    }
+    (async () => {
+      try {
+        const data = await channelsService.list(selectedServer);
+        setChannels(data);
+        if (data.length) {
+          setSelectedChannel(data[0].id);
+        } else {
+          setSelectedChannel("");
+        }
+      } catch {
+        setChannels([]);
+      }
+    })();
+  }, [selectedServer]);
+
+  // Handle channel changes + WS connection: join/leave room + load messages
+  // Single effect ensures join always fires when both isConnected and selectedChannel are ready
+  useEffect(() => {
+    if (prevChannelRef.current && prevChannelRef.current !== selectedChannel) {
+      leaveChannel(prevChannelRef.current);
+    }
+    prevChannelRef.current = selectedChannel;
+
+    if (!selectedChannel) {
+      setMessages([]);
+      return;
+    }
+
+    if (isConnected) {
+      console.log("[WS] Joining channel:", selectedChannel);
+      joinChannel(selectedChannel);
+    } else {
+      console.log("[WS] Not connected yet, cannot join channel:", selectedChannel);
+    }
+
+    (async () => {
+      try {
+        const data = await messagesService.history(selectedChannel);
+        console.log("[History] Loaded", data.length, "messages for channel", selectedChannel);
+        setMessages(data);
+      } catch {
+        setMessages([]);
+      }
+    })();
+  }, [selectedChannel, isConnected, joinChannel, leaveChannel]);
+
+  // Load friends
+  useEffect(() => {
+    if (!isReady) return;
+    (async () => {
+      try {
+        const data = await friendsService.list();
+        const mapped = data.map((user: UserSearchResult) => ({
+          id: user.id,
+          name: formatUserLabel(user),
+          status: "Actif",
+          lastMessage: "",
+        }));
+        setFriendList(mapped);
+        if (!selectedFriend && mapped.length) {
+          setSelectedFriend(mapped[0].name);
+        }
+      } catch {
+        setFriendSearchError("Impossible de charger la liste d'amis.");
+      }
+    })();
+  }, [isReady]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -102,13 +229,8 @@ export default function ConversationsPage() {
   const apiBaseUrl =
     process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
 
-  const getServerChannels = (serverName: string) =>
-    serverList.find((server) => server.name === serverName)?.channels ?? [];
-
-  const handleSelectServer = (serverName: string) => {
-    setSelectedServer(serverName);
-    const channels = getServerChannels(serverName);
-    setSelectedChannel(channels[0] ?? "");
+  const handleSelectServer = (serverId: string) => {
+    setSelectedServer(serverId);
   };
 
   const handleSelectFriend = (friendName: string) => {
@@ -119,7 +241,7 @@ export default function ConversationsPage() {
     try {
       await friendsService.remove(friendId);
       setFriendList((prev) => prev.filter((friend) => friend.id !== friendId));
-    } catch (error) {
+    } catch {
       setFriendSearchError("Impossible de supprimer cet ami.");
     }
   };
@@ -141,7 +263,7 @@ export default function ConversationsPage() {
       setFriendSearch("");
       setFriendResults([]);
       setFriendSearchError("");
-    } catch (error) {
+    } catch {
       setFriendSearchError("Impossible d'ajouter cet ami.");
     }
   };
@@ -159,38 +281,6 @@ export default function ConversationsPage() {
       };
     });
   };
-
-  useEffect(() => {
-    if (!isReady) return;
-    (async () => {
-      try {
-        const data = await friendsService.list();
-        const mapped = data.map((user: UserSearchResult) => ({
-          id: user.id,
-          name: formatUserLabel(user),
-          status: "Actif",
-          lastMessage: "",
-        }));
-        setFriendList(mapped);
-        if (!selectedFriend && mapped.length) {
-          setSelectedFriend(mapped[0].name);
-        }
-      } catch (error) {
-        setFriendSearchError("Impossible de charger la liste d'amis.");
-      }
-    })();
-  }, [isReady]);
-
-  useEffect(() => {
-    const channels = getServerChannels(selectedServer);
-    if (!channels.length) {
-      setSelectedChannel("");
-      return;
-    }
-    if (!channels.includes(selectedChannel)) {
-      setSelectedChannel(channels[0]);
-    }
-  }, [selectedServer, selectedChannel, serverList]);
 
   useEffect(() => {
     if (activeTab !== "friends") return;
@@ -272,29 +362,47 @@ export default function ConversationsPage() {
     };
   }, [activeTab, apiBaseUrl, friendSearch, allUsers.length]);
 
-  const handleCreateServer = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateServer = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = newServerName.trim();
     if (!trimmedName) return;
 
-    const membersValue = newServerMembers.trim() || "1 membre";
-    const channelsValue = channelList.length ? channelList : ["general"];
+    try {
+      const server = await serversService.create(trimmedName);
 
-    const nextServer = {
-      name: trimmedName,
-      members: membersValue,
-      status: newServerStatus,
-      channels: channelsValue,
-    };
+      // Create channels via API
+      const channelNames = channelList.length ? channelList : ["general"];
+      const createdChannels: Channel[] = [];
+      for (const chName of channelNames) {
+        try {
+          const ch = await channelsService.create(server.id, chName);
+          createdChannels.push(ch);
+        } catch {
+          // skip failed channels
+        }
+      }
 
-    setServerList((prev) => [nextServer, ...prev]);
-    setSelectedServer(trimmedName);
-    setSelectedChannel(channelsValue[0] ?? "");
-    setIsCreateServerOpen(false);
-    setNewServerName("");
-    setNewServerMembers("");
-    setNewServerStatus("Actif");
-    setChannelList([]);
+      // Add new server to list in the shape the API returns
+      const newServer: Server = {
+        id: server.id,
+        name: server.name,
+        invite_code: server.invite_code,
+        created_at: null,
+      };
+
+      setServerList((prev) => [newServer, ...prev]);
+      setSelectedServer(server.id);
+      setChannels(createdChannels);
+      if (createdChannels.length) {
+        setSelectedChannel(createdChannels[0].id);
+      }
+      setIsCreateServerOpen(false);
+      setNewServerName("");
+      setNewServerMembers("");
+      setChannelList([]);
+    } catch {
+      // could show an error toast
+    }
   };
 
   const handleAddChannel = (event: FormEvent<HTMLFormElement>) => {
@@ -317,16 +425,17 @@ export default function ConversationsPage() {
     setIsAddChannelOpen(false);
   };
 
+  const handleSendMessage = (content: string) => {
+    if (!selectedChannel) return;
+    sendMessage(selectedChannel, content);
+  };
+
   if (!isReady) {
     return <LoadingScreen />;
   }
 
-  const channelsForServer = getServerChannels(selectedServer);
   const currentServerMembers = selectedServer
     ? serverMembers[selectedServer] ?? []
-    : [];
-  const currentMessages = selectedChannel
-    ? channelMessages[selectedChannel] ?? []
     : [];
 
   return (
@@ -365,7 +474,7 @@ export default function ConversationsPage() {
 
         {activeTab === "servers" ? (
           <ChannelsPanel
-            channels={channelsForServer}
+            channels={channels}
             selectedChannel={selectedChannel}
             onSelectChannel={setSelectedChannel}
             onAddMember={() => setIsAddMemberOpen(true)}
@@ -374,9 +483,11 @@ export default function ConversationsPage() {
 
         {activeTab === "servers" ? (
           <ChatPanel
-            selectedChannel={selectedChannel}
-            selectedServer={selectedServer}
-            messages={currentMessages}
+            selectedChannel={selectedChannelName}
+            selectedServer={selectedServerName}
+            messages={messages}
+            currentUserId={currentUserId}
+            onSendMessage={handleSendMessage}
           />
         ) : (
           <FriendsPanel
@@ -414,7 +525,7 @@ export default function ConversationsPage() {
 
       <AddServerMemberModal
         isOpen={isAddMemberOpen}
-        serverName={selectedServer}
+        serverName={selectedServerName}
         friends={friendList}
         members={currentServerMembers}
         onClose={() => setIsAddMemberOpen(false)}
