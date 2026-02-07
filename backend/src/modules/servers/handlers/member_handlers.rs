@@ -13,8 +13,24 @@ use crate::modules::servers::models::{MemberRow, UpdateRoleRequest};
 // Lister les membres d'un serveur avec leur statut en ligne
 pub async fn list_members(
     State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
     Path(server_id): Path<Uuid>,
 ) -> impl IntoResponse {
+    let user_id = auth_user.0.id;
+
+    let membership = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2"
+    )
+    .bind(server_id)
+    .bind(user_id)
+    .fetch_optional(&state.pool)
+    .await;
+
+    match membership {
+        Ok(Some(_)) => {}
+        Ok(None) => return (StatusCode::FORBIDDEN, "Vous n'etes pas membre de ce serveur.").into_response(),
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Erreur serveur").into_response(),
+    }
     let rows = sqlx::query_as::<_, MemberRow>(
         "SELECT m.user_id, COALESCE(u.username, u.first_name, u.email) as username, m.role
          FROM members m

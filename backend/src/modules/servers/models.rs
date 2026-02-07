@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::NaiveDateTime;
+use mongodb::bson::oid::ObjectId;
 
 #[derive(Serialize, FromRow)]
 pub struct Server {
@@ -14,6 +15,16 @@ pub struct Server {
 #[derive(Deserialize)]
 pub struct CreateServerRequest {
     pub name: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateServerRequest {
+    pub name: String,
+}
+
+#[derive(Deserialize)]
+pub struct TransferOwnershipRequest {
+    pub new_owner_id: Uuid,
 }
 
 #[derive(Serialize, FromRow)]
@@ -37,6 +48,8 @@ pub struct JoinServerRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
     pub channel_id: String,
     pub user_id: String,
     pub content: String,
@@ -55,8 +68,6 @@ pub struct UpdateChannelRequest {
 #[derive(Deserialize)]
 pub struct CreateMessageRequest {
     pub content: String,
-    pub user_id: String,
-    pub username: String,
 }
 
 #[derive(FromRow)]

@@ -104,3 +104,7 @@ pub async fn me(
 ) -> Result<Json<UserResponse>, (StatusCode, String)> {
     Ok(Json(user.into()))
 }
+
+pub async fn logout() -> StatusCode {
+    StatusCode::OK
+}

@@ -49,7 +49,12 @@ export const authService = {
     return response.data;
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore errors — we clear local state regardless
+    }
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -67,24 +72,31 @@ export const authService = {
 
 export const serversService = {
   list: () => api.get('/servers').then(r => r.data),
+  get: (serverId: string) => api.get(`/servers/${serverId}`).then(r => r.data),
   create: (name: string) => api.post('/servers', { name }).then(r => r.data),
+  update: (serverId: string, name: string) => api.put(`/servers/${serverId}`, { name }).then(r => r.data),
   join: (inviteCode: string) => api.post('/servers/join', { invite_code: inviteCode }).then(r => r.data),
   leave: (serverId: string) => api.delete(`/servers/${serverId}/leave`),
   delete: (serverId: string) => api.delete(`/servers/${serverId}`),
   members: (serverId: string) => api.get(`/servers/${serverId}/members`).then(r => r.data),
   updateRole: (serverId: string, userId: string, role: string) =>
     api.put(`/servers/${serverId}/members/${userId}/role`, { role }).then(r => r.data),
+  transferOwnership: (serverId: string, newOwnerId: string) =>
+    api.post(`/servers/${serverId}/transfer`, { new_owner_id: newOwnerId }).then(r => r.data),
 };
 
 export const channelsService = {
   list: (serverId: string) => api.get(`/servers/${serverId}/channels`).then(r => r.data),
   create: (serverId: string, name: string, type = 'text') =>
     api.post(`/servers/${serverId}/channels`, { name, type }).then(r => r.data),
+  update: (channelId: string, name: string) =>
+    api.put(`/servers/channels/${channelId}`, { name }).then(r => r.data),
   delete: (channelId: string) => api.delete(`/servers/channels/${channelId}`),
 };
 
 export const messagesService = {
   history: (channelId: string) => api.get(`/servers/channels/${channelId}/messages`).then(r => r.data),
+  delete: (messageId: string) => api.delete(`/servers/messages/${messageId}`),
 };
 
 export const friendsService = {

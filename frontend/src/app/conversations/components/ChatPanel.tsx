@@ -8,9 +8,11 @@ type ChatPanelProps = {
   selectedServer: string;
   messages: ChannelMessage[];
   currentUserId: string;
+  currentUserRole: string;
   typingUsers: string[];
   onSendMessage: (content: string) => void;
   onTyping: () => void;
+  onDeleteMessage: (messageId: string) => void;
 };
 
 export default function ChatPanel({
@@ -19,9 +21,11 @@ export default function ChatPanel({
   selectedServer,
   messages,
   currentUserId,
+  currentUserRole,
   typingUsers,
   onSendMessage,
   onTyping,
+  onDeleteMessage,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -67,10 +71,11 @@ export default function ChatPanel({
         {selectedChannel && messages.length ? (
           messages.map((message, index) => {
             const isMe = message.user_id === currentUserId;
+            const canDelete = isMe || currentUserRole === "owner" || currentUserRole === "admin";
             return (
               <div
                 key={message.id ?? `${message.user_id}-${index}`}
-                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                className={`group relative flex ${isMe ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
@@ -94,6 +99,19 @@ export default function ChatPanel({
                     </p>
                   )}
                 </div>
+                {canDelete && message.id && (
+                  <button
+                    type="button"
+                    className="absolute top-1 right-1 hidden rounded-full p-1 text-slate-500 transition hover:text-red-400 group-hover:block"
+                    onClick={() => onDeleteMessage(message.id!)}
+                    title="Supprimer ce message"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                )}
               </div>
             );
           })

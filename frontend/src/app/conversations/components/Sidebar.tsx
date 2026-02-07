@@ -15,6 +15,7 @@ type SidebarProps = {
   onJoinServer: () => void;
   onLeaveServer: (serverId: string) => void;
   onDeleteServer: (serverId: string) => void;
+  onUpdateServer: (serverId: string, newName: string) => void;
   onSelectFriend: (friendName: string) => void;
   onRemoveFriend: (friendId: string) => void;
 };
@@ -31,6 +32,7 @@ export default function Sidebar({
   onJoinServer,
   onLeaveServer,
   onDeleteServer,
+  onUpdateServer,
   currentUserRole,
   onSelectFriend,
   onRemoveFriend,
@@ -80,6 +82,7 @@ export default function Sidebar({
             onJoinServer={onJoinServer}
             onLeaveServer={onLeaveServer}
             onDeleteServer={onDeleteServer}
+            onUpdateServer={onUpdateServer}
           />
         ) : (
           <FriendList
