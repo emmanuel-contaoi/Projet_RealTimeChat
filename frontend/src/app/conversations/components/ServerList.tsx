@@ -88,10 +88,10 @@ export default function ServerList({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <button
                   type="button"
-                  className={`text-[11px] transition ${
+                  className={`shrink-0 text-[11px] transition ${
                     copiedId === server.id
                       ? "text-[var(--brand-1)]"
                       : "text-slate-500 hover:text-slate-300"
@@ -106,7 +106,7 @@ export default function ServerList({
 
                 <button
                   type="button"
-                  className="text-[11px] text-slate-500 hover:text-red-400 transition"
+                  className="shrink-0 text-[11px] text-slate-500 hover:text-red-400 transition"
                   onClick={(e) => handleLeave(e, server.id)}
                 >
                   Quitter
@@ -117,7 +117,7 @@ export default function ServerList({
                     <span className="text-slate-700">|</span>
                     <button
                       type="button"
-                      className="text-[11px] text-slate-500 hover:text-red-400 transition"
+                      className="shrink-0 text-[11px] text-slate-500 hover:text-red-400 transition"
                       onClick={(e) => handleDelete(e, server.id)}
                     >
                       Supprimer

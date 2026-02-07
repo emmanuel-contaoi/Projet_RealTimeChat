@@ -36,8 +36,8 @@ export default function Sidebar({
   onRemoveFriend,
 }: SidebarProps) {
   return (
-    <aside className="h-full rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
-      <div className="flex items-center justify-between">
+    <aside className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
+      <div className="flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             className={`text-sm font-semibold transition ${
@@ -69,25 +69,27 @@ export default function Sidebar({
         </span>
       </div>
 
-      {activeTab === "servers" ? (
-        <ServerList
-          serverList={serverList}
-          selectedServer={selectedServer}
-          onSelectServer={onSelectServer}
-          currentUserRole={currentUserRole}
-          onCreateServer={onCreateServer}
-          onJoinServer={onJoinServer}
-          onLeaveServer={onLeaveServer}
-          onDeleteServer={onDeleteServer}
-        />
-      ) : (
-        <FriendList
-          friendList={friendList}
-          selectedFriend={selectedFriend}
-          onSelectFriend={onSelectFriend}
-          onRemoveFriend={onRemoveFriend}
-        />
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {activeTab === "servers" ? (
+          <ServerList
+            serverList={serverList}
+            selectedServer={selectedServer}
+            onSelectServer={onSelectServer}
+            currentUserRole={currentUserRole}
+            onCreateServer={onCreateServer}
+            onJoinServer={onJoinServer}
+            onLeaveServer={onLeaveServer}
+            onDeleteServer={onDeleteServer}
+          />
+        ) : (
+          <FriendList
+            friendList={friendList}
+            selectedFriend={selectedFriend}
+            onSelectFriend={onSelectFriend}
+            onRemoveFriend={onRemoveFriend}
+          />
+        )}
+      </div>
     </aside>
   );
 }

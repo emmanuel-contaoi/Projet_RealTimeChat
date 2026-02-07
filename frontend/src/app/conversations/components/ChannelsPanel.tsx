@@ -23,8 +23,8 @@ export default function ChannelsPanel({
   };
 
   return (
-    <section className="h-full rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
-      <div className="flex items-center justify-between">
+    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
+      <div className="flex shrink-0 items-center justify-between">
         <p className="text-sm font-semibold text-white">Channels</p>
         {canManageChannels && (
           <button
@@ -36,7 +36,7 @@ export default function ChannelsPanel({
           </button>
         )}
       </div>
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         {channels.length ? (
           channels.map((channel) => {
             const isActive = selectedChannel === channel.id;

@@ -4,3 +4,8 @@ out/
 build/
 .git/
 .env
+.env.*
+.gitignore
+.vscode/
+.idea/
+*.md

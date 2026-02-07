@@ -18,7 +18,7 @@ export default function ConversationsHeader({
   onLogout,
 }: ConversationsHeaderProps) {
   return (
-    <header className="relative z-30 mx-auto flex w-full max-w-none items-center justify-between gap-4 px-8 py-6 md:px-12">
+    <header className="relative z-30 mx-auto flex w-full max-w-none shrink-0 items-center justify-between gap-4 px-8 py-6 md:px-12">
       <div className="flex items-center gap-4">
         <div className="relative z-20" ref={menuRef}>
           <button

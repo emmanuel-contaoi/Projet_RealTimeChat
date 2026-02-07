@@ -35,7 +35,11 @@ export default function FriendList({
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white">{friend.name}</p>
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[rgba(0,212,255,0.2)] px-2 py-1 text-[10px] font-semibold text-[var(--brand-1)]">
+              <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                friend.status === "En ligne"
+                  ? "bg-[rgba(74,222,128,0.2)] text-green-400"
+                  : "bg-[rgba(100,116,139,0.2)] text-slate-400"
+              }`}>
                 {friend.status}
               </span>
               <button
