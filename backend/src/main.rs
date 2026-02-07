@@ -53,6 +53,7 @@ async fn main() {
     // 5. Routes protégées (avec authentification)
     let protected_routes = Router::new()
         .route("/auth/me", get(routes::auth::me))
+        .route("/auth/logout", post(routes::auth::logout))
         .route("/users/search", get(routes::users::search_users))
         .route("/users", get(routes::users::list_users))
         .route("/friends", get(routes::friends::list_friends).post(routes::friends::add_friend))

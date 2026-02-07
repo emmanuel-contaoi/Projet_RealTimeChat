@@ -150,6 +150,7 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
 
             let collection = state.mongo.database("chat").collection::<ChatMessage>("messages");
             let new_message = ChatMessage {
+                id: None,
                 channel_id: channel_id.clone(),
                 user_id: user_id.to_string(),
                 content: content.clone(),

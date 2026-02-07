@@ -10,6 +10,7 @@ type ServerListProps = {
   onJoinServer: () => void;
   onLeaveServer: (serverId: string) => void;
   onDeleteServer: (serverId: string) => void;
+  onUpdateServer: (serverId: string, newName: string) => void;
 };
 
 export default function ServerList({
@@ -21,6 +22,7 @@ export default function ServerList({
   onJoinServer,
   onLeaveServer,
   onDeleteServer,
+  onUpdateServer,
 }: ServerListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -39,6 +41,14 @@ export default function ServerList({
   const handleDelete = (e: React.MouseEvent, serverId: string) => {
     e.stopPropagation();
     onDeleteServer(serverId);
+  };
+
+  const handleRename = (e: React.MouseEvent, server: Server) => {
+    e.stopPropagation();
+    const newName = prompt("Nouveau nom du serveur :", server.name);
+    if (newName && newName.trim() && newName.trim() !== server.name) {
+      onUpdateServer(server.id, newName.trim());
+    }
   };
 
   return (
@@ -114,6 +124,14 @@ export default function ServerList({
 
                 {isOwner && (
                   <>
+                    <span className="text-slate-700">|</span>
+                    <button
+                      type="button"
+                      className="shrink-0 text-[11px] text-slate-500 hover:text-[var(--brand-1)] transition"
+                      onClick={(e) => handleRename(e, server)}
+                    >
+                      Renommer
+                    </button>
                     <span className="text-slate-700">|</span>
                     <button
                       type="button"

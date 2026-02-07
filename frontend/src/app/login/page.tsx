@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { authService } from '@/services/api';
 
 export default function ConnexionPage() {
@@ -19,8 +20,9 @@ export default function ConnexionPage() {
     try {
       await authService.login(email, password);
       router.push('/conversations'); // Redirige vers le dashboard de ton ami
-    } catch (err: any) {
-      setError(err.response?.data || 'Identifiants invalides');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: string } };
+      setError(axiosErr.response?.data || 'Identifiants invalides');
     } finally {
       setLoading(false);
     }
@@ -72,12 +74,12 @@ export default function ConnexionPage() {
             )}
 
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <a
+              <Link
                 className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-center text-sm font-semibold text-slate-200 transition hover:bg-[var(--surface-strong)]"
                 href="/"
               >
                 Retour
-              </a>
+              </Link>
               <button
                 className="flex-1 rounded-full bg-[var(--brand-1)] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(0,212,255,0.35)] transition hover:-translate-y-0.5 disabled:opacity-50"
                 type="submit"

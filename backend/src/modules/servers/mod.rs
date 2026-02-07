@@ -13,10 +13,11 @@ pub fn router() -> Router<AppState> {
         // Serveurs
         .route("/", get(handlers::list_servers).post(handlers::create_server))
         .route("/join", post(handlers::join_server))
-        .route("/{id}", delete(handlers::delete_server))
+        .route("/{id}", get(handlers::get_server).put(handlers::update_server).delete(handlers::delete_server))
         .route("/{id}/leave", delete(handlers::leave_server))
         .route("/{id}/members", get(handlers::list_members))
         .route("/{id}/members/{user_id}/role", put(handlers::update_member_role))
+        .route("/{id}/transfer", post(handlers::transfer_ownership))
 
         // Liste des salons d'un serveur
         .route("/{id}/channels", get(handlers::list_channels).post(handlers::create_channel))
@@ -33,4 +34,7 @@ pub fn router() -> Router<AppState> {
             get(handlers::get_chat_history)
             .post(handlers::send_message)
         )
+
+        // Suppression d'un message
+        .route("/messages/{id}", delete(handlers::delete_message))
 }

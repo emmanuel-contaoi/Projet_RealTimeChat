@@ -1,11 +1,11 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { authService, serversService, channelsService, messagesService } from "@/services/api";
-import useWebSocket from "@/hooks/useWebSocket";
+import { authService } from "@/services/api";
+import useChat from "./hooks/useChat";
+import useServerManager from "./hooks/useServerManager";
 import useFriendSearch from "./hooks/useFriendSearch";
 import AddChannelModal from "./components/AddChannelModal";
 import ChannelsPanel from "./components/ChannelsPanel";
@@ -17,133 +17,29 @@ import FriendsPanel from "./components/FriendsPanel";
 import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
-import type { Server, Channel, ChannelMessage, Member } from "./types";
 
 export default function ConversationsPage() {
   const router = useRouter();
-  const [isReady, setIsReady] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  // Server / Channel / Message state
-  const [serverList, setServerList] = useState<Server[]>([]);
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [messages, setMessages] = useState<ChannelMessage[]>([]);
-  const [selectedServer, setSelectedServer] = useState("");
-  const [selectedChannel, setSelectedChannel] = useState("");
-  const [currentUserId, setCurrentUserId] = useState("");
-  const prevChannelRef = useRef("");
-
-  // Members + online tracking
-  const [members, setMembers] = useState<Member[]>([]);
-  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
-
-  // Typing indicator
-  const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timer: ReturnType<typeof setTimeout> }>>({});
-  const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Onglet actif (serveurs ou amis)
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
-
-  // Modal state
-  const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
-  const [newServerName, setNewServerName] = useState("");
-  const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
-  const [addChannelTarget, setAddChannelTarget] = useState<"creation" | "server">("creation");
-  const [newChannelName, setNewChannelName] = useState("");
-  const [channelList, setChannelList] = useState<string[]>([]);
-  const [isJoinServerOpen, setIsJoinServerOpen] = useState(false);
-  const [joinInviteCode, setJoinInviteCode] = useState("");
-  const [joinServerError, setJoinServerError] = useState("");
-  const [joinServerLoading, setJoinServerLoading] = useState(false);
-
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Hook custom pour la gestion des amis et la recherche
-  const friends = useFriendSearch({ isReady, activeTab, onlineUserIds });
-
-  // --- WebSocket ---
-  const handleWsMessage = useCallback(
-    (event: { type: string; [key: string]: unknown }) => {
-      if (event.type === "message_new") {
-        const msg: ChannelMessage = {
-          id: event.id as string | undefined,
-          channel_id: event.channel_id as string,
-          user_id: event.user_id as string,
-          username: event.username as string,
-          content: event.content as string,
-          created_at: event.created_at as string | undefined,
-        };
-        setMessages((prev) => {
-          if (prev.some((m) => m.id && m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-      }
-
-      if (event.type === "user_connected") {
-        const uid = event.user_id as string;
-        setOnlineUserIds((prev) => {
-          const next = new Set(prev);
-          next.add(uid);
-          return next;
-        });
-      }
-
-      if (event.type === "user_disconnected") {
-        const uid = event.user_id as string;
-        setOnlineUserIds((prev) => {
-          const next = new Set(prev);
-          next.delete(uid);
-          return next;
-        });
-      }
-
-      if (event.type === "user_typing") {
-        const uid = event.user_id as string;
-        const uname = event.username as string;
-        setTypingUsers((prev) => {
-          if (prev[uid]) clearTimeout(prev[uid].timer);
-          const timer = setTimeout(() => {
-            setTypingUsers((p) => {
-              const copy = { ...p };
-              delete copy[uid];
-              return copy;
-            });
-          }, 3000);
-          return { ...prev, [uid]: { username: uname, timer } };
-        });
-      }
-
-      if (event.type === "channel_users") {
-        const users = event.users as Array<{ user_id: string; username: string }>;
-        setOnlineUserIds((prev) => {
-          const next = new Set(prev);
-          for (const u of users) {
-            next.add(u.user_id);
-          }
-          return next;
-        });
-      }
-    },
-    []
-  );
-
-  const { sendMessage, joinChannel, leaveChannel, startTyping, isConnected } = useWebSocket({
-    onMessage: handleWsMessage,
-  });
-
-  // --- Auth check ---
-  useEffect(() => {
+  // Auth: initialize synchronously from localStorage
+  const [authState] = useState(() => {
+    if (typeof window === "undefined") return { isReady: false, currentUserId: "" };
     const token = localStorage.getItem("token");
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
+    if (!token) return { isReady: false, currentUserId: "" };
     const user = authService.getCurrentUser();
-    if (user?.id) {
-      setCurrentUserId(user.id);
+    return { isReady: true, currentUserId: user?.id ?? "" };
+  });
+  const { isReady, currentUserId } = authState;
+
+  // Redirect if no token
+  useEffect(() => {
+    if (!isReady) {
+      router.replace("/login");
     }
-    setIsReady(true);
-  }, [router]);
+  }, [isReady, router]);
 
   // --- Click outside menu ---
   useEffect(() => {
@@ -157,281 +53,36 @@ export default function ConversationsPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // --- Load servers from API ---
-  useEffect(() => {
-    if (!isReady) return;
-    (async () => {
-      try {
-        const data = await serversService.list();
-        setServerList(data);
-        if (data.length && !selectedServer) {
-          setSelectedServer(data[0].id);
-        }
-      } catch (err) {
-        console.error("[API] Failed to load servers:", err);
-      }
-    })();
-  }, [isReady]);
+  // --- Custom hooks ---
+  const chat = useChat();
 
-  // --- Load channels + members when server changes ---
-  useEffect(() => {
-    if (!selectedServer) {
-      setChannels([]);
-      setSelectedChannel("");
-      setMembers([]);
-      return;
-    }
-    (async () => {
-      try {
-        const [chData, memberData] = await Promise.all([
-          channelsService.list(selectedServer),
-          serversService.members(selectedServer),
-        ]);
-        setChannels(chData);
-        setMembers(memberData);
-        if (chData.length) {
-          setSelectedChannel(chData[0].id);
-        } else {
-          setSelectedChannel("");
-        }
-      } catch (err) {
-        console.error("[API] Failed to load channels/members:", err);
-        setChannels([]);
-        setSelectedChannel("");
-        setMembers([]);
-      }
-    })();
-  }, [selectedServer]);
+  const server = useServerManager({
+    isReady,
+    isConnected: chat.isConnected,
+    currentUserId,
+    joinChannel: chat.joinChannel,
+    loadMessages: chat.loadMessages,
+    syncChannel: chat.syncChannel,
+    setActiveChannel: chat.setActiveChannel,
+    setMessages: chat.setMessages,
+  });
 
-  // --- Load message history when channel changes ---
-  useEffect(() => {
-    if (!selectedChannel) {
-      setMessages([]);
-      return;
-    }
-    setTypingUsers({});
-    (async () => {
-      try {
-        const data = await messagesService.history(selectedChannel);
-        setMessages(data);
-      } catch (err) {
-        console.error("[API] Failed to load messages:", err);
-        setMessages([]);
-      }
-    })();
-  }, [selectedChannel]);
+  const friends = useFriendSearch({ isReady, activeTab, onlineUserIds: chat.onlineUserIds });
 
-  // --- WebSocket join/leave channel ---
-  useEffect(() => {
-    if (!isConnected) return;
-    const prev = prevChannelRef.current;
-    if (prev && prev !== selectedChannel) {
-      leaveChannel(prev);
-    }
-    if (selectedChannel) {
-      joinChannel(selectedChannel);
-    }
-    prevChannelRef.current = selectedChannel;
-  }, [selectedChannel, isConnected, joinChannel, leaveChannel]);
-
-  // --- Derived state ---
-  const selectedServerObj = serverList.find((s) => s.id === selectedServer);
-  const selectedServerName = selectedServerObj?.name ?? "";
-  const currentUserRole = members.find((m) => m.user_id === currentUserId)?.role ?? "";
-  const canManageChannels = currentUserRole === "owner" || currentUserRole === "admin";
-  const typingUserNames = Object.values(typingUsers)
-    .map((t) => t.username)
-    .filter((name) => name !== authService.getCurrentUser()?.username);
-
-  // --- Handlers ---
-  const handleLogout = () => {
-    authService.logout();
+  // --- UI handlers ---
+  const handleLogout = async () => {
+    await authService.logout();
     router.push("/");
   };
 
-  const handleSwitchAccount = () => {
-    authService.logout();
+  const handleSwitchAccount = async () => {
+    await authService.logout();
     router.push("/login");
   };
 
   const handleEditProfile = () => {
     setIsMenuOpen(false);
     router.push("/register");
-  };
-
-  const handleLeaveServer = async (serverId: string) => {
-    try {
-      await serversService.leave(serverId);
-      setServerList((prev) => prev.filter((s) => s.id !== serverId));
-      if (selectedServer === serverId) {
-        setSelectedServer("");
-        setChannels([]);
-        setSelectedChannel("");
-        setMessages([]);
-        setMembers([]);
-      }
-    } catch (err: any) {
-      console.error("[API] Leave server error:", err);
-      const msg = err.response?.data;
-      alert(typeof msg === "string" ? msg : "Impossible de quitter ce serveur.");
-    }
-  };
-
-  const handleDeleteServer = async (serverId: string) => {
-    if (!confirm("Supprimer ce serveur ? Cette action est irreversible.")) return;
-    try {
-      await serversService.delete(serverId);
-      setServerList((prev) => prev.filter((s) => s.id !== serverId));
-      if (selectedServer === serverId) {
-        setSelectedServer("");
-        setChannels([]);
-        setSelectedChannel("");
-        setMessages([]);
-        setMembers([]);
-      }
-    } catch (err: any) {
-      console.error("[API] Delete server error:", err);
-      const msg = err.response?.data;
-      alert(typeof msg === "string" ? msg : "Impossible de supprimer ce serveur.");
-    }
-  };
-
-  const handleDeleteChannel = async (channelId: string) => {
-    if (!confirm("Supprimer ce channel ?")) return;
-    try {
-      await channelsService.delete(channelId);
-      setChannels((prev) => prev.filter((c) => c.id !== channelId));
-      if (selectedChannel === channelId) {
-        setSelectedChannel("");
-        setMessages([]);
-      }
-    } catch (err: any) {
-      console.error("[API] Delete channel error:", err);
-      const msg = err.response?.data;
-      alert(typeof msg === "string" ? msg : "Impossible de supprimer ce channel.");
-    }
-  };
-
-  const handleUpdateRole = async (userId: string, role: string) => {
-    if (!selectedServer) return;
-    try {
-      await serversService.updateRole(selectedServer, userId, role);
-      setMembers((prev) =>
-        prev.map((m) => (m.user_id === userId ? { ...m, role } : m))
-      );
-    } catch (err: any) {
-      console.error("[API] Update role error:", err);
-      const msg = err.response?.data;
-      alert(typeof msg === "string" ? msg : "Impossible de changer le role.");
-    }
-  };
-
-  const handleSendMessage = (content: string) => {
-    if (!selectedChannel) return;
-    sendMessage(selectedChannel, content);
-  };
-
-  const handleTyping = useCallback(() => {
-    if (!selectedChannel) return;
-    if (typingThrottleRef.current) return;
-    startTyping(selectedChannel);
-    typingThrottleRef.current = setTimeout(() => {
-      typingThrottleRef.current = null;
-    }, 2000);
-  }, [selectedChannel, startTyping]);
-
-  const handleJoinServer = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const code = joinInviteCode.trim();
-    if (!code) return;
-
-    setJoinServerLoading(true);
-    setJoinServerError("");
-    try {
-      const server: Server = await serversService.join(code);
-      setServerList((prev) => {
-        if (prev.some((s) => s.id === server.id)) return prev;
-        return [server, ...prev];
-      });
-      setSelectedServer(server.id);
-      setIsJoinServerOpen(false);
-      setJoinInviteCode("");
-    } catch (err: any) {
-      console.error("[API] Join server error:", err);
-      const msg = err.response?.data;
-      setJoinServerError(typeof msg === "string" ? msg : "Code d'invitation invalide.");
-    } finally {
-      setJoinServerLoading(false);
-    }
-  };
-
-  const handleCreateServer = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedName = newServerName.trim();
-    if (!trimmedName) return;
-
-    try {
-      const server: Server = await serversService.create(trimmedName);
-      const channelNames = channelList.length ? channelList : ["general"];
-      const createdChannels: Channel[] = [];
-      for (const name of channelNames) {
-        const ch = await channelsService.create(server.id, name);
-        createdChannels.push(ch);
-      }
-
-      setServerList((prev) => [server, ...prev]);
-      setSelectedServer(server.id);
-      setChannels(createdChannels);
-
-      if (createdChannels.length) {
-        const firstCh = createdChannels[0];
-        setSelectedChannel(firstCh.id);
-        if (isConnected) {
-          joinChannel(firstCh.id);
-        }
-      }
-
-      setIsCreateServerOpen(false);
-      setNewServerName("");
-      setChannelList([]);
-    } catch (err) {
-      console.error("[API] Failed to create server:", err);
-    }
-  };
-
-  const handleAddChannel = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedName = newChannelName.trim();
-    if (!trimmedName) return;
-
-    if (addChannelTarget === "server" && selectedServer) {
-      try {
-        const ch = await channelsService.create(selectedServer, trimmedName);
-        setChannels((prev) => [...prev, ch]);
-        setSelectedChannel(ch.id);
-      } catch (err) {
-        console.error("[API] Failed to create channel:", err);
-      }
-    } else {
-      setChannelList((prev) => {
-        if (prev.some((c) => c.toLowerCase() === trimmedName.toLowerCase())) return prev;
-        return [...prev, trimmedName];
-      });
-    }
-
-    setNewChannelName("");
-    setIsAddChannelOpen(false);
-  };
-
-  const openCreateChannelOnServer = () => {
-    setAddChannelTarget("server");
-    setNewChannelName("");
-    setIsAddChannelOpen(true);
-  };
-
-  const openCreateChannelInModal = () => {
-    setAddChannelTarget("creation");
-    setIsAddChannelOpen(true);
   };
 
   if (!isReady) {
@@ -461,42 +112,46 @@ export default function ConversationsPage() {
       >
         <Sidebar
           activeTab={activeTab}
-          serverList={serverList}
+          serverList={server.serverList}
           friendList={friends.friendList}
-          selectedServer={selectedServer}
+          selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
-          currentUserRole={currentUserRole}
+          currentUserRole={server.currentUserRole}
           onTabChange={setActiveTab}
-          onSelectServer={setSelectedServer}
-          onCreateServer={() => setIsCreateServerOpen(true)}
-          onJoinServer={() => setIsJoinServerOpen(true)}
-          onLeaveServer={handleLeaveServer}
-          onDeleteServer={handleDeleteServer}
+          onSelectServer={server.setSelectedServer}
+          onCreateServer={() => server.setIsCreateServerOpen(true)}
+          onJoinServer={() => server.setIsJoinServerOpen(true)}
+          onLeaveServer={server.handleLeaveServer}
+          onDeleteServer={server.handleDeleteServer}
+          onUpdateServer={server.handleUpdateServer}
           onSelectFriend={friends.setSelectedFriend}
           onRemoveFriend={friends.handleRemoveFriend}
         />
 
         {activeTab === "servers" ? (
           <ChannelsPanel
-            channels={channels}
-            selectedChannel={selectedChannel}
-            canManageChannels={canManageChannels}
-            onSelectChannel={setSelectedChannel}
-            onDeleteChannel={handleDeleteChannel}
-            onCreateChannel={openCreateChannelOnServer}
+            channels={server.channels}
+            selectedChannel={server.selectedChannel}
+            canManageChannels={server.canManageChannels}
+            onSelectChannel={server.setSelectedChannel}
+            onDeleteChannel={server.handleDeleteChannel}
+            onUpdateChannel={server.handleUpdateChannel}
+            onCreateChannel={server.openCreateChannelOnServer}
           />
         ) : null}
 
         {activeTab === "servers" ? (
           <ChatPanel
-            channelName={channels.find((c) => c.id === selectedChannel)?.name ?? ""}
-            selectedChannel={selectedChannel}
-            selectedServer={selectedServerName}
-            messages={messages}
+            channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
+            selectedChannel={server.selectedChannel}
+            selectedServer={server.selectedServerName}
+            messages={chat.messages}
             currentUserId={currentUserId}
-            typingUsers={typingUserNames}
-            onSendMessage={handleSendMessage}
-            onTyping={handleTyping}
+            currentUserRole={server.currentUserRole}
+            typingUsers={chat.typingUserNames}
+            onSendMessage={chat.handleSendMessage}
+            onTyping={chat.handleTyping}
+            onDeleteMessage={chat.handleDeleteMessage}
           />
         ) : (
           <FriendsPanel
@@ -513,41 +168,42 @@ export default function ConversationsPage() {
 
         {activeTab === "servers" ? (
           <MembersPanel
-            members={members}
-            onlineUserIds={onlineUserIds}
+            members={server.members}
+            onlineUserIds={chat.onlineUserIds}
             currentUserId={currentUserId}
-            currentUserRole={currentUserRole}
-            onUpdateRole={handleUpdateRole}
+            currentUserRole={server.currentUserRole}
+            onUpdateRole={server.handleUpdateRole}
+            onTransferOwnership={server.handleTransferOwnership}
           />
         ) : null}
       </main>
 
       <CreateServerModal
-        isOpen={isCreateServerOpen}
-        newServerName={newServerName}
-        channelList={channelList}
-        onClose={() => setIsCreateServerOpen(false)}
-        onOpenAddChannel={openCreateChannelInModal}
-        onServerNameChange={setNewServerName}
-        onSubmit={handleCreateServer}
+        isOpen={server.isCreateServerOpen}
+        newServerName={server.newServerName}
+        channelList={server.channelList}
+        onClose={() => server.setIsCreateServerOpen(false)}
+        onOpenAddChannel={server.openCreateChannelInModal}
+        onServerNameChange={server.setNewServerName}
+        onSubmit={server.handleCreateServer}
       />
 
       <JoinServerModal
-        isOpen={isJoinServerOpen}
-        inviteCode={joinInviteCode}
-        error={joinServerError}
-        loading={joinServerLoading}
-        onClose={() => { setIsJoinServerOpen(false); setJoinServerError(""); }}
-        onInviteCodeChange={setJoinInviteCode}
-        onSubmit={handleJoinServer}
+        isOpen={server.isJoinServerOpen}
+        inviteCode={server.joinInviteCode}
+        error={server.joinServerError}
+        loading={server.joinServerLoading}
+        onClose={() => { server.setIsJoinServerOpen(false); server.setJoinServerError(""); }}
+        onInviteCodeChange={server.setJoinInviteCode}
+        onSubmit={server.handleJoinServer}
       />
 
       <AddChannelModal
-        isOpen={isAddChannelOpen}
-        newChannelName={newChannelName}
-        onClose={() => setIsAddChannelOpen(false)}
-        onChannelNameChange={setNewChannelName}
-        onSubmit={handleAddChannel}
+        isOpen={server.isAddChannelOpen}
+        newChannelName={server.newChannelName}
+        onClose={() => server.setIsAddChannelOpen(false)}
+        onChannelNameChange={server.setNewChannelName}
+        onSubmit={server.handleAddChannel}
       />
 
     </div>

@@ -6,6 +6,7 @@ type ChannelsPanelProps = {
   canManageChannels: boolean;
   onSelectChannel: (channelId: string) => void;
   onDeleteChannel: (channelId: string) => void;
+  onUpdateChannel: (channelId: string, newName: string) => void;
   onCreateChannel: () => void;
 };
 
@@ -15,11 +16,20 @@ export default function ChannelsPanel({
   canManageChannels,
   onSelectChannel,
   onDeleteChannel,
+  onUpdateChannel,
   onCreateChannel,
 }: ChannelsPanelProps) {
   const handleDelete = (e: React.MouseEvent, channelId: string) => {
     e.stopPropagation();
     onDeleteChannel(channelId);
+  };
+
+  const handleRename = (e: React.MouseEvent, channelId: string, currentName: string) => {
+    e.stopPropagation();
+    const newName = prompt("Nouveau nom du channel :", currentName);
+    if (newName && newName.trim() && newName.trim() !== currentName) {
+      onUpdateChannel(channelId, newName.trim());
+    }
   };
 
   return (
@@ -57,17 +67,30 @@ export default function ChannelsPanel({
               >
                 <span className="truncate"># {channel.name}</span>
                 {canManageChannels && (
-                  <button
-                    type="button"
-                    className="ml-2 shrink-0 rounded-full p-1 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                    onClick={(e) => handleDelete(e, channel.id)}
-                    title="Supprimer ce channel"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
+                  <span className="ml-2 flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-600 transition hover:text-[var(--brand-1)]"
+                      onClick={(e) => handleRename(e, channel.id, channel.name)}
+                      title="Renommer ce channel"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-600 transition hover:text-red-400"
+                      onClick={(e) => handleDelete(e, channel.id)}
+                      title="Supprimer ce channel"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </span>
                 )}
               </div>
             );

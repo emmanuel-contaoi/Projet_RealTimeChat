@@ -6,6 +6,7 @@ type MembersPanelProps = {
   currentUserId: string;
   currentUserRole: string;
   onUpdateRole: (userId: string, role: string) => void;
+  onTransferOwnership: (userId: string) => void;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -26,6 +27,7 @@ export default function MembersPanel({
   currentUserId,
   currentUserRole,
   onUpdateRole,
+  onTransferOwnership,
 }: MembersPanelProps) {
   const sorted = [...members].sort(
     (a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3)
@@ -49,6 +51,7 @@ export default function MembersPanel({
             const isOnline = onlineUserIds.has(member.user_id);
             const isMe = member.user_id === currentUserId;
             const canChangeRole = isOwner && !isMe && member.role !== "owner";
+            const canTransfer = isOwner && !isMe && member.role !== "owner";
 
             return (
               <div
@@ -93,6 +96,16 @@ export default function MembersPanel({
                         }
                       >
                         {member.role === "admin" ? "Retrograder" : "Promouvoir"}
+                      </button>
+                    )}
+                    {canTransfer && (
+                      <button
+                        type="button"
+                        className="text-[10px] text-slate-500 hover:text-yellow-400 transition"
+                        onClick={() => onTransferOwnership(member.user_id)}
+                        title="Transferer la propriete"
+                      >
+                        Transferer
                       </button>
                     )}
                   </div>
