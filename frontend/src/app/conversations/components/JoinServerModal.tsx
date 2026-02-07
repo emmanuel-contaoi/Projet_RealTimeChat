@@ -1,24 +1,24 @@
 import type { FormEvent } from "react";
 
-type CreateServerModalProps = {
+type JoinServerModalProps = {
   isOpen: boolean;
-  newServerName: string;
-  channelList: string[];
+  inviteCode: string;
+  error: string;
+  loading: boolean;
   onClose: () => void;
-  onOpenAddChannel: () => void;
-  onServerNameChange: (value: string) => void;
+  onInviteCodeChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-export default function CreateServerModal({
+export default function JoinServerModal({
   isOpen,
-  newServerName,
-  channelList,
+  inviteCode,
+  error,
+  loading,
   onClose,
-  onOpenAddChannel,
-  onServerNameChange,
+  onInviteCodeChange,
   onSubmit,
-}: CreateServerModalProps) {
+}: JoinServerModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -34,7 +34,7 @@ export default function CreateServerModal({
               Serveur
             </p>
             <h2 className="font-display text-2xl text-white">
-              Creer un serveur
+              Rejoindre un serveur
             </h2>
           </div>
           <button
@@ -48,37 +48,20 @@ export default function CreateServerModal({
 
         <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
           <label className="grid gap-2 text-sm text-slate-200">
-            Nom du serveur
+            Code d&apos;invitation
             <input
               className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]"
-              value={newServerName}
-              onChange={(event) => onServerNameChange(event.target.value)}
-              placeholder="Ex: Studio"
+              value={inviteCode}
+              onChange={(event) => onInviteCodeChange(event.target.value)}
+              placeholder="Ex: a1b2c3d4"
               required
             />
           </label>
-          <label className="grid gap-2 text-sm text-slate-200">
-            Channels
-            <button
-              className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-left text-sm font-semibold text-[var(--brand-1)] transition hover:-translate-y-0.5 hover:bg-[var(--surface)]"
-              onClick={onOpenAddChannel}
-              type="button"
-            >
-              + Ajouter des channels
-            </button>
-            {channelList.length ? (
-              <div className="flex flex-wrap gap-2">
-                {channelList.map((channel) => (
-                  <span
-                    key={channel}
-                    className="rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] px-3 py-1 text-xs text-slate-200"
-                  >
-                    #{channel}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </label>
+
+          {error && (
+            <p className="text-sm text-red-400">{error}</p>
+          )}
+
           <div className="mt-2 flex items-center justify-between gap-3">
             <button
               className="rounded-full border border-[var(--stroke)] px-5 py-2.5 text-sm text-slate-200 transition hover:bg-[var(--surface-strong)]"
@@ -90,9 +73,9 @@ export default function CreateServerModal({
             <button
               className="rounded-full bg-[var(--brand-1)] px-5 py-2.5 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
-              disabled={!newServerName.trim()}
+              disabled={!inviteCode.trim() || loading}
             >
-              Creer et ouvrir
+              {loading ? "Connexion..." : "Rejoindre"}
             </button>
           </div>
         </form>

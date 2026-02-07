@@ -9,7 +9,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::websocket::{
-    events::{ClientEvent, ServerEvent},
+    events::{ClientEvent, ServerEvent, ChannelUser},
 };
 use crate::state::AppState;
 use crate::utils::jwt::Claims;
@@ -28,8 +28,6 @@ pub async fn websocket_handler(
 ) -> Result<Response, StatusCode> {
     let claims = validate_token(&query.token)
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
-
-    println!("WebSocket auth réussie pour user: {}", claims.sub);
 
     Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, claims)))
 }
@@ -51,7 +49,6 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
     let user_id = claims.sub.clone();
     // Unique connection ID to avoid collisions when same user has multiple connections
     let conn_id = Uuid::new_v4().to_string();
-    println!("WebSocket connecté: user {} (conn {})", user_id, conn_id);
 
     let username = sqlx::query_scalar::<_, String>("SELECT username FROM users WHERE id = $1")
         .bind(uuid::Uuid::parse_str(&user_id).unwrap_or_default())
@@ -61,12 +58,20 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
         .flatten()
         .unwrap_or_else(|| "Unknown".to_string());
 
-    println!("Username résolu: {}", username);
-
     let (mut ws_sender, mut ws_receiver) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
 
     state.add_connection(conn_id.clone(), tx).await;
+    state.register_user(&conn_id, &user_id, &username).await;
+
+    // Broadcast online status to all connections
+    let connected_event = ServerEvent::UserConnected {
+        user_id: user_id.clone(),
+        username: username.clone(),
+    };
+    if let Ok(json) = connected_event.to_json() {
+        state.broadcast_all(Message::Text(json.into()), Some(&conn_id)).await;
+    }
 
     let state_clone = state.clone();
     let conn_id_clone = conn_id.clone();
@@ -92,7 +97,6 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
                             handle_client_event(event, &user_id_clone, &conn_id_clone, &username_clone, &state_clone).await;
                         }
                         Err(e) => {
-                            println!("JSON invalide: {}", e);
                             let error = ServerEvent::Error {
                                 message: format!("JSON invalide: {}", e),
                             };
@@ -106,10 +110,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
                         }
                     }
                 }
-                Message::Close(_) => {
-                    println!("Connexion fermée: {} (conn {})", user_id_clone, conn_id_clone);
-                    break;
-                }
+                Message::Close(_) => break,
                 Message::Ping(data) => {
                     if let Some(sender) = state_clone.connections.read().await.get(&conn_id_clone) {
                         let _ = sender.send(Message::Pong(data));
@@ -125,15 +126,22 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
         _ = &mut recv_task => send_task.abort(),
     }
 
+    // Unregister user and broadcast offline if last connection
+    if let Some((uid, _)) = state.unregister_user(&conn_id).await {
+        if !state.is_user_online(&uid).await {
+            let evt = ServerEvent::UserDisconnected { user_id: uid };
+            if let Ok(json) = evt.to_json() {
+                state.broadcast_all(Message::Text(json.into()), None).await;
+            }
+        }
+    }
+
     state.remove_connection(&conn_id).await;
-    println!("Déconnecté: user {} (conn {})", user_id, conn_id);
 }
 
 async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, username: &str, state: &AppState) {
     match event {
         ClientEvent::MessageSend { channel_id, content } => {
-            println!("Message de {} pour channel {}: {}", username, channel_id, content);
-
             // Auto-join: ensure sender is in the room
             state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
 
@@ -149,9 +157,7 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
                 created_at: Some(created_at.clone()),
             };
 
-            if let Err(e) = collection.insert_one(new_message, None).await {
-                println!("Erreur persistance MongoDB: {:?}", e);
-            }
+            let _ = collection.insert_one(new_message, None).await;
 
             let response = ServerEvent::MessageNew {
                 id: msg_id,
@@ -163,8 +169,6 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
             };
 
             if let Ok(json) = response.to_json() {
-                let room_count = state.room_manager.lock().await.count_connections(&channel_id).await;
-                println!("Broadcasting to {} connections in channel {}", room_count, channel_id);
                 state.broadcast_to_channel(&channel_id, Message::Text(json.into()), None).await;
             }
         }
@@ -186,26 +190,36 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
         ClientEvent::JoinChannel { channel_id } => {
             state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
 
-            let connected_event = ServerEvent::UserConnected {
-                user_id: user_id.to_string(),
-                username: username.to_string(),
-            };
+            // Send list of connected users in this channel back to the joining user
+            let conn_ids = state.room_manager.lock().await.get_room_connections(&channel_id).await;
+            let user_info = state.user_info.read().await;
+            let mut seen = std::collections::HashSet::new();
+            let mut users = Vec::new();
+            for cid in &conn_ids {
+                if let Some((uid, uname)) = user_info.get(cid) {
+                    if seen.insert(uid.clone()) {
+                        users.push(ChannelUser {
+                            user_id: uid.clone(),
+                            username: uname.clone(),
+                        });
+                    }
+                }
+            }
+            drop(user_info);
 
-            if let Ok(json) = connected_event.to_json() {
-                state.broadcast_to_channel(&channel_id, Message::Text(json.into()), Some(conn_id)).await;
+            let channel_users_event = ServerEvent::ChannelUsers {
+                channel_id: channel_id.clone(),
+                users,
+            };
+            if let Ok(json) = channel_users_event.to_json() {
+                if let Some(sender) = state.connections.read().await.get(conn_id) {
+                    let _ = sender.send(Message::Text(json.into()));
+                }
             }
         }
 
         ClientEvent::LeaveChannel { channel_id } => {
             state.room_manager.lock().await.leave_room(&channel_id, conn_id).await;
-
-            let disconnected_event = ServerEvent::UserDisconnected {
-                user_id: user_id.to_string(),
-            };
-
-            if let Ok(json) = disconnected_event.to_json() {
-                state.broadcast_to_channel(&channel_id, Message::Text(json.into()), Some(conn_id)).await;
-            }
         }
     }
 }

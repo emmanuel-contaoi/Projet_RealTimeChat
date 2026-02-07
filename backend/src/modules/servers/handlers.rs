@@ -2,30 +2,30 @@ use axum::{
     extract::{State, Path},
     http::StatusCode,
     response::{IntoResponse, Json},
+    Extension,
 };
 use uuid::Uuid;
+use chrono::Utc;
 // Imports pour MongoDB
 use mongodb::bson::doc;
 use futures::stream::TryStreamExt;
-use chrono::Utc;
 
 // Imports des modules
 use crate::state::AppState;
-// UpdateChannelRequest et CreateMessageRequest
+use crate::utils::auth::AuthUser;
 use crate::modules::servers::models::{
     CreateServerRequest, Server, CreateChannelRequest, Channel, JoinServerRequest,
-    Message, UpdateChannelRequest, CreateMessageRequest
+    Message, UpdateChannelRequest, CreateMessageRequest, MemberRow, UpdateRoleRequest
 };
-
-const HARDCODED_USER_ID: &str = "11111111-1111-1111-1111-111111111111";
 
 // Route 1 : CRÉER SERVEUR
 pub async fn create_server(
     State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
     Json(payload): Json<CreateServerRequest>,
 ) -> impl IntoResponse {
 
-    let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
+    let user_id = auth_user.0.id;
     let invite_code = Uuid::new_v4().to_string()[..8].to_string();
 
     let new_server = sqlx::query_as::<_, Server>(
@@ -38,15 +38,29 @@ pub async fn create_server(
 
     match new_server {
         Ok(server) => {
-            let _ = sqlx::query(
-                "INSERT INTO members (server_id, user_id, role) VALUES ($1, $2, 'admin')"
+            let member_result = sqlx::query(
+                "INSERT INTO members (server_id, user_id, role) VALUES ($1, $2, 'owner')"
             )
             .bind(server.id)
             .bind(user_id)
             .execute(&state.pool)
             .await;
 
-            (StatusCode::CREATED, Json(server)).into_response()
+            match member_result {
+                Ok(_) => {
+                    println!("Membre admin inséré pour user {} dans serveur {}", user_id, server.id);
+                    (StatusCode::CREATED, Json(server)).into_response()
+                }
+                Err(e) => {
+                    println!("Erreur INSERT member: {:?}", e);
+                    // Nettoyer le serveur orphelin
+                    let _ = sqlx::query("DELETE FROM servers WHERE id = $1")
+                        .bind(server.id)
+                        .execute(&state.pool)
+                        .await;
+                    (StatusCode::INTERNAL_SERVER_ERROR, "Erreur ajout membre").into_response()
+                }
+            }
         }
         Err(e) => {
             println!("Erreur SQL Create Server: {:?}", e);
@@ -58,8 +72,9 @@ pub async fn create_server(
 // LISTER SERVEURS ---
 pub async fn list_servers(
     State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
 ) -> impl IntoResponse {
-    let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
+    let user_id = auth_user.0.id;
 
     let servers = sqlx::query_as::<_, Server>(
         "SELECT s.* FROM servers s
@@ -129,9 +144,10 @@ pub async fn list_channels(
 //  REJOINDRE SERVEUR
 pub async fn join_server(
     State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
     Json(payload): Json<JoinServerRequest>,
 ) -> impl IntoResponse {
-    let user_id = Uuid::parse_str(HARDCODED_USER_ID).unwrap();
+    let user_id = auth_user.0.id;
 
     let server = sqlx::query_as::<_, Server>(
         "SELECT * FROM servers WHERE invite_code = $1"
@@ -143,7 +159,7 @@ pub async fn join_server(
     match server {
         Ok(Some(server)) => {
             let result = sqlx::query(
-                "INSERT INTO members (server_id, user_id, role) VALUES ($1, $2, 'guest') 
+                "INSERT INTO members (server_id, user_id, role) VALUES ($1, $2, 'member')
                  ON CONFLICT DO NOTHING" 
             )
             .bind(server.id)
@@ -167,7 +183,55 @@ pub async fn join_server(
     }
 }
 
-//  HISTORIQUE MONGO 
+//  QUITTER SERVEUR
+pub async fn leave_server(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path(server_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let user_id = auth_user.0.id;
+
+    // Vérifier que l'utilisateur n'est pas owner
+    let role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2"
+    )
+    .bind(server_id)
+    .bind(user_id)
+    .fetch_optional(&state.pool)
+    .await;
+
+    match role {
+        Ok(Some(r)) if r == "owner" => {
+            return (StatusCode::FORBIDDEN, "Le owner ne peut pas quitter son serveur.").into_response();
+        }
+        Ok(None) => {
+            return (StatusCode::NOT_FOUND, "Vous n'etes pas membre de ce serveur.").into_response();
+        }
+        Err(e) => {
+            println!("Erreur SQL leave_server: {:?}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Erreur serveur").into_response();
+        }
+        _ => {}
+    }
+
+    let result = sqlx::query(
+        "DELETE FROM members WHERE server_id = $1 AND user_id = $2"
+    )
+    .bind(server_id)
+    .bind(user_id)
+    .execute(&state.pool)
+    .await;
+
+    match result {
+        Ok(_) => (StatusCode::NO_CONTENT, ()).into_response(),
+        Err(e) => {
+            println!("Erreur SQL DELETE member: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response()
+        }
+    }
+}
+
+//  HISTORIQUE MONGO
 pub async fn get_chat_history(
     State(state): State<AppState>, 
     Path(channel_id): Path<Uuid>,
@@ -248,6 +312,136 @@ pub async fn delete_channel(
     match result {
         Ok(_) => (StatusCode::NO_CONTENT, ()).into_response(),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response(),
+    }
+}
+
+// SUPPRIMER SERVEUR (owner uniquement)
+pub async fn delete_server(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path(server_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let user_id = auth_user.0.id;
+
+    let role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2"
+    )
+    .bind(server_id)
+    .bind(user_id)
+    .fetch_optional(&state.pool)
+    .await;
+
+    match role {
+        Ok(Some(r)) if r == "owner" => {}
+        Ok(Some(_)) => return (StatusCode::FORBIDDEN, "Seul le owner peut supprimer le serveur.").into_response(),
+        Ok(None) => return (StatusCode::NOT_FOUND, "Vous n'etes pas membre de ce serveur.").into_response(),
+        Err(e) => {
+            println!("Erreur SQL delete_server: {:?}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Erreur serveur").into_response();
+        }
+    }
+
+    let result = sqlx::query("DELETE FROM servers WHERE id = $1")
+        .bind(server_id)
+        .execute(&state.pool)
+        .await;
+
+    match result {
+        Ok(_) => (StatusCode::NO_CONTENT, ()).into_response(),
+        Err(e) => {
+            println!("Erreur SQL DELETE server: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Erreur suppression").into_response()
+        }
+    }
+}
+
+// LISTER MEMBRES D'UN SERVEUR
+pub async fn list_members(
+    State(state): State<AppState>,
+    Path(server_id): Path<Uuid>,
+) -> impl IntoResponse {
+    let rows = sqlx::query_as::<_, MemberRow>(
+        "SELECT m.user_id, COALESCE(u.username, u.first_name, u.email) as username, m.role
+         FROM members m
+         JOIN users u ON m.user_id = u.id
+         WHERE m.server_id = $1"
+    )
+    .bind(server_id)
+    .fetch_all(&state.pool)
+    .await;
+
+    match rows {
+        Ok(members) => {
+            let mut response = Vec::new();
+            for m in members {
+                let is_online = state.is_user_online(&m.user_id.to_string()).await;
+                response.push(serde_json::json!({
+                    "user_id": m.user_id,
+                    "username": m.username.unwrap_or_else(|| "Inconnu".to_string()),
+                    "role": m.role,
+                    "is_online": is_online
+                }));
+            }
+            (StatusCode::OK, Json(serde_json::Value::Array(response))).into_response()
+        }
+        Err(e) => {
+            println!("Erreur SQL list_members: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Erreur membres").into_response()
+        }
+    }
+}
+
+// CHANGER LE ROLE D'UN MEMBRE (owner uniquement)
+pub async fn update_member_role(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<UpdateRoleRequest>,
+) -> impl IntoResponse {
+    let user_id = auth_user.0.id;
+
+    // Seul le owner peut changer les roles
+    let caller_role = sqlx::query_scalar::<_, String>(
+        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2"
+    )
+    .bind(server_id)
+    .bind(user_id)
+    .fetch_optional(&state.pool)
+    .await;
+
+    match caller_role {
+        Ok(Some(r)) if r == "owner" => {}
+        _ => return (StatusCode::FORBIDDEN, "Seul le owner peut changer les roles.").into_response(),
+    }
+
+    // On ne peut pas changer son propre role
+    if user_id == target_user_id {
+        return (StatusCode::BAD_REQUEST, "Impossible de changer votre propre role.").into_response();
+    }
+
+    // Seuls "admin" et "member" sont des roles valides a attribuer
+    if payload.role != "admin" && payload.role != "member" {
+        return (StatusCode::BAD_REQUEST, "Role invalide. Valeurs acceptees : admin, member.").into_response();
+    }
+
+    let result = sqlx::query(
+        "UPDATE members SET role = $1 WHERE server_id = $2 AND user_id = $3"
+    )
+    .bind(&payload.role)
+    .bind(server_id)
+    .bind(target_user_id)
+    .execute(&state.pool)
+    .await;
+
+    match result {
+        Ok(r) if r.rows_affected() > 0 => {
+            (StatusCode::OK, format!("Role mis a jour: {}", payload.role)).into_response()
+        }
+        Ok(_) => (StatusCode::NOT_FOUND, "Membre introuvable.").into_response(),
+        Err(e) => {
+            println!("Erreur SQL update_member_role: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Erreur serveur").into_response()
+        }
     }
 }
 

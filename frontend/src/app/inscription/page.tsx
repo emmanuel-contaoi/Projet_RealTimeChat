@@ -32,13 +32,15 @@ export default function InscriptionPage() {
       await authService.register(
         formData.email,
         formData.password,
-        formData.firstName,
-        formData.lastName,
-        formData.username
+        formData.firstName || undefined,
+        formData.lastName || undefined,
+        formData.username || undefined
       );
       router.push("/conversations");
     } catch (err: any) {
-      setError(err.response?.data || 'Erreur lors de l\'inscription');
+      console.error("[Register] Error:", err);
+      const message = err.response?.data;
+      setError(typeof message === 'string' ? message : 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
     }

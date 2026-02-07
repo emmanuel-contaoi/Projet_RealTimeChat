@@ -126,5 +126,12 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     [send]
   );
 
-  return { sendMessage, joinChannel, leaveChannel, isConnected };
+  const startTyping = useCallback(
+    (channelId: string) => {
+      send({ type: "typing_start", channel_id: channelId });
+    },
+    [send]
+  );
+
+  return { sendMessage, joinChannel, leaveChannel, startTyping, isConnected };
 }

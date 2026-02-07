@@ -26,7 +26,6 @@ impl RoomManager {
             .or_insert_with(HashSet::new)
             .insert(connection_id.to_string());
         
-        println!("{} rejoins {}", connection_id, channel_id);
     }
 
     // Retire une connexion d'un channel
@@ -56,15 +55,6 @@ impl RoomManager {
             .get(channel_id)
             .map(|connections| connections.iter().cloned().collect())
             .unwrap_or_default()
-    }
-
-    // Compte le nombre de connexions dans un channel
-    pub async fn count_connections(&self, channel_id: &str) -> usize {
-        let rooms = self.rooms.read().await;
-        rooms
-            .get(channel_id)
-            .map(|connections| connections.len())
-            .unwrap_or(0)
     }
 }
 

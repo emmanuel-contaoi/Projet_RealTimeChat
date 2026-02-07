@@ -31,18 +31,23 @@ pub async fn register(
     
     let password_hash = hash(payload.password.as_bytes(), DEFAULT_COST)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to hash password: {}", e)))?;
-    
+
+    // Convertir les chaînes vides en None pour éviter les violations UNIQUE
+    let first_name = payload.first_name.filter(|s| !s.trim().is_empty());
+    let last_name = payload.last_name.filter(|s| !s.trim().is_empty());
+    let username = payload.username.filter(|s| !s.trim().is_empty());
+
     let user = sqlx::query_as::<_, User>(
-        "INSERT INTO users (id, email, password_hash, first_name, last_name, username, created_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
+        "INSERT INTO users (id, email, password_hash, first_name, last_name, username, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())
          RETURNING *"
     )
     .bind(Uuid::new_v4())
     .bind(&payload.email)
     .bind(&password_hash)
-    .bind(&payload.first_name)
-    .bind(&payload.last_name)
-    .bind(&payload.username)
+    .bind(&first_name)
+    .bind(&last_name)
+    .bind(&username)
     .fetch_one(pool)
     .await
     .map_err(|e| {

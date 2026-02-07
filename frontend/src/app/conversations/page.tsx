@@ -1,102 +1,158 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { authService, friendsService, serversService, channelsService, messagesService } from "@/services/api";
 import useWebSocket from "@/hooks/useWebSocket";
 import AddChannelModal from "./components/AddChannelModal";
-import AddServerMemberModal from "./components/AddServerMemberModal";
 import ChannelsPanel from "./components/ChannelsPanel";
 import ChatPanel from "./components/ChatPanel";
 import ConversationsHeader from "./components/ConversationsHeader";
 import CreateServerModal from "./components/CreateServerModal";
+import JoinServerModal from "./components/JoinServerModal";
 import FriendsPanel from "./components/FriendsPanel";
 import LoadingScreen from "./components/LoadingScreen";
+import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
-import { initialFriends } from "./data/mockData";
-import type { Channel, ChannelMessage, Server, UserSearchResult } from "./types";
+import type { Server, Channel, ChannelMessage, Friend, Member, UserSearchResult } from "./types";
 import { formatUserLabel } from "./utils";
 
 export default function ConversationsPage() {
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Server / Channel / Message state
   const [serverList, setServerList] = useState<Server[]>([]);
-  const [friendList, setFriendList] = useState(initialFriends);
-  const [selectedServer, setSelectedServer] = useState("");
-  const [selectedChannel, setSelectedChannel] = useState("");
   const [channels, setChannels] = useState<Channel[]>([]);
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
+  const [selectedServer, setSelectedServer] = useState("");
+  const [selectedChannel, setSelectedChannel] = useState("");
+  const [currentUserId, setCurrentUserId] = useState("");
+  const prevChannelRef = useRef("");
+
+  // Members + online tracking
+  const [members, setMembers] = useState<Member[]>([]);
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+
+  // Typing indicator
+  const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timer: ReturnType<typeof setTimeout> }>>({});
+  const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Friends state
+  const [friendList, setFriendList] = useState<Friend[]>([]);
   const [selectedFriend, setSelectedFriend] = useState("");
+  const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
+
+  // Modal state
   const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
+  const [newServerName, setNewServerName] = useState("");
+  const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
+  const [addChannelTarget, setAddChannelTarget] = useState<"creation" | "server">("creation");
+  const [newChannelName, setNewChannelName] = useState("");
+  const [channelList, setChannelList] = useState<string[]>([]);
+  const [isJoinServerOpen, setIsJoinServerOpen] = useState(false);
+  const [joinInviteCode, setJoinInviteCode] = useState("");
+  const [joinServerError, setJoinServerError] = useState("");
+  const [joinServerLoading, setJoinServerLoading] = useState(false);
+
+  // Friend search state
   const [friendSearch, setFriendSearch] = useState("");
   const [friendResults, setFriendResults] = useState<UserSearchResult[]>([]);
   const [allUsers, setAllUsers] = useState<UserSearchResult[]>([]);
   const [allUsersLoading, setAllUsersLoading] = useState(false);
   const [friendSearchLoading, setFriendSearchLoading] = useState(false);
   const [friendSearchError, setFriendSearchError] = useState("");
-  const [newServerName, setNewServerName] = useState("");
-  const [newServerMembers, setNewServerMembers] = useState("");
-  const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
-  const [newChannelName, setNewChannelName] = useState("");
-  const [channelList, setChannelList] = useState<string[]>([]);
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
-  const [serverMembers, setServerMembers] = useState<Record<string, string[]>>(
-    {}
-  );
-  const [currentUserId, setCurrentUserId] = useState("");
-  const menuRef = useRef<HTMLDivElement>(null);
-  const prevChannelRef = useRef<string>("");
 
-  // Get current channel name for display
-  const selectedChannelName =
-    channels.find((c) => c.id === selectedChannel)?.name ?? "";
-  const selectedServerName =
-    serverList.find((s) => s.id === selectedServer)?.name ?? "";
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // WebSocket handler
-  const onWsMessage = useCallback(
+  // --- WebSocket ---
+  const handleWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
-      console.log("[WS] Received event:", event.type, event);
       if (event.type === "message_new") {
         const msg: ChannelMessage = {
-          id: event.id as string,
+          id: event.id as string | undefined,
           channel_id: event.channel_id as string,
           user_id: event.user_id as string,
           username: event.username as string,
           content: event.content as string,
-          created_at: event.created_at as string,
+          created_at: event.created_at as string | undefined,
         };
-        console.log("[WS] New message, user_id:", msg.user_id, "currentUserId:", localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!).id : "N/A");
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id && m.id === msg.id)) return prev;
+          return [...prev, msg];
+        });
+      }
+
+      if (event.type === "user_connected") {
+        const uid = event.user_id as string;
+        setOnlineUserIds((prev) => {
+          const next = new Set(prev);
+          next.add(uid);
+          return next;
+        });
+      }
+
+      if (event.type === "user_disconnected") {
+        const uid = event.user_id as string;
+        setOnlineUserIds((prev) => {
+          const next = new Set(prev);
+          next.delete(uid);
+          return next;
+        });
+      }
+
+      if (event.type === "user_typing") {
+        const uid = event.user_id as string;
+        const uname = event.username as string;
+        setTypingUsers((prev) => {
+          if (prev[uid]) clearTimeout(prev[uid].timer);
+          const timer = setTimeout(() => {
+            setTypingUsers((p) => {
+              const copy = { ...p };
+              delete copy[uid];
+              return copy;
+            });
+          }, 3000);
+          return { ...prev, [uid]: { username: uname, timer } };
+        });
+      }
+
+      if (event.type === "channel_users") {
+        const users = event.users as Array<{ user_id: string; username: string }>;
+        setOnlineUserIds((prev) => {
+          const next = new Set(prev);
+          for (const u of users) {
+            next.add(u.user_id);
+          }
+          return next;
+        });
       }
     },
     []
   );
 
-  const { sendMessage, joinChannel, leaveChannel, isConnected } = useWebSocket({
-    onMessage: onWsMessage,
+  const { sendMessage, joinChannel, leaveChannel, startTyping, isConnected } = useWebSocket({
+    onMessage: handleWsMessage,
   });
 
-  // Auth check
+  // --- Auth check ---
   useEffect(() => {
-    const isAuthed = !!localStorage.getItem("token");
-    if (!isAuthed) {
+    const token = localStorage.getItem("token");
+    if (!token) {
       router.replace("/connexion");
       return;
     }
     const user = authService.getCurrentUser();
     if (user?.id) {
-      console.log("[Auth] currentUserId set to:", user.id);
       setCurrentUserId(user.id);
     }
     setIsReady(true);
   }, [router]);
 
-  // Close menu on outside click
+  // --- Click outside menu ---
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       if (!menuRef.current) return;
@@ -104,12 +160,11 @@ export default function ConversationsPage() {
         setIsMenuOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Load servers from API
+  // --- Load servers from API ---
   useEffect(() => {
     if (!isReady) return;
     (async () => {
@@ -119,65 +174,74 @@ export default function ConversationsPage() {
         if (data.length && !selectedServer) {
           setSelectedServer(data[0].id);
         }
-      } catch {
-        // servers will stay empty
+      } catch (err) {
+        console.error("[API] Failed to load servers:", err);
       }
     })();
   }, [isReady]);
 
-  // Load channels when server changes
+  // --- Load channels + members when server changes ---
   useEffect(() => {
     if (!selectedServer) {
       setChannels([]);
+      setSelectedChannel("");
+      setMembers([]);
       return;
     }
     (async () => {
       try {
-        const data = await channelsService.list(selectedServer);
-        setChannels(data);
-        if (data.length) {
-          setSelectedChannel(data[0].id);
+        const [chData, memberData] = await Promise.all([
+          channelsService.list(selectedServer),
+          serversService.members(selectedServer),
+        ]);
+        setChannels(chData);
+        setMembers(memberData);
+        if (chData.length) {
+          setSelectedChannel(chData[0].id);
         } else {
           setSelectedChannel("");
         }
-      } catch {
+      } catch (err) {
+        console.error("[API] Failed to load channels/members:", err);
         setChannels([]);
+        setSelectedChannel("");
+        setMembers([]);
       }
     })();
   }, [selectedServer]);
 
-  // Handle channel changes + WS connection: join/leave room + load messages
-  // Single effect ensures join always fires when both isConnected and selectedChannel are ready
+  // --- Load message history when channel changes ---
   useEffect(() => {
-    if (prevChannelRef.current && prevChannelRef.current !== selectedChannel) {
-      leaveChannel(prevChannelRef.current);
-    }
-    prevChannelRef.current = selectedChannel;
-
     if (!selectedChannel) {
       setMessages([]);
       return;
     }
-
-    if (isConnected) {
-      console.log("[WS] Joining channel:", selectedChannel);
-      joinChannel(selectedChannel);
-    } else {
-      console.log("[WS] Not connected yet, cannot join channel:", selectedChannel);
-    }
-
+    setTypingUsers({});
     (async () => {
       try {
         const data = await messagesService.history(selectedChannel);
-        console.log("[History] Loaded", data.length, "messages for channel", selectedChannel);
         setMessages(data);
-      } catch {
+      } catch (err) {
+        console.error("[API] Failed to load messages:", err);
         setMessages([]);
       }
     })();
+  }, [selectedChannel]);
+
+  // --- WebSocket join/leave channel ---
+  useEffect(() => {
+    if (!isConnected) return;
+    const prev = prevChannelRef.current;
+    if (prev && prev !== selectedChannel) {
+      leaveChannel(prev);
+    }
+    if (selectedChannel) {
+      joinChannel(selectedChannel);
+    }
+    prevChannelRef.current = selectedChannel;
   }, [selectedChannel, isConnected, joinChannel, leaveChannel]);
 
-  // Load friends
+  // --- Load friends ---
   useEffect(() => {
     if (!isReady) return;
     (async () => {
@@ -187,7 +251,6 @@ export default function ConversationsPage() {
           id: user.id,
           name: formatUserLabel(user),
           status: "Actif",
-          lastMessage: "",
         }));
         setFriendList(mapped);
         if (!selectedFriend && mapped.length) {
@@ -199,99 +262,20 @@ export default function ConversationsPage() {
     })();
   }, [isReady]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/");
-  };
-
-  const handleSwitchAccount = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/connexion");
-  };
-
-  const handleEditProfile = () => {
-    setIsMenuOpen(false);
-    router.push("/inscription");
-  };
-
-  const handleMenuSwitchAccount = () => {
-    setIsMenuOpen(false);
-    handleSwitchAccount();
-  };
-
-  const handleMenuLogout = () => {
-    setIsMenuOpen(false);
-    handleLogout();
-  };
-
-  const apiBaseUrl =
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3002";
-
-  const handleSelectServer = (serverId: string) => {
-    setSelectedServer(serverId);
-  };
-
-  const handleSelectFriend = (friendName: string) => {
-    setSelectedFriend(friendName);
-  };
-
-  const handleRemoveFriend = async (friendId: string) => {
-    try {
-      await friendsService.remove(friendId);
-      setFriendList((prev) => prev.filter((friend) => friend.id !== friendId));
-    } catch {
-      setFriendSearchError("Impossible de supprimer cet ami.");
-    }
-  };
-
-  const handleAddFriend = async (user: UserSearchResult) => {
-    try {
-      const added = await friendsService.add(user.id);
-      const label = formatUserLabel(added);
-      setFriendList((prev) => {
-        if (prev.some((friend) => friend.id === added.id)) {
-          return prev;
-        }
-        return [
-          ...prev,
-          { id: added.id, name: label, status: "Actif", lastMessage: "" },
-        ];
-      });
-      setSelectedFriend(label);
-      setFriendSearch("");
-      setFriendResults([]);
-      setFriendSearchError("");
-    } catch {
-      setFriendSearchError("Impossible d'ajouter cet ami.");
-    }
-  };
-
-  const handleAddServerMember = (friendId: string) => {
-    if (!selectedServer) return;
-    setServerMembers((prev) => {
-      const current = prev[selectedServer] ?? [];
-      if (current.includes(friendId)) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [selectedServer]: [...current, friendId],
-      };
-    });
-  };
-
+  // --- Friend tab auto-select ---
   useEffect(() => {
     if (activeTab !== "friends") return;
     if (!friendList.length) {
       setSelectedFriend("");
       return;
     }
-    if (!selectedFriend || !friendList.some((friend) => friend.name === selectedFriend)) {
+    if (!selectedFriend || !friendList.some((f) => f.name === selectedFriend)) {
       setSelectedFriend(friendList[0].name);
     }
   }, [activeTab, selectedFriend, friendList]);
+
+  // --- Friend search ---
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
   useEffect(() => {
     if (activeTab !== "friends") return;
@@ -309,16 +293,12 @@ export default function ConversationsPage() {
               headers: token ? { Authorization: `Bearer ${token}` } : undefined,
               signal: controller.signal,
             });
-            if (!response.ok) {
-              throw new Error("Chargement impossible.");
-            }
+            if (!response.ok) throw new Error("Chargement impossible.");
             const data = (await response.json()) as UserSearchResult[];
             setAllUsers(data);
           } catch (error) {
             if ((error as Error).name === "AbortError") return;
-            setFriendSearchError(
-              "Impossible de charger la liste des utilisateurs."
-            );
+            setFriendSearchError("Impossible de charger la liste des utilisateurs.");
           } finally {
             setAllUsersLoading(false);
           }
@@ -341,11 +321,7 @@ export default function ConversationsPage() {
             signal: controller.signal,
           }
         );
-
-        if (!response.ok) {
-          throw new Error("Recherche impossible.");
-        }
-
+        if (!response.ok) throw new Error("Recherche impossible.");
         const data = (await response.json()) as UserSearchResult[];
         setFriendResults(data);
       } catch (error) {
@@ -362,67 +338,132 @@ export default function ConversationsPage() {
     };
   }, [activeTab, apiBaseUrl, friendSearch, allUsers.length]);
 
-  const handleCreateServer = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedName = newServerName.trim();
-    if (!trimmedName) return;
+  // --- Derived state ---
+  const selectedServerObj = serverList.find((s) => s.id === selectedServer);
+  const selectedServerName = selectedServerObj?.name ?? "";
+  const currentUserRole = members.find((m) => m.user_id === currentUserId)?.role ?? "";
+  const canManageChannels = currentUserRole === "owner" || currentUserRole === "admin";
+  const typingUserNames = Object.values(typingUsers)
+    .map((t) => t.username)
+    .filter((name) => name !== authService.getCurrentUser()?.username);
 
+  // --- Handlers ---
+  const handleLogout = () => {
+    authService.logout();
+    router.push("/");
+  };
+
+  const handleSwitchAccount = () => {
+    authService.logout();
+    router.push("/connexion");
+  };
+
+  const handleEditProfile = () => {
+    setIsMenuOpen(false);
+    router.push("/inscription");
+  };
+
+  const handleSelectServer = (serverId: string) => {
+    setSelectedServer(serverId);
+  };
+
+  const handleSelectFriend = (friendName: string) => {
+    setSelectedFriend(friendName);
+  };
+
+  const handleRemoveFriend = async (friendId: string) => {
     try {
-      const server = await serversService.create(trimmedName);
-
-      // Create channels via API
-      const channelNames = channelList.length ? channelList : ["general"];
-      const createdChannels: Channel[] = [];
-      for (const chName of channelNames) {
-        try {
-          const ch = await channelsService.create(server.id, chName);
-          createdChannels.push(ch);
-        } catch {
-          // skip failed channels
-        }
-      }
-
-      // Add new server to list in the shape the API returns
-      const newServer: Server = {
-        id: server.id,
-        name: server.name,
-        invite_code: server.invite_code,
-        created_at: null,
-      };
-
-      setServerList((prev) => [newServer, ...prev]);
-      setSelectedServer(server.id);
-      setChannels(createdChannels);
-      if (createdChannels.length) {
-        setSelectedChannel(createdChannels[0].id);
-      }
-      setIsCreateServerOpen(false);
-      setNewServerName("");
-      setNewServerMembers("");
-      setChannelList([]);
+      await friendsService.remove(friendId);
+      setFriendList((prev) => prev.filter((f) => f.id !== friendId));
     } catch {
-      // could show an error toast
+      setFriendSearchError("Impossible de supprimer cet ami.");
     }
   };
 
-  const handleAddChannel = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const trimmedName = newChannelName.trim();
-    if (!trimmedName) return;
+  const handleAddFriend = async (user: UserSearchResult) => {
+    try {
+      const added = await friendsService.add(user.id);
+      const label = formatUserLabel(added);
+      setFriendList((prev) => {
+        if (prev.some((f) => f.id === added.id)) return prev;
+        return [...prev, { id: added.id, name: label, status: "Actif" }];
+      });
+      setSelectedFriend(label);
+      setFriendSearch("");
+      setFriendResults([]);
+      setFriendSearchError("");
+    } catch (err: any) {
+      console.error("[Friends] Add error:", err);
+      const msg = err.response?.data;
+      setFriendSearchError(typeof msg === "string" ? msg : "Impossible d'ajouter cet ami.");
+    }
+  };
 
-    setChannelList((prev) => {
-      if (
-        prev.some(
-          (channel) => channel.toLowerCase() === trimmedName.toLowerCase()
-        )
-      ) {
-        return prev;
+  const handleLeaveServer = async (serverId: string) => {
+    try {
+      await serversService.leave(serverId);
+      setServerList((prev) => prev.filter((s) => s.id !== serverId));
+      if (selectedServer === serverId) {
+        setSelectedServer("");
+        setChannels([]);
+        setSelectedChannel("");
+        setMessages([]);
+        setMembers([]);
       }
-      return [...prev, trimmedName];
-    });
+    } catch (err: any) {
+      console.error("[API] Leave server error:", err);
+      const msg = err.response?.data;
+      alert(typeof msg === "string" ? msg : "Impossible de quitter ce serveur.");
+    }
+  };
 
-    setNewChannelName("");
-    setIsAddChannelOpen(false);
+  const handleDeleteServer = async (serverId: string) => {
+    if (!confirm("Supprimer ce serveur ? Cette action est irreversible.")) return;
+    try {
+      await serversService.delete(serverId);
+      setServerList((prev) => prev.filter((s) => s.id !== serverId));
+      if (selectedServer === serverId) {
+        setSelectedServer("");
+        setChannels([]);
+        setSelectedChannel("");
+        setMessages([]);
+        setMembers([]);
+      }
+    } catch (err: any) {
+      console.error("[API] Delete server error:", err);
+      const msg = err.response?.data;
+      alert(typeof msg === "string" ? msg : "Impossible de supprimer ce serveur.");
+    }
+  };
+
+  const handleDeleteChannel = async (channelId: string) => {
+    if (!confirm("Supprimer ce channel ?")) return;
+    try {
+      await channelsService.delete(channelId);
+      setChannels((prev) => prev.filter((c) => c.id !== channelId));
+      if (selectedChannel === channelId) {
+        setSelectedChannel("");
+        setMessages([]);
+      }
+    } catch (err: any) {
+      console.error("[API] Delete channel error:", err);
+      const msg = err.response?.data;
+      alert(typeof msg === "string" ? msg : "Impossible de supprimer ce channel.");
+    }
+  };
+
+  const handleUpdateRole = async (userId: string, role: string) => {
+    if (!selectedServer) return;
+    try {
+      await serversService.updateRole(selectedServer, userId, role);
+      setMembers((prev) =>
+        prev.map((m) => (m.user_id === userId ? { ...m, role } : m))
+      );
+    } catch (err: any) {
+      console.error("[API] Update role error:", err);
+      const msg = err.response?.data;
+      alert(typeof msg === "string" ? msg : "Impossible de changer le role.");
+    }
   };
 
   const handleSendMessage = (content: string) => {
@@ -430,13 +471,112 @@ export default function ConversationsPage() {
     sendMessage(selectedChannel, content);
   };
 
+  const handleTyping = useCallback(() => {
+    if (!selectedChannel) return;
+    if (typingThrottleRef.current) return;
+    startTyping(selectedChannel);
+    typingThrottleRef.current = setTimeout(() => {
+      typingThrottleRef.current = null;
+    }, 2000);
+  }, [selectedChannel, startTyping]);
+
+  const handleJoinServer = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const code = joinInviteCode.trim();
+    if (!code) return;
+
+    setJoinServerLoading(true);
+    setJoinServerError("");
+    try {
+      const server: Server = await serversService.join(code);
+      setServerList((prev) => {
+        if (prev.some((s) => s.id === server.id)) return prev;
+        return [server, ...prev];
+      });
+      setSelectedServer(server.id);
+      setIsJoinServerOpen(false);
+      setJoinInviteCode("");
+    } catch (err: any) {
+      console.error("[API] Join server error:", err);
+      const msg = err.response?.data;
+      setJoinServerError(typeof msg === "string" ? msg : "Code d'invitation invalide.");
+    } finally {
+      setJoinServerLoading(false);
+    }
+  };
+
+  const handleCreateServer = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = newServerName.trim();
+    if (!trimmedName) return;
+
+    try {
+      const server: Server = await serversService.create(trimmedName);
+      const channelNames = channelList.length ? channelList : ["general"];
+      const createdChannels: Channel[] = [];
+      for (const name of channelNames) {
+        const ch = await channelsService.create(server.id, name);
+        createdChannels.push(ch);
+      }
+
+      setServerList((prev) => [server, ...prev]);
+      setSelectedServer(server.id);
+      setChannels(createdChannels);
+
+      if (createdChannels.length) {
+        const firstCh = createdChannels[0];
+        setSelectedChannel(firstCh.id);
+        if (isConnected) {
+          joinChannel(firstCh.id);
+        }
+      }
+
+      setIsCreateServerOpen(false);
+      setNewServerName("");
+      setChannelList([]);
+    } catch (err) {
+      console.error("[API] Failed to create server:", err);
+    }
+  };
+
+  const handleAddChannel = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = newChannelName.trim();
+    if (!trimmedName) return;
+
+    if (addChannelTarget === "server" && selectedServer) {
+      try {
+        const ch = await channelsService.create(selectedServer, trimmedName);
+        setChannels((prev) => [...prev, ch]);
+        setSelectedChannel(ch.id);
+      } catch (err) {
+        console.error("[API] Failed to create channel:", err);
+      }
+    } else {
+      setChannelList((prev) => {
+        if (prev.some((c) => c.toLowerCase() === trimmedName.toLowerCase())) return prev;
+        return [...prev, trimmedName];
+      });
+    }
+
+    setNewChannelName("");
+    setIsAddChannelOpen(false);
+  };
+
+  const openCreateChannelOnServer = () => {
+    setAddChannelTarget("server");
+    setNewChannelName("");
+    setIsAddChannelOpen(true);
+  };
+
+  const openCreateChannelInModal = () => {
+    setAddChannelTarget("creation");
+    setIsAddChannelOpen(true);
+  };
+
   if (!isReady) {
     return <LoadingScreen />;
   }
-
-  const currentServerMembers = selectedServer
-    ? serverMembers[selectedServer] ?? []
-    : [];
 
   return (
     <div className="relative flex h-screen min-h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
@@ -448,15 +588,15 @@ export default function ConversationsPage() {
         menuRef={menuRef}
         onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
         onEditProfile={handleEditProfile}
-        onSwitchAccount={handleMenuSwitchAccount}
-        onLogout={handleMenuLogout}
+        onSwitchAccount={() => { setIsMenuOpen(false); handleSwitchAccount(); }}
+        onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
       />
 
       <main
         className={`relative z-10 grid w-full max-w-none flex-1 gap-6 px-8 pb-0 md:px-12 ${
           activeTab === "friends"
             ? "grid-cols-[320px_1fr]"
-            : "grid-cols-[260px_220px_1fr]"
+            : "grid-cols-[260px_200px_1fr_200px]"
         }`}
       >
         <Sidebar
@@ -465,9 +605,13 @@ export default function ConversationsPage() {
           friendList={friendList}
           selectedServer={selectedServer}
           selectedFriend={selectedFriend}
+          currentUserRole={currentUserRole}
           onTabChange={setActiveTab}
           onSelectServer={handleSelectServer}
           onCreateServer={() => setIsCreateServerOpen(true)}
+          onJoinServer={() => setIsJoinServerOpen(true)}
+          onLeaveServer={handleLeaveServer}
+          onDeleteServer={handleDeleteServer}
           onSelectFriend={handleSelectFriend}
           onRemoveFriend={handleRemoveFriend}
         />
@@ -476,18 +620,23 @@ export default function ConversationsPage() {
           <ChannelsPanel
             channels={channels}
             selectedChannel={selectedChannel}
+            canManageChannels={canManageChannels}
             onSelectChannel={setSelectedChannel}
-            onAddMember={() => setIsAddMemberOpen(true)}
+            onDeleteChannel={handleDeleteChannel}
+            onCreateChannel={openCreateChannelOnServer}
           />
         ) : null}
 
         {activeTab === "servers" ? (
           <ChatPanel
-            selectedChannel={selectedChannelName}
+            channelName={channels.find((c) => c.id === selectedChannel)?.name ?? ""}
+            selectedChannel={selectedChannel}
             selectedServer={selectedServerName}
             messages={messages}
             currentUserId={currentUserId}
+            typingUsers={typingUserNames}
             onSendMessage={handleSendMessage}
+            onTyping={handleTyping}
           />
         ) : (
           <FriendsPanel
@@ -501,18 +650,36 @@ export default function ConversationsPage() {
             onAddFriend={handleAddFriend}
           />
         )}
+
+        {activeTab === "servers" ? (
+          <MembersPanel
+            members={members}
+            onlineUserIds={onlineUserIds}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+            onUpdateRole={handleUpdateRole}
+          />
+        ) : null}
       </main>
 
       <CreateServerModal
         isOpen={isCreateServerOpen}
         newServerName={newServerName}
-        newServerMembers={newServerMembers}
         channelList={channelList}
         onClose={() => setIsCreateServerOpen(false)}
-        onOpenAddChannel={() => setIsAddChannelOpen(true)}
+        onOpenAddChannel={openCreateChannelInModal}
         onServerNameChange={setNewServerName}
-        onServerMembersChange={setNewServerMembers}
         onSubmit={handleCreateServer}
+      />
+
+      <JoinServerModal
+        isOpen={isJoinServerOpen}
+        inviteCode={joinInviteCode}
+        error={joinServerError}
+        loading={joinServerLoading}
+        onClose={() => { setIsJoinServerOpen(false); setJoinServerError(""); }}
+        onInviteCodeChange={setJoinInviteCode}
+        onSubmit={handleJoinServer}
       />
 
       <AddChannelModal
@@ -523,14 +690,6 @@ export default function ConversationsPage() {
         onSubmit={handleAddChannel}
       />
 
-      <AddServerMemberModal
-        isOpen={isAddMemberOpen}
-        serverName={selectedServerName}
-        friends={friendList}
-        members={currentServerMembers}
-        onClose={() => setIsAddMemberOpen(false)}
-        onAddMember={handleAddServerMember}
-      />
     </div>
   );
 }

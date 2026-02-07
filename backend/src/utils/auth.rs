@@ -4,9 +4,6 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use sqlx::PgPool;
-use uuid::Uuid;
-
 use crate::{models::User, state::AppState};
 use crate::utils::jwt::validate_token;
 

@@ -3,77 +3,75 @@ import type { Channel } from "../types";
 type ChannelsPanelProps = {
   channels: Channel[];
   selectedChannel: string;
+  canManageChannels: boolean;
   onSelectChannel: (channelId: string) => void;
-  onAddMember?: () => void;
+  onDeleteChannel: (channelId: string) => void;
+  onCreateChannel: () => void;
 };
 
 export default function ChannelsPanel({
   channels,
   selectedChannel,
+  canManageChannels,
   onSelectChannel,
-  onAddMember,
+  onDeleteChannel,
+  onCreateChannel,
 }: ChannelsPanelProps) {
+  const handleDelete = (e: React.MouseEvent, channelId: string) => {
+    e.stopPropagation();
+    onDeleteChannel(channelId);
+  };
+
   return (
     <section className="h-full rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-white">Channels</p>
-        <button
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-[var(--brand-1)] transition hover:-translate-y-0.5 hover:bg-[var(--surface)]"
-          onClick={onAddMember}
-          type="button"
-          aria-label="Ajouter un ami au serveur"
-          title="Ajouter un ami"
-        >
-          <svg
-            aria-hidden="true"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
+        {canManageChannels && (
+          <button
+            type="button"
+            className="rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] px-3 py-1 text-[11px] text-[var(--brand-1)] transition hover:bg-[var(--surface)]"
+            onClick={onCreateChannel}
           >
-            <path
-              d="M8 7a4 4 0 1 0 8 0a4 4 0 0 0 -8 0"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M6 21v-2a4 4 0 0 1 4 -4h4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M16 19h6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M19 16v6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+            + Ajouter
+          </button>
+        )}
       </div>
       <div className="mt-4 flex flex-col gap-2">
         {channels.length ? (
-          channels.map((channel) => (
-            <button
-              key={channel.id}
-              className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
-                selectedChannel === channel.id
-                  ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.12)] text-white"
-                  : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-200 hover:bg-[var(--surface)]"
-              }`}
-              onClick={() => onSelectChannel(channel.id)}
-              type="button"
-            >
-              <span className="truncate">#{channel.name}</span>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
-                Actif
-              </span>
-            </button>
-          ))
+          channels.map((channel) => {
+            const isActive = selectedChannel === channel.id;
+            return (
+              <div
+                key={channel.id}
+                className={`group flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition cursor-pointer ${
+                  isActive
+                    ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.10)] text-white"
+                    : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-300 hover:border-[rgba(0,212,255,0.3)] hover:bg-[var(--surface)] hover:text-white"
+                }`}
+                onClick={() => onSelectChannel(channel.id)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onSelectChannel(channel.id);
+                }}
+              >
+                <span className="truncate"># {channel.name}</span>
+                {canManageChannels && (
+                  <button
+                    type="button"
+                    className="ml-2 shrink-0 rounded-full p-1 text-slate-600 opacity-0 transition hover:text-red-400 group-hover:opacity-100"
+                    onClick={(e) => handleDelete(e, channel.id)}
+                    title="Supprimer ce channel"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            );
+          })
         ) : (
           <p className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-slate-400">
             Aucun channel pour ce serveur.

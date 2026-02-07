@@ -25,7 +25,13 @@ export type Friend = {
   id: string;
   name: string;
   status: string;
-  lastMessage: string;
+};
+
+export type Member = {
+  user_id: string;
+  username: string;
+  role: string;
+  is_online: boolean;
 };
 
 export type UserSearchResult = {

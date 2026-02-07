@@ -8,9 +8,13 @@ type SidebarProps = {
   friendList: Friend[];
   selectedServer: string;
   selectedFriend: string;
+  currentUserRole: string;
   onTabChange: (tab: "servers" | "friends") => void;
   onSelectServer: (serverId: string) => void;
   onCreateServer: () => void;
+  onJoinServer: () => void;
+  onLeaveServer: (serverId: string) => void;
+  onDeleteServer: (serverId: string) => void;
   onSelectFriend: (friendName: string) => void;
   onRemoveFriend: (friendId: string) => void;
 };
@@ -24,6 +28,10 @@ export default function Sidebar({
   onTabChange,
   onSelectServer,
   onCreateServer,
+  onJoinServer,
+  onLeaveServer,
+  onDeleteServer,
+  currentUserRole,
   onSelectFriend,
   onRemoveFriend,
 }: SidebarProps) {
@@ -66,7 +74,11 @@ export default function Sidebar({
           serverList={serverList}
           selectedServer={selectedServer}
           onSelectServer={onSelectServer}
+          currentUserRole={currentUserRole}
           onCreateServer={onCreateServer}
+          onJoinServer={onJoinServer}
+          onLeaveServer={onLeaveServer}
+          onDeleteServer={onDeleteServer}
         />
       ) : (
         <FriendList

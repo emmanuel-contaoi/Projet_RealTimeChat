@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
@@ -56,10 +55,4 @@ impl From<User> for UserResponse {
             created_at: user.created_at,
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Claims {
-    pub user_id: uuid::Uuid,
-    pub exp: i64,
 }

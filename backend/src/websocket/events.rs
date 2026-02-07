@@ -14,6 +14,7 @@ pub enum ClientEvent {
         channel_id: String,
     },
     TypingStop {
+        #[allow(dead_code)]
         channel_id: String,
     },
     JoinChannel {
@@ -48,9 +49,19 @@ pub enum ServerEvent {
     UserDisconnected {
         user_id: String,
     },
+    ChannelUsers {
+        channel_id: String,
+        users: Vec<ChannelUser>,
+    },
     Error {
         message: String,
     },
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChannelUser {
+    pub user_id: String,
+    pub username: String,
 }
 
 impl ServerEvent {

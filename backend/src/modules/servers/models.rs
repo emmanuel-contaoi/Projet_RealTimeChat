@@ -16,13 +16,6 @@ pub struct CreateServerRequest {
     pub name: String,
 }
 
-#[derive(Serialize)]
-pub struct ServerResponse {
-    pub id: Uuid,
-    pub name: String,
-    pub invite_code: String,
-}
-
 #[derive(Serialize, FromRow)]
 pub struct Channel {
     pub id: Uuid,
@@ -64,4 +57,16 @@ pub struct CreateMessageRequest {
     pub content: String,
     pub user_id: String,
     pub username: String,
+}
+
+#[derive(FromRow)]
+pub struct MemberRow {
+    pub user_id: Uuid,
+    pub username: Option<String>,
+    pub role: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateRoleRequest {
+    pub role: String,
 }

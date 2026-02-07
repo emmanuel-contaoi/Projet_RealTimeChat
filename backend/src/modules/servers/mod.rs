@@ -2,7 +2,7 @@ pub mod handlers;
 pub mod models;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, put, delete},
     Router
 };
 
@@ -13,6 +13,10 @@ pub fn router() -> Router<AppState> {
         // Serveurs
         .route("/", get(handlers::list_servers).post(handlers::create_server))
         .route("/join", post(handlers::join_server))
+        .route("/{id}", delete(handlers::delete_server))
+        .route("/{id}/leave", delete(handlers::leave_server))
+        .route("/{id}/members", get(handlers::list_members))
+        .route("/{id}/members/{user_id}/role", put(handlers::update_member_role))
 
         // Liste des salons d'un serveur
         .route("/{id}/channels", get(handlers::list_channels).post(handlers::create_channel))
