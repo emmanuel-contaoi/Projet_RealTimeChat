@@ -9,13 +9,13 @@ export default function Home() {
         <div className="flex items-center gap-4 text-base font-semibold">
           <a
             className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-slate-200 transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]"
-            href="/connexion"
+            href="/login"
           >
             Connexion
           </a>
           <a
             className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-white shadow-[0_10px_24px_rgba(88,101,242,0.45)] transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)] md:inline-flex"
-            href="/inscription"
+            href="/register"
           >
             Inscription
           </a>
