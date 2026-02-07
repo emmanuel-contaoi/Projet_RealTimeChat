@@ -29,64 +29,11 @@ async fn main() {
         .await
         .expect("Impossible de se connecter à PostgreSQL");
     
-    // Migrations : créer les tables si elles n'existent pas
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS users (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            first_name TEXT,
-            last_name TEXT,
-            username TEXT,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-        )"
-    ).execute(&pool).await.expect("Migration users échouée");
-
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS servers (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            name TEXT NOT NULL,
-            invite_code TEXT UNIQUE NOT NULL,
-            created_at TIMESTAMP DEFAULT now()
-        )"
-    ).execute(&pool).await.expect("Migration servers échouée");
-
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS channels (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            server_id UUID NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            type TEXT NOT NULL DEFAULT 'text'
-        )"
-    ).execute(&pool).await.expect("Migration channels échouée");
-
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS members (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            server_id UUID NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
-            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            role TEXT NOT NULL DEFAULT 'member',
-            UNIQUE(server_id, user_id)
-        )"
-    ).execute(&pool).await.expect("Migration members échouée");
-
-    sqlx::query(
-        "CREATE TABLE IF NOT EXISTS user_friends (
-            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            PRIMARY KEY (user_id, friend_id)
-        )"
-    ).execute(&pool).await.expect("Migration user_friends échouée");
+    // Migrations : creer les tables si elles n'existent pas
+    db::migrations::run_migrations(&pool).await;
 
     // 2. Connexion MongoDB
     let mongo_client = db::mongo::init_mongo().await;
-    
-    // 3. Création du State global (pour auth + serveurs + WebSocket)
-    // Migrate existing roles: guest->member, admin->owner
-    sqlx::query("UPDATE members SET role = 'member' WHERE role = 'guest'")
-        .execute(&pool).await.ok();
-    sqlx::query("UPDATE members SET role = 'owner' WHERE role = 'admin'")
-        .execute(&pool).await.ok();
 
     let state = AppState {
         pool: pool.clone(),

@@ -4,8 +4,9 @@ import type { FormEvent } from "react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-import { authService, friendsService, serversService, channelsService, messagesService } from "@/services/api";
+import { authService, serversService, channelsService, messagesService } from "@/services/api";
 import useWebSocket from "@/hooks/useWebSocket";
+import useFriendSearch from "./hooks/useFriendSearch";
 import AddChannelModal from "./components/AddChannelModal";
 import ChannelsPanel from "./components/ChannelsPanel";
 import ChatPanel from "./components/ChatPanel";
@@ -16,8 +17,7 @@ import FriendsPanel from "./components/FriendsPanel";
 import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
-import type { Server, Channel, ChannelMessage, Friend, Member, UserSearchResult } from "./types";
-import { formatUserLabel } from "./utils";
+import type { Server, Channel, ChannelMessage, Member } from "./types";
 
 export default function ConversationsPage() {
   const router = useRouter();
@@ -41,9 +41,7 @@ export default function ConversationsPage() {
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timer: ReturnType<typeof setTimeout> }>>({});
   const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Friends state
-  const [friendList, setFriendList] = useState<Friend[]>([]);
-  const [selectedFriend, setSelectedFriend] = useState("");
+  // Onglet actif (serveurs ou amis)
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
 
   // Modal state
@@ -58,15 +56,10 @@ export default function ConversationsPage() {
   const [joinServerError, setJoinServerError] = useState("");
   const [joinServerLoading, setJoinServerLoading] = useState(false);
 
-  // Friend search state
-  const [friendSearch, setFriendSearch] = useState("");
-  const [friendResults, setFriendResults] = useState<UserSearchResult[]>([]);
-  const [allUsers, setAllUsers] = useState<UserSearchResult[]>([]);
-  const [allUsersLoading, setAllUsersLoading] = useState(false);
-  const [friendSearchLoading, setFriendSearchLoading] = useState(false);
-  const [friendSearchError, setFriendSearchError] = useState("");
-
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Hook custom pour la gestion des amis et la recherche
+  const friends = useFriendSearch({ isReady, activeTab, onlineUserIds });
 
   // --- WebSocket ---
   const handleWsMessage = useCallback(
@@ -241,103 +234,6 @@ export default function ConversationsPage() {
     prevChannelRef.current = selectedChannel;
   }, [selectedChannel, isConnected, joinChannel, leaveChannel]);
 
-  // --- Load friends ---
-  useEffect(() => {
-    if (!isReady) return;
-    (async () => {
-      try {
-        const data = await friendsService.list();
-        const mapped = data.map((user: UserSearchResult) => ({
-          id: user.id,
-          name: formatUserLabel(user),
-          status: "Actif",
-        }));
-        setFriendList(mapped);
-        if (!selectedFriend && mapped.length) {
-          setSelectedFriend(mapped[0].name);
-        }
-      } catch {
-        setFriendSearchError("Impossible de charger la liste d'amis.");
-      }
-    })();
-  }, [isReady]);
-
-  // --- Friend tab auto-select ---
-  useEffect(() => {
-    if (activeTab !== "friends") return;
-    if (!friendList.length) {
-      setSelectedFriend("");
-      return;
-    }
-    if (!selectedFriend || !friendList.some((f) => f.name === selectedFriend)) {
-      setSelectedFriend(friendList[0].name);
-    }
-  }, [activeTab, selectedFriend, friendList]);
-
-  // --- Friend search ---
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-
-  useEffect(() => {
-    if (activeTab !== "friends") return;
-    const query = friendSearch.trim();
-    if (!query) {
-      setFriendResults([]);
-      setFriendSearchError("");
-      if (!allUsers.length) {
-        const controller = new AbortController();
-        (async () => {
-          try {
-            setAllUsersLoading(true);
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${apiBaseUrl}/users`, {
-              headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-              signal: controller.signal,
-            });
-            if (!response.ok) throw new Error("Chargement impossible.");
-            const data = (await response.json()) as UserSearchResult[];
-            setAllUsers(data);
-          } catch (error) {
-            if ((error as Error).name === "AbortError") return;
-            setFriendSearchError("Impossible de charger la liste des utilisateurs.");
-          } finally {
-            setAllUsersLoading(false);
-          }
-        })();
-        return () => controller.abort();
-      }
-      return;
-    }
-
-    const controller = new AbortController();
-    const timeout = window.setTimeout(async () => {
-      try {
-        setFriendSearchLoading(true);
-        setFriendSearchError("");
-        const token = localStorage.getItem("token");
-        const response = await fetch(
-          `${apiBaseUrl}/users/search?q=${encodeURIComponent(query)}`,
-          {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            signal: controller.signal,
-          }
-        );
-        if (!response.ok) throw new Error("Recherche impossible.");
-        const data = (await response.json()) as UserSearchResult[];
-        setFriendResults(data);
-      } catch (error) {
-        if ((error as Error).name === "AbortError") return;
-        setFriendSearchError("Impossible de charger les utilisateurs.");
-      } finally {
-        setFriendSearchLoading(false);
-      }
-    }, 300);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timeout);
-    };
-  }, [activeTab, apiBaseUrl, friendSearch, allUsers.length]);
-
   // --- Derived state ---
   const selectedServerObj = serverList.find((s) => s.id === selectedServer);
   const selectedServerName = selectedServerObj?.name ?? "";
@@ -361,42 +257,6 @@ export default function ConversationsPage() {
   const handleEditProfile = () => {
     setIsMenuOpen(false);
     router.push("/register");
-  };
-
-  const handleSelectServer = (serverId: string) => {
-    setSelectedServer(serverId);
-  };
-
-  const handleSelectFriend = (friendName: string) => {
-    setSelectedFriend(friendName);
-  };
-
-  const handleRemoveFriend = async (friendId: string) => {
-    try {
-      await friendsService.remove(friendId);
-      setFriendList((prev) => prev.filter((f) => f.id !== friendId));
-    } catch {
-      setFriendSearchError("Impossible de supprimer cet ami.");
-    }
-  };
-
-  const handleAddFriend = async (user: UserSearchResult) => {
-    try {
-      const added = await friendsService.add(user.id);
-      const label = formatUserLabel(added);
-      setFriendList((prev) => {
-        if (prev.some((f) => f.id === added.id)) return prev;
-        return [...prev, { id: added.id, name: label, status: "Actif" }];
-      });
-      setSelectedFriend(label);
-      setFriendSearch("");
-      setFriendResults([]);
-      setFriendSearchError("");
-    } catch (err: any) {
-      console.error("[Friends] Add error:", err);
-      const msg = err.response?.data;
-      setFriendSearchError(typeof msg === "string" ? msg : "Impossible d'ajouter cet ami.");
-    }
   };
 
   const handleLeaveServer = async (serverId: string) => {
@@ -579,7 +439,7 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="relative flex h-screen min-h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
+    <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
@@ -593,7 +453,7 @@ export default function ConversationsPage() {
       />
 
       <main
-        className={`relative z-10 grid w-full max-w-none flex-1 gap-6 px-8 pb-0 md:px-12 ${
+        className={`relative z-10 grid w-full max-w-none min-h-0 flex-1 gap-6 overflow-hidden px-8 pb-6 md:px-12 ${
           activeTab === "friends"
             ? "grid-cols-[320px_1fr]"
             : "grid-cols-[260px_200px_1fr_200px]"
@@ -602,18 +462,18 @@ export default function ConversationsPage() {
         <Sidebar
           activeTab={activeTab}
           serverList={serverList}
-          friendList={friendList}
+          friendList={friends.friendList}
           selectedServer={selectedServer}
-          selectedFriend={selectedFriend}
+          selectedFriend={friends.selectedFriend}
           currentUserRole={currentUserRole}
           onTabChange={setActiveTab}
-          onSelectServer={handleSelectServer}
+          onSelectServer={setSelectedServer}
           onCreateServer={() => setIsCreateServerOpen(true)}
           onJoinServer={() => setIsJoinServerOpen(true)}
           onLeaveServer={handleLeaveServer}
           onDeleteServer={handleDeleteServer}
-          onSelectFriend={handleSelectFriend}
-          onRemoveFriend={handleRemoveFriend}
+          onSelectFriend={friends.setSelectedFriend}
+          onRemoveFriend={friends.handleRemoveFriend}
         />
 
         {activeTab === "servers" ? (
@@ -640,14 +500,14 @@ export default function ConversationsPage() {
           />
         ) : (
           <FriendsPanel
-            friendSearch={friendSearch}
-            onFriendSearchChange={setFriendSearch}
-            friendSearchError={friendSearchError}
-            friendSearchLoading={friendSearchLoading}
-            friendResults={friendResults}
-            allUsersLoading={allUsersLoading}
-            allUsers={allUsers}
-            onAddFriend={handleAddFriend}
+            friendSearch={friends.friendSearch}
+            onFriendSearchChange={friends.setFriendSearch}
+            friendSearchError={friends.friendSearchError}
+            friendSearchLoading={friends.friendSearchLoading}
+            friendResults={friends.friendResults}
+            allUsersLoading={friends.allUsersLoading}
+            allUsers={friends.allUsers}
+            onAddFriend={friends.handleAddFriend}
           />
         )}
 

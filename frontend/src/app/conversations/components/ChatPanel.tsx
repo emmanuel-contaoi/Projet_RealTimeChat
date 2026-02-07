@@ -46,7 +46,7 @@ export default function ChatPanel({
   }, [messages]);
 
   return (
-    <section className="flex h-full flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
+    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex items-center justify-between border-b border-[var(--stroke)] px-6 py-4">
         <div>
           <p className="text-sm font-semibold text-white">
@@ -63,7 +63,7 @@ export default function ChatPanel({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
         {selectedChannel && messages.length ? (
           messages.map((message, index) => {
             const isMe = message.user_id === currentUserId;

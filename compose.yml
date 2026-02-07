@@ -1,4 +1,26 @@
 services:
+  # Serveur backend Rust (API + WebSocket)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rtc_backend
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=postgres://rtc:rtc_password@postgres:5432/rtc_db
+      - MONGO_URI=mongodb://root:password@mongo:27017
+      - JWT_SECRET=super_secret_key
+      - PORT=3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_started
+    networks:
+      - rtc_network
+
+  # Frontend Next.js
   frontend:
     build:
       context: ./frontend
@@ -12,12 +34,11 @@ services:
       - /app/.next
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://host.docker.internal:3002
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
     networks:
       - rtc_network
 
+  # Base de donnees PostgreSQL (users, servers, channels)
   postgres:
     image: postgres:15
     container_name: rtc_postgres
@@ -38,6 +59,7 @@ services:
     networks:
       - rtc_network
 
+  # Base de donnees MongoDB (messages)
   mongo:
     image: mongo:6.0
     container_name: rtc_mongo
