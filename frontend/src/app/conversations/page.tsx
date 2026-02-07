@@ -142,7 +142,7 @@ export default function ConversationsPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      router.replace("/connexion");
+      router.replace("/login");
       return;
     }
     const user = authService.getCurrentUser();
@@ -355,12 +355,12 @@ export default function ConversationsPage() {
 
   const handleSwitchAccount = () => {
     authService.logout();
-    router.push("/connexion");
+    router.push("/login");
   };
 
   const handleEditProfile = () => {
     setIsMenuOpen(false);
-    router.push("/inscription");
+    router.push("/register");
   };
 
   const handleSelectServer = (serverId: string) => {
