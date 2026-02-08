@@ -33,9 +33,9 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    // Close existing connection
+    // Ferme la connexion existante si y en a une
     if (wsRef.current) {
-      wsRef.current.onclose = null; // prevent stale onclose from firing
+      wsRef.current.onclose = null; // empeche le onclose de l'ancienne connexion
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -43,7 +43,7 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     const ws = new WebSocket(`${WS_URL}?token=${token}`);
 
     ws.onopen = () => {
-      // Only act if this is still the active WS
+      // On verifie que c'est bien la bonne connexion WS
       if (wsRef.current !== ws) return;
       console.log("[WS] Connected");
       setIsConnected(true);
@@ -55,12 +55,12 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
         const data = JSON.parse(ev.data) as ServerEvent;
         onMessageRef.current?.(data);
       } catch {
-        // ignore non-JSON frames
+        // on ignore les messages qui sont pas du JSON
       }
     };
 
     ws.onclose = () => {
-      // Only act if this is still the active WS (prevents stale WS from corrupting state)
+      // On verifie que c'est la bonne connexion pour pas corrompre le state
       if (wsRef.current !== ws) {
         console.log("[WS] Stale connection closed, ignoring");
         return;
@@ -88,7 +88,7 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
       mountedRef.current = false;
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent stale onclose handler
+        wsRef.current.onclose = null; // empeche le onclose de se declencher
         wsRef.current.close();
         wsRef.current = null;
       }
@@ -133,5 +133,12 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     [send]
   );
 
-  return { sendMessage, joinChannel, leaveChannel, startTyping, isConnected };
+  const stopTyping = useCallback(
+    (channelId: string) => {
+      send({ type: "typing_stop", channel_id: channelId });
+    },
+    [send]
+  );
+
+  return { sendMessage, joinChannel, leaveChannel, startTyping, stopTyping, isConnected };
 }

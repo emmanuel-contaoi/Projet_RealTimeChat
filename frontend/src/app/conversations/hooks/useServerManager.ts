@@ -30,7 +30,7 @@ export default function useServerManager({
   const [selectedChannel, setSelectedChannel] = useState("");
   const [members, setMembers] = useState<Member[]>([]);
 
-  // Modal state
+  // State des modals (creation, rejoindre, ajouter channel)
   const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
   const [newServerName, setNewServerName] = useState("");
   const [isAddChannelOpen, setIsAddChannelOpen] = useState(false);
@@ -42,7 +42,7 @@ export default function useServerManager({
   const [joinServerError, setJoinServerError] = useState("");
   const [joinServerLoading, setJoinServerLoading] = useState(false);
 
-  // --- Load servers from API ---
+  // Charge la liste des serveurs depuis l'API
   useEffect(() => {
     if (!isReady) return;
     (async () => {
@@ -58,7 +58,7 @@ export default function useServerManager({
     })();
   }, [isReady]);
 
-  // --- Load channels + members when server changes ---
+  // Charge les channels et les membres quand on change de serveur
   useEffect(() => {
     if (!selectedServer) {
       setChannels([]);
@@ -88,12 +88,12 @@ export default function useServerManager({
     })();
   }, [selectedServer]);
 
-  // --- Sync active channel for chat hook ---
+  // Synchronise le channel actif avec le hook de chat
   useEffect(() => {
     setActiveChannel(selectedChannel);
   }, [selectedChannel, setActiveChannel]);
 
-  // --- Load messages + sync WS when channel changes ---
+  // Charge les messages et synchronise le WS quand on change de channel
   useEffect(() => {
     loadMessages(selectedChannel);
   }, [selectedChannel, loadMessages]);
@@ -102,7 +102,7 @@ export default function useServerManager({
     syncChannel(selectedChannel);
   }, [selectedChannel, isConnected, syncChannel]);
 
-  // --- Derived ---
+  // Valeurs calculees a partir du state
   const selectedServerName =
     serverList.find((s) => s.id === selectedServer)?.name ?? "";
   const currentUserRole =
@@ -110,7 +110,7 @@ export default function useServerManager({
   const canManageChannels =
     currentUserRole === "owner" || currentUserRole === "admin";
 
-  // --- Handlers ---
+  // Fonctions pour gerer les serveurs, channels, roles, etc.
   const handleLeaveServer = async (serverId: string) => {
     try {
       await serversService.leave(serverId);
@@ -293,7 +293,7 @@ export default function useServerManager({
     if (!confirm("Transferer la propriete de ce serveur ? Vous deviendrez admin.")) return;
     try {
       await serversService.transferOwnership(selectedServer, userId);
-      // Refresh members to get updated roles
+      // On recharge les membres pour avoir les roles a jour
       const memberData = await serversService.members(selectedServer);
       setMembers(memberData);
     } catch (err: any) {
@@ -315,23 +315,23 @@ export default function useServerManager({
   }, []);
 
   return {
-    // Server state
+    // State des serveurs
     serverList,
     selectedServer,
     selectedServerName,
     setSelectedServer,
 
-    // Channel state
+    // State des channels
     channels,
     selectedChannel,
     setSelectedChannel,
 
-    // Members
+    // Membres
     members,
     currentUserRole,
     canManageChannels,
 
-    // Modal state
+    // State des modals
     isCreateServerOpen,
     setIsCreateServerOpen,
     newServerName,
@@ -349,7 +349,7 @@ export default function useServerManager({
     setJoinServerError,
     joinServerLoading,
 
-    // Handlers
+    // Fonctions
     handleLeaveServer,
     handleDeleteServer,
     handleDeleteChannel,

@@ -12,9 +12,8 @@ use crate::websocket::{
     events::{ClientEvent, ServerEvent, ChannelUser},
 };
 use crate::state::AppState;
-use crate::utils::jwt::Claims;
+use crate::utils::jwt::{Claims, validate_token_claims};
 use crate::modules::servers::models::Message as ChatMessage;
-use jsonwebtoken::{decode, DecodingKey, Validation};
 
 #[derive(Deserialize)]
 pub struct WsQuery {
@@ -26,28 +25,15 @@ pub async fn websocket_handler(
     State(state): State<AppState>,
     Query(query): Query<WsQuery>,
 ) -> Result<Response, StatusCode> {
-    let claims = validate_token(&query.token)
+    let claims = validate_token_claims(&query.token)
         .map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, claims)))
 }
 
-fn validate_token(token: &str) -> Result<Claims, jsonwebtoken::errors::Error> {
-    let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "super-secret-key-change-this-in-production".to_string());
-
-    let token_data = decode::<Claims>(
-        token,
-        &DecodingKey::from_secret(secret.as_bytes()),
-        &Validation::default(),
-    )?;
-
-    Ok(token_data.claims)
-}
-
 async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
     let user_id = claims.sub.clone();
-    // Unique connection ID to avoid collisions when same user has multiple connections
+    // ID unique pour gerer plusieurs connexions du meme utilisateur
     let conn_id = Uuid::new_v4().to_string();
 
     let username = sqlx::query_scalar::<_, String>("SELECT username FROM users WHERE id = $1")
@@ -64,7 +50,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
     state.add_connection(conn_id.clone(), tx).await;
     state.register_user(&conn_id, &user_id, &username).await;
 
-    // Broadcast online status to all connections
+    // On previent tout le monde que l'utilisateur est en ligne
     let connected_event = ServerEvent::UserConnected {
         user_id: user_id.clone(),
         username: username.clone(),
@@ -126,7 +112,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
         _ = &mut recv_task => send_task.abort(),
     }
 
-    // Unregister user and broadcast offline if last connection
+    // Deconnexion : on previent les autres si c'etait sa derniere connexion
     if let Some((uid, _)) = state.unregister_user(&conn_id).await {
         if !state.is_user_online(&uid).await {
             let evt = ServerEvent::UserDisconnected { user_id: uid };
@@ -142,7 +128,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
 async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, username: &str, state: &AppState) {
     match event {
         ClientEvent::MessageSend { channel_id, content } => {
-            // Auto-join: ensure sender is in the room
+            // On s'assure que l'envoyeur est bien dans la room
             state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
 
             let created_at = chrono::Utc::now().to_rfc3339();
@@ -191,7 +177,7 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
         ClientEvent::JoinChannel { channel_id } => {
             state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
 
-            // Send list of connected users in this channel back to the joining user
+            // On envoie la liste des utilisateurs connectes au channel
             let conn_ids = state.room_manager.lock().await.get_room_connections(&channel_id).await;
             let user_info = state.user_info.read().await;
             let mut seen = std::collections::HashSet::new();

@@ -15,6 +15,7 @@ type ChatPanelProps = {
   onDeleteMessage: (messageId: string) => void;
 };
 
+// Affiche les messages du channel et le formulaire pour envoyer
 export default function ChatPanel({
   channelName,
   selectedChannel,
@@ -30,6 +31,7 @@ export default function ChatPanel({
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Envoie le message quand on appuie sur entree
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     const trimmed = input.trim();
@@ -38,6 +40,7 @@ export default function ChatPanel({
     setInput("");
   };
 
+  // Met a jour l'input et notifie les autres qu'on est en train d'ecrire
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
     if (e.target.value.trim()) {
@@ -45,6 +48,7 @@ export default function ChatPanel({
     }
   };
 
+  // Scroll automatique vers le dernier message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -72,9 +76,34 @@ export default function ChatPanel({
           messages.map((message, index) => {
             const isMe = message.user_id === currentUserId;
             const canDelete = isMe || currentUserRole === "owner" || currentUserRole === "admin";
+
+            // Séparateur de date : affiché avant le premier message d'un nouveau jour
+            let showDateSeparator = false;
+            if (message.created_at) {
+              const msgDate = new Date(message.created_at).toDateString();
+              const prevDate = index > 0 && messages[index - 1].created_at
+                ? new Date(messages[index - 1].created_at!).toDateString()
+                : null;
+              showDateSeparator = index === 0 || msgDate !== prevDate;
+            }
+
             return (
+              <div key={message.id ?? `${message.user_id}-${index}`} className="flex flex-col gap-3">
+                {showDateSeparator && message.created_at && (
+                  <div className="flex items-center gap-4 py-2">
+                    <div className="h-px flex-1 bg-[var(--stroke)]" />
+                    <span className="text-[11px] font-medium text-slate-500">
+                      {new Date(message.created_at).toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                    <div className="h-px flex-1 bg-[var(--stroke)]" />
+                  </div>
+                )}
               <div
-                key={message.id ?? `${message.user_id}-${index}`}
                 className={`group relative flex ${isMe ? "justify-end" : "justify-start"}`}
               >
                 <div
@@ -89,7 +118,7 @@ export default function ChatPanel({
                       {message.username}
                     </p>
                   )}
-                  <p>{message.content}</p>
+                  <p className="break-all">{message.content}</p>
                   {message.created_at && (
                     <p className={`mt-1 text-[10px] ${isMe ? "text-slate-700" : "text-slate-500"}`}>
                       {new Date(message.created_at).toLocaleTimeString([], {
@@ -112,6 +141,7 @@ export default function ChatPanel({
                     </svg>
                   </button>
                 )}
+              </div>
               </div>
             );
           })

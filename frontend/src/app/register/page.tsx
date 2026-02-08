@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from '@/services/api';
 
+// Page d'inscription : on remplit le formulaire et on cree le compte
 export default function InscriptionPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -16,6 +17,7 @@ export default function InscriptionPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Met a jour les champs du formulaire quand on tape
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -23,6 +25,7 @@ export default function InscriptionPage() {
     });
   };
 
+  // Envoie les donnees au backend pour creer le compte
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -112,6 +115,7 @@ export default function InscriptionPage() {
                 value={formData.username}
                 onChange={handleChange}
                 placeholder="ShadowFox"
+                maxLength={20}
               />
             </label>
 

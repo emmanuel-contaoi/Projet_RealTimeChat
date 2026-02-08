@@ -21,6 +21,7 @@ const ROLE_ORDER: Record<string, number> = {
   member: 2,
 };
 
+// Affiche la liste des membres du serveur avec leurs roles
 export default function MembersPanel({
   members,
   onlineUserIds,
@@ -29,6 +30,7 @@ export default function MembersPanel({
   onUpdateRole,
   onTransferOwnership,
 }: MembersPanelProps) {
+  // On trie les membres par role (owner en premier, puis admin, puis member)
   const sorted = [...members].sort(
     (a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3)
   );
@@ -37,7 +39,7 @@ export default function MembersPanel({
   const isOwner = currentUserRole === "owner";
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex shrink-0 items-center justify-between">
         <p className="text-sm font-semibold text-white">Membres</p>
         <span className="text-[10px] text-slate-400">
@@ -67,7 +69,7 @@ export default function MembersPanel({
                   <p className="truncate text-sm text-white">
                     {member.username}{isMe ? " (vous)" : ""}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span
                       className={`text-[10px] uppercase tracking-[0.15em] ${
                         member.role === "owner"

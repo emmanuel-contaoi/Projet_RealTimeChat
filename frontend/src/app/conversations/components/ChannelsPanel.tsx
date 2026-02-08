@@ -10,6 +10,7 @@ type ChannelsPanelProps = {
   onCreateChannel: () => void;
 };
 
+// Affiche la liste des channels du serveur selectionne
 export default function ChannelsPanel({
   channels,
   selectedChannel,
@@ -19,16 +20,18 @@ export default function ChannelsPanel({
   onUpdateChannel,
   onCreateChannel,
 }: ChannelsPanelProps) {
+  // Supprime un channel (on bloque la propagation pour pas selectionner le channel)
   const handleDelete = (e: React.MouseEvent, channelId: string) => {
     e.stopPropagation();
     onDeleteChannel(channelId);
   };
 
+  // Renomme un channel avec un prompt (max 20 caracteres)
   const handleRename = (e: React.MouseEvent, channelId: string, currentName: string) => {
     e.stopPropagation();
-    const newName = prompt("Nouveau nom du channel :", currentName);
+    const newName = prompt("Nouveau nom du channel (20 caracteres max) :", currentName);
     if (newName && newName.trim() && newName.trim() !== currentName) {
-      onUpdateChannel(channelId, newName.trim());
+      onUpdateChannel(channelId, newName.trim().slice(0, 20));
     }
   };
 

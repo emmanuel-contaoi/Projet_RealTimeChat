@@ -1,88 +1,22 @@
-# T-JSF-600-PAR_22 - Messagerie temps reel
+# Nexus - Messagerie temps réel
 
-Application de messagerie temps reel inspiree de Discord, avec serveurs, channels, et WebSocket.
+Application de messagerie inspirée de Discord : serveurs, channels, messages en temps réel.
 
-## Stack technique
+## Stack
 
-| Couche | Technologie |
-|--------|-------------|
-| **Frontend** | Next.js 15 (React 19, TypeScript, Tailwind CSS) |
-| **Backend** | Rust (Axum 0.8) |
-| **Base relationnelle** | PostgreSQL (sqlx) |
-| **Base documents** | MongoDB (messages) |
-| **Temps reel** | WebSocket natif |
-| **Auth** | JWT (jsonwebtoken) |
-
-## Architecture
-
-```
-backend/src/
-  main.rs              # Point d'entree, migrations, routes
-  state.rs             # Etat partage (pools, connexions WS, users online)
-  db/                  # Connexions base de donnees (MongoDB)
-  models/              # Modeles de donnees (User, Auth)
-  routes/              # Endpoints HTTP (auth, friends, users)
-  modules/servers/     # CRUD serveurs, channels, messages, membres
-  utils/               # JWT + middleware auth
-  websocket/           # Handler WS, events, room manager
-
-frontend/src/
-  app/                 # Pages Next.js (App Router)
-    connexion/         # Page de connexion
-    inscription/       # Page d'inscription
-    conversations/     # Page principale
-      components/      # 12 composants React (Sidebar, ChatPanel, etc.)
-      types.ts         # Types TypeScript
-      utils.ts         # Fonctions utilitaires
-  hooks/               # useWebSocket (hook custom)
-  services/            # api.ts (services axios centralises)
-```
-
-## Fonctionnalites
-
-### Serveurs
-- Creation de serveur avec channels
-- Rejoindre un serveur via code d'invitation
-- Quitter / supprimer un serveur
-- Copier le code d'invitation
-- Gestion multi-serveurs
-
-### Channels
-- Creation / suppression de channels
-- Listing des channels par serveur
-- Selection et navigation entre channels
-
-### Messages temps reel
-- Envoi et reception via WebSocket
-- Persistance dans MongoDB
-- Historique des messages au chargement
-
-### Roles et permissions
-- **Owner** : createur du serveur (suppression serveur, gestion channels, promotion/retrograde)
-- **Admin** : promu par l'owner (gestion channels)
-- **Member** : membre standard (lecture/ecriture)
-
-### Statut en ligne
-- Indicateur vert/gris pour chaque membre
-- Broadcast global via WebSocket (connect/disconnect)
-
-### Indicateur de frappe
-- Animation "X ecrit..." en temps reel
-- Throttle cote client (2s), auto-clear (3s)
-
-### Amis
-- Recherche d'utilisateurs
-- Ajout / suppression d'amis
-- Liste d'amis avec statut
+- **Frontend** : Next.js
+- **Backend** : Rust (Axum)
+- **Bases de données** : PostgreSQL (utilisateurs, serveurs) + MongoDB (messages)
+- **Temps réel** : WebSocket
+- **Auth** : JWT
 
 ## Lancement
 
-### Pre-requis
-- Rust (cargo)
-- Node.js 18+
-- PostgreSQL
-- MongoDB
-- Docker (optionnel, voir compose.yml)
+### Pré-requis
+
+- Rust / Cargo
+- Node.js 20+
+- Docker (pour PostgreSQL et MongoDB)
 
 ### Variables d'environnement
 
@@ -99,9 +33,12 @@ PORT=3001
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-### Demarrage
+### Démarrage
 
 ```bash
+# Lancer les bases de données
+docker compose up -d postgres mongo
+
 # Backend
 cd backend
 cargo run
@@ -114,36 +51,80 @@ npm run dev
 
 L'application est accessible sur `http://localhost:3000`.
 
-## API Endpoints
+## API
 
-| Methode | Route | Description |
+### Auth
+
+| Méthode | Route | Description |
 |---------|-------|-------------|
-| POST | `/auth/register` | Inscription |
+| POST | `/auth/signup` | Inscription |
 | POST | `/auth/login` | Connexion |
-| GET | `/auth/me` | Utilisateur courant |
+| GET | `/me` | Utilisateur courant |
+
+### Serveurs
+
+| Méthode | Route | Description |
+|---------|-------|-------------|
 | GET | `/servers` | Lister ses serveurs |
-| POST | `/servers` | Creer un serveur |
-| POST | `/servers/join` | Rejoindre un serveur |
+| POST | `/servers` | Créer un serveur |
+| POST | `/servers/join` | Rejoindre via code d'invitation |
 | DELETE | `/servers/:id` | Supprimer un serveur |
 | DELETE | `/servers/:id/leave` | Quitter un serveur |
 | GET | `/servers/:id/members` | Lister les membres |
-| PUT | `/servers/:id/members/:uid/role` | Changer le role |
+| PUT | `/servers/:id/members/:uid/role` | Changer le rôle d'un membre |
 | GET | `/servers/:id/channels` | Lister les channels |
-| POST | `/servers/:id/channels` | Creer un channel |
-| DELETE | `/servers/channels/:id` | Supprimer un channel |
-| GET | `/servers/channels/:id/messages` | Historique messages |
-| WS | `/ws?token=JWT` | WebSocket temps reel |
+| POST | `/servers/:id/channels` | Créer un channel |
 
-## WebSocket Events
+### Channels & Messages
 
-**Client -> Serveur :**
-- `message_send` : envoyer un message
-- `typing_start` : indicateur de frappe
-- `join_channel` : rejoindre un channel
-- `leave_channel` : quitter un channel
+| Méthode | Route | Description |
+|---------|-------|-------------|
+| GET | `/channels/:id` | Détails d'un channel |
+| PUT | `/channels/:id` | Modifier un channel |
+| DELETE | `/channels/:id` | Supprimer un channel |
+| GET | `/channels/:id/messages` | Historique des messages |
+| POST | `/channels/:id/messages` | Envoyer un message |
+| DELETE | `/messages/:id` | Supprimer un message |
 
-**Serveur -> Client :**
-- `message_new` : nouveau message
-- `user_typing` : quelqu'un ecrit
-- `user_connected` / `user_disconnected` : statut en ligne
-- `channel_users` : liste des utilisateurs connectes
+## WebSocket
+
+### Connexion
+
+```
+ws://localhost:3001/ws?token=<JWT>
+```
+
+Le token est obtenu via `/auth/login` ou `/auth/signup`.
+
+### Évènements client -> serveur
+
+Tous les messages sont du JSON avec un champ `type`.
+
+| Évènement | Champs | Description |
+|-----------|--------|-------------|
+| `message_send` | `channel_id`, `content` | Envoyer un message |
+| `typing_start` | `channel_id` | Commencer à écrire |
+| `typing_stop` | `channel_id` | Arrêter d'écrire |
+| `join_channel` | `channel_id` | Rejoindre un channel |
+| `leave_channel` | `channel_id` | Quitter un channel |
+
+Exemple :
+```json
+{ "type": "message_send", "channel_id": "uuid", "content": "Hello!" }
+```
+
+### Évènements serveur -> client
+
+| Évènement | Champs | Description |
+|-----------|--------|-------------|
+| `message_new` | `id`, `channel_id`, `user_id`, `username`, `content`, `created_at` | Nouveau message |
+| `user_typing` | `channel_id`, `user_id`, `username` | Quelqu'un écrit |
+| `user_connected` | `user_id`, `username` | Utilisateur en ligne |
+| `user_disconnected` | `user_id` | Utilisateur hors ligne |
+| `channel_users` | `channel_id`, `users[]` | Liste des connectés au channel |
+| `error` | `message` | Erreur |
+
+Exemple :
+```json
+{ "type": "message_new", "id": "uuid", "channel_id": "uuid", "user_id": "uuid", "username": "alice", "content": "Hello!", "created_at": "2026-02-08T12:00:00+00:00" }
+```

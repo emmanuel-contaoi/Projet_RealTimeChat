@@ -13,7 +13,7 @@ const displayFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "RTC — Real Time Chat",
+  title: "Nexus",
   description:
     "Plateforme de chat temps réel avec serveurs, canaux, rôles et persistance.",
 };

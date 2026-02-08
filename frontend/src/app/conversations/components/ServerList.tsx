@@ -13,6 +13,7 @@ type ServerListProps = {
   onUpdateServer: (serverId: string, newName: string) => void;
 };
 
+// Liste des serveurs avec les boutons pour copier le code, quitter, renommer, supprimer
 export default function ServerList({
   serverList,
   selectedServer,
@@ -26,6 +27,7 @@ export default function ServerList({
 }: ServerListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Copie le code d'invitation dans le presse-papier
   const handleCopyCode = (e: React.MouseEvent, server: Server) => {
     e.stopPropagation();
     navigator.clipboard.writeText(server.invite_code);
@@ -43,11 +45,12 @@ export default function ServerList({
     onDeleteServer(serverId);
   };
 
+  // Ouvre un prompt pour renommer le serveur (max 20 caracteres)
   const handleRename = (e: React.MouseEvent, server: Server) => {
     e.stopPropagation();
-    const newName = prompt("Nouveau nom du serveur :", server.name);
+    const newName = prompt("Nouveau nom du serveur (20 caracteres max) :", server.name);
     if (newName && newName.trim() && newName.trim() !== server.name) {
-      onUpdateServer(server.id, newName.trim());
+      onUpdateServer(server.id, newName.trim().slice(0, 20));
     }
   };
 
@@ -98,7 +101,7 @@ export default function ServerList({
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   className={`shrink-0 text-[11px] transition ${
@@ -109,36 +112,48 @@ export default function ServerList({
                   onClick={(e) => handleCopyCode(e, server)}
                   title="Copier le code d'invitation"
                 >
-                  {copiedId === server.id ? "Code copie !" : server.invite_code.slice(0, 8)}
+                  {copiedId === server.id ? "Copie !" : server.invite_code.slice(0, 8)}
                 </button>
-
-                <span className="text-slate-700">|</span>
 
                 <button
                   type="button"
-                  className="shrink-0 text-[11px] text-slate-500 hover:text-red-400 transition"
+                  className="shrink-0 rounded-full p-1 text-slate-600 transition hover:text-red-400"
                   onClick={(e) => handleLeave(e, server.id)}
+                  title="Quitter le serveur"
                 >
-                  Quitter
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
                 </button>
 
                 {isOwner && (
                   <>
-                    <span className="text-slate-700">|</span>
                     <button
                       type="button"
-                      className="shrink-0 text-[11px] text-slate-500 hover:text-[var(--brand-1)] transition"
+                      className="shrink-0 rounded-full p-1 text-slate-600 transition hover:text-[var(--brand-1)]"
                       onClick={(e) => handleRename(e, server)}
+                      title="Renommer le serveur"
                     >
-                      Renommer
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
                     </button>
-                    <span className="text-slate-700">|</span>
                     <button
                       type="button"
-                      className="shrink-0 text-[11px] text-slate-500 hover:text-red-400 transition"
+                      className="shrink-0 rounded-full p-1 text-slate-600 transition hover:text-red-400"
                       onClick={(e) => handleDelete(e, server.id)}
+                      title="Supprimer le serveur"
                     >
-                      Supprimer
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
                     </button>
                   </>
                 )}

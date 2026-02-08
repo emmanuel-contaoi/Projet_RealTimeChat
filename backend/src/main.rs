@@ -47,11 +47,12 @@ async fn main() {
     let public_routes = Router::new()
         .route("/", get(|| async { "Backend RTC fonctionne !" }))
         .route("/health", get(|| async { "OK" }))
-        .route("/auth/register", post(routes::auth::register))
+        .route("/auth/signup", post(routes::auth::register))
         .route("/auth/login", post(routes::auth::login));
     
     // 5. Routes protégées (avec authentification)
     let protected_routes = Router::new()
+        .route("/me", get(routes::auth::me))
         .route("/auth/me", get(routes::auth::me))
         .route("/auth/logout", post(routes::auth::logout))
         .route("/users/search", get(routes::users::search_users))
@@ -70,6 +71,16 @@ async fn main() {
             state.clone(),
             utils::auth::auth_middleware,
         ));
+
+    // Routes channels/messages (protégées par auth)
+    let channel_routes = Router::new()
+        .route("/channels/{id}", get(modules::servers::handlers::get_channel).put(modules::servers::handlers::update_channel).delete(modules::servers::handlers::delete_channel))
+        .route("/channels/{id}/messages", get(modules::servers::handlers::get_chat_history).post(modules::servers::handlers::send_message))
+        .route("/messages/{id}", delete(modules::servers::handlers::delete_message))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            utils::auth::auth_middleware,
+        ));
     
     // 7. Route WebSocket
     let ws_route = Router::new()
@@ -80,6 +91,7 @@ async fn main() {
         .merge(public_routes)
         .merge(protected_routes)
         .merge(server_routes)
+        .merge(channel_routes)
         .merge(ws_route)
         .layer(
             CorsLayer::new()

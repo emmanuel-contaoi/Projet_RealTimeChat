@@ -10,6 +10,7 @@ type CreateServerModalProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
+// Modal pour creer un nouveau serveur avec un nom et des channels
 export default function CreateServerModal({
   isOpen,
   newServerName,
@@ -54,6 +55,7 @@ export default function CreateServerModal({
               value={newServerName}
               onChange={(event) => onServerNameChange(event.target.value)}
               placeholder="Ex: Studio"
+              maxLength={20}
               required
             />
           </label>

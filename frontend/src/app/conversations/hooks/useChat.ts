@@ -17,7 +17,7 @@ export default function useChat() {
     activeChannelRef.current = channelId;
   }, []);
 
-  // --- WebSocket message handler ---
+  // Gere les messages recus par le WebSocket
   const handleWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
       if (event.type === "message_new") {
@@ -69,6 +69,10 @@ export default function useChat() {
         });
       }
 
+      if (event.type === "error") {
+        console.warn("[WS] Server error:", event.message);
+      }
+
       if (event.type === "channel_users") {
         const users = event.users as Array<{
           user_id: string;
@@ -86,10 +90,10 @@ export default function useChat() {
     []
   );
 
-  const { sendMessage, joinChannel, leaveChannel, startTyping, isConnected } =
+  const { sendMessage, joinChannel, leaveChannel, startTyping, stopTyping, isConnected } =
     useWebSocket({ onMessage: handleWsMessage });
 
-  // --- Load message history when channel changes ---
+  // Charge l'historique des messages quand on change de channel
   const loadMessages = useCallback(async (channelId: string) => {
     if (!channelId) {
       setMessages([]);
@@ -105,7 +109,7 @@ export default function useChat() {
     }
   }, []);
 
-  // --- WS join/leave channel ---
+  // Rejoint ou quitte un channel via WebSocket
   const syncChannel = useCallback(
     (channelId: string) => {
       if (!isConnected) return;
@@ -121,13 +125,18 @@ export default function useChat() {
     [isConnected, joinChannel, leaveChannel]
   );
 
-  // --- Handlers ---
+  // Fonctions pour envoyer, supprimer et gerer le typing
   const handleSendMessage = useCallback(
     (content: string) => {
       if (!activeChannelRef.current) return;
       sendMessage(activeChannelRef.current, content);
+      stopTyping(activeChannelRef.current);
+      if (typingThrottleRef.current) {
+        clearTimeout(typingThrottleRef.current);
+        typingThrottleRef.current = null;
+      }
     },
-    [sendMessage]
+    [sendMessage, stopTyping]
   );
 
   const handleDeleteMessage = useCallback(async (messageId: string) => {
@@ -148,7 +157,7 @@ export default function useChat() {
     }, 2000);
   }, [startTyping]);
 
-  // --- Derived ---
+  // Liste des noms des utilisateurs en train d'ecrire (sans nous)
   const typingUserNames = Object.values(typingUsers)
     .map((t) => t.username)
     .filter((name) => name !== authService.getCurrentUser()?.username);
