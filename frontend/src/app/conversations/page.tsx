@@ -149,6 +149,7 @@ export default function ConversationsPage() {
             typingUsers={chat.typingUserNames}
             onSendMessage={chat.handleSendMessage}
             onTyping={chat.handleTyping}
+            onEditMessage={chat.handleEditMessage}
             onDeleteMessage={chat.handleDeleteMessage}
           />
         ) : (

@@ -132,7 +132,6 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
             state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
 
             let created_at = chrono::Utc::now().to_rfc3339();
-            let msg_id = Uuid::new_v4().to_string();
 
             let collection = state.mongo.database("chat").collection::<ChatMessage>("messages");
             let new_message = ChatMessage {
@@ -144,7 +143,13 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
                 created_at: Some(created_at.clone()),
             };
 
-            let _ = collection.insert_one(new_message, None).await;
+            let msg_id = match collection.insert_one(new_message, None).await {
+                Ok(result) => result.inserted_id
+                    .as_object_id()
+                    .map(|oid| oid.to_hex())
+                    .unwrap_or_default(),
+                Err(_) => return,
+            };
 
             let response = ServerEvent::MessageNew {
                 id: msg_id,

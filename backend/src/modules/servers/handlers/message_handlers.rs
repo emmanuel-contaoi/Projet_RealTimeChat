@@ -107,6 +107,44 @@ pub async fn send_message(
     }
 }
 
+// Modifier son propre message
+pub async fn edit_message(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path(message_id): Path<String>,
+    Json(payload): Json<CreateMessageRequest>,
+) -> impl IntoResponse {
+    let user_id = auth_user.0.id;
+
+    let oid = match ObjectId::parse_str(&message_id) {
+        Ok(oid) => oid,
+        Err(_) => return (StatusCode::BAD_REQUEST, "ID de message invalide.").into_response(),
+    };
+
+    let collection = state.mongo
+        .database("chat")
+        .collection::<Message>("messages");
+
+    let message = match collection.find_one(doc! { "_id": oid }, None).await {
+        Ok(Some(msg)) => msg,
+        Ok(None) => return (StatusCode::NOT_FOUND, "Message introuvable.").into_response(),
+        Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Erreur Mongo").into_response(),
+    };
+
+    if message.user_id != user_id.to_string() {
+        return (StatusCode::FORBIDDEN, "Vous ne pouvez modifier que vos propres messages.").into_response();
+    }
+
+    match collection.update_one(
+        doc! { "_id": oid },
+        doc! { "$set": { "content": &payload.content } },
+        None,
+    ).await {
+        Ok(_) => (StatusCode::OK, "Message modifie").into_response(),
+        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Erreur modification").into_response(),
+    }
+}
+
 // Supprimer un message
 pub async fn delete_message(
     State(state): State<AppState>,

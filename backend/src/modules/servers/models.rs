@@ -1,8 +1,15 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::NaiveDateTime;
 use mongodb::bson::oid::ObjectId;
+
+fn serialize_object_id_as_hex<S: Serializer>(id: &Option<ObjectId>, s: S) -> Result<S::Ok, S::Error> {
+    match id {
+        Some(oid) => s.serialize_str(&oid.to_hex()),
+        None => s.serialize_none(),
+    }
+}
 
 #[derive(Serialize, FromRow)]
 pub struct Server {
@@ -48,7 +55,7 @@ pub struct JoinServerRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    #[serde(rename(serialize = "id", deserialize = "_id"), skip_serializing_if = "Option::is_none", serialize_with = "serialize_object_id_as_hex")]
     pub id: Option<ObjectId>,
     pub channel_id: String,
     pub user_id: String,

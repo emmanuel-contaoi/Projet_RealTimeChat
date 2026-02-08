@@ -139,6 +139,15 @@ export default function useChat() {
     [sendMessage, stopTyping]
   );
 
+  const handleEditMessage = useCallback(async (messageId: string, content: string) => {
+    try {
+      await messagesService.update(messageId, content);
+      setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, content } : m));
+    } catch (err) {
+      console.error("[API] Edit message error:", err);
+    }
+  }, []);
+
   const handleDeleteMessage = useCallback(async (messageId: string) => {
     try {
       await messagesService.delete(messageId);
@@ -173,6 +182,7 @@ export default function useChat() {
     syncChannel,
     setActiveChannel,
     handleSendMessage,
+    handleEditMessage,
     handleDeleteMessage,
     handleTyping,
   };

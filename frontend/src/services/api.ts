@@ -96,6 +96,7 @@ export const channelsService = {
 
 export const messagesService = {
   history: (channelId: string) => api.get(`/channels/${channelId}/messages`).then(r => r.data),
+  update: (messageId: string, content: string) => api.put(`/messages/${messageId}`, { content }),
   delete: (messageId: string) => api.delete(`/messages/${messageId}`),
 };
 
