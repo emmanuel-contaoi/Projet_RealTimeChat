@@ -36,7 +36,7 @@ pub async fn auth_middleware(
     // Récupére l'utilisateur depuis la DB
     let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
         .bind(user_id)
-        .fetch_optional(&state.pool) // <--- C'est ici que ça bloquait
+        .fetch_optional(&state.pool)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Database error: {}", e)))?
         .ok_or((StatusCode::UNAUTHORIZED, "User not found".to_string()))?;

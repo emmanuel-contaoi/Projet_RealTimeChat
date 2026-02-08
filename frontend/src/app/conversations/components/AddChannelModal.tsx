@@ -8,6 +8,7 @@ type AddChannelModalProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
+// Modal pour ajouter un channel a un serveur
 export default function AddChannelModal({
   isOpen,
   newChannelName,
@@ -50,6 +51,7 @@ export default function AddChannelModal({
               value={newChannelName}
               onChange={(event) => onChannelNameChange(event.target.value)}
               placeholder="Ex: annonces"
+              maxLength={20}
               required
             />
           </label>

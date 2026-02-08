@@ -21,20 +21,4 @@ pub fn router() -> Router<AppState> {
 
         // Liste des salons d'un serveur
         .route("/{id}/channels", get(handlers::list_channels).post(handlers::create_channel))
-
-        // Gestion d'un salon spécifique (GET, PUT, DELETE)
-        .route("/channels/{id}",
-            get(handlers::get_channel)
-            .put(handlers::update_channel)
-            .delete(handlers::delete_channel)
-        )
-
-        // Messages (Historique + Envoi)
-        .route("/channels/{id}/messages",
-            get(handlers::get_chat_history)
-            .post(handlers::send_message)
-        )
-
-        // Suppression d'un message
-        .route("/messages/{id}", delete(handlers::delete_message))
 }

@@ -26,7 +26,7 @@ api.interceptors.request.use(
 
 export const authService = {
   register: async (email: string, password: string, firstName?: string, lastName?: string, username?: string) => {
-    const response = await api.post('/auth/register', {
+    const response = await api.post('/auth/signup', {
       email,
       password,
       first_name: firstName,
@@ -53,7 +53,7 @@ export const authService = {
     try {
       await api.post('/auth/logout');
     } catch {
-      // Ignore errors — we clear local state regardless
+      // On ignore les erreurs, on vide le localStorage dans tous les cas
     }
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
@@ -90,13 +90,13 @@ export const channelsService = {
   create: (serverId: string, name: string, type = 'text') =>
     api.post(`/servers/${serverId}/channels`, { name, type }).then(r => r.data),
   update: (channelId: string, name: string) =>
-    api.put(`/servers/channels/${channelId}`, { name }).then(r => r.data),
-  delete: (channelId: string) => api.delete(`/servers/channels/${channelId}`),
+    api.put(`/channels/${channelId}`, { name }).then(r => r.data),
+  delete: (channelId: string) => api.delete(`/channels/${channelId}`),
 };
 
 export const messagesService = {
-  history: (channelId: string) => api.get(`/servers/channels/${channelId}/messages`).then(r => r.data),
-  delete: (messageId: string) => api.delete(`/servers/messages/${messageId}`),
+  history: (channelId: string) => api.get(`/channels/${channelId}/messages`).then(r => r.data),
+  delete: (messageId: string) => api.delete(`/messages/${messageId}`),
 };
 
 export const friendsService = {

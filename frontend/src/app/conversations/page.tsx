@@ -18,30 +18,28 @@ import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
 
+// Page principale : affiche les serveurs, channels, chat et membres
 export default function ConversationsPage() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Auth: initialize synchronously from localStorage
-  const [authState] = useState(() => {
-    if (typeof window === "undefined") return { isReady: false, currentUserId: "" };
-    const token = localStorage.getItem("token");
-    if (!token) return { isReady: false, currentUserId: "" };
-    const user = authService.getCurrentUser();
-    return { isReady: true, currentUserId: user?.id ?? "" };
-  });
-  const { isReady, currentUserId } = authState;
+  // On verifie le token au chargement, sinon on redirige vers login
+  const [auth, setAuth] = useState({ isReady: false, currentUserId: "" });
+  const { isReady, currentUserId } = auth;
 
-  // Redirect if no token
   useEffect(() => {
-    if (!isReady) {
+    const token = localStorage.getItem("token");
+    const user = token ? authService.getCurrentUser() : null;
+    if (token && user?.id) {
+      setAuth({ isReady: true, currentUserId: user.id }); // eslint-disable-line react-hooks/set-state-in-effect
+    } else {
       router.replace("/login");
     }
-  }, [isReady, router]);
+  }, [router]);
 
-  // --- Click outside menu ---
+  // Ferme le menu si on clique en dehors
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       if (!menuRef.current) return;
@@ -53,7 +51,7 @@ export default function ConversationsPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // --- Custom hooks ---
+  // On utilise des hooks pour separer la logique du chat et des serveurs
   const chat = useChat();
 
   const server = useServerManager({
@@ -69,7 +67,7 @@ export default function ConversationsPage() {
 
   const friends = useFriendSearch({ isReady, activeTab, onlineUserIds: chat.onlineUserIds });
 
-  // --- UI handlers ---
+  // Deconnexion, changement de compte, etc.
   const handleLogout = async () => {
     await authService.logout();
     router.push("/");
@@ -107,7 +105,7 @@ export default function ConversationsPage() {
         className={`relative z-10 grid w-full max-w-none min-h-0 flex-1 gap-6 overflow-hidden px-8 pb-6 md:px-12 ${
           activeTab === "friends"
             ? "grid-cols-[320px_1fr]"
-            : "grid-cols-[260px_200px_1fr_200px]"
+            : "grid-cols-[260px_200px_1fr_240px]"
         }`}
       >
         <Sidebar

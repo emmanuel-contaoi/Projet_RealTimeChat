@@ -18,8 +18,9 @@ export default function ConversationsHeader({
   onLogout,
 }: ConversationsHeaderProps) {
   return (
-    <header className="relative z-30 mx-auto flex w-full max-w-none shrink-0 items-center justify-between gap-4 px-8 py-6 md:px-12">
-      <div className="flex items-center gap-4">
+    <header className="relative z-30 mx-auto grid w-full max-w-none shrink-0 grid-cols-3 items-center px-8 py-4 md:px-12">
+      {/* Left: Profil button */}
+      <div className="flex items-center">
         <div className="relative z-20" ref={menuRef}>
           <button
             className="flex items-center gap-3 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]"
@@ -72,15 +73,15 @@ export default function ConversationsHeader({
             </div>
           ) : null}
         </div>
-        <div>
-          <h1 className="font-display text-xl font-semibold text-white">
-            MyChat
-          </h1>
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-            Messagerie temps reel
-          </p>
-        </div>
       </div>
+
+      {/* Center: Logo */}
+      <div className="flex items-center justify-center">
+        <img src="/logo.svg" alt="Nexus" className="h-12 w-auto" />
+      </div>
+
+      {/* Right: empty for balance */}
+      <div />
     </header>
   );
 }

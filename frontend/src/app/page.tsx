@@ -1,6 +1,7 @@
+// Page d'accueil avec presentation du projet et les features
 export default function Home() {
   return (
-    <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+    <div className="relative flex min-h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.45),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
@@ -22,10 +23,9 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-20 pt-10">
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-16 px-6 py-10">
         <section className="flex flex-col gap-6 text-center">
           <div className="mx-auto flex max-w-2xl flex-col gap-5">
-          
             <h1 className="font-display text-4xl leading-tight text-white md:text-5xl">
               Ton hub de jeu, simple et instantané.
             </h1>
@@ -33,35 +33,59 @@ export default function Home() {
               Crée des serveurs, organise en canaux, gère les rôles. Tout est
               synchronisé en temps réel et persisté.
             </p>
-            <div className="flex flex-wrap items-center justify-center gap-4">
-              <a
-                className="rounded-full bg-[var(--brand-1)] px-7 py-3.5 text-base font-semibold text-white shadow-[0_12px_28px_rgba(71,82,196,0.3)] transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)] md:inline-flex"
-                href="/conversations"
-              >
-                Commencer
-              </a>
-            </div>
           </div>
         </section>
 
-        <section id="features" className="grid gap-4 md:grid-cols-3">
+        <section id="features" className="grid gap-6 md:grid-cols-3">
           {[
-            ["Temps réel", "Messages, présence, typing."],
-            ["Canaux", "Organisation claire par sujets."],
-            ["Rôles", "Owner · Admin · Member."],
-          ].map(([title, description]) => (
+            {
+              title: "Temps réel",
+              description: "Messages instantanés, indicateurs de présence et de saisie. Tout se met à jour en direct grâce au WebSocket.",
+              icon: (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              ),
+            },
+            {
+              title: "Canaux",
+              description: "Organise les discussions par sujet avec des channels dédiés. Chaque serveur peut avoir ses propres canaux.",
+              icon: (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="9" x2="20" y2="9" />
+                  <line x1="4" y1="15" x2="20" y2="15" />
+                  <line x1="10" y1="3" x2="8" y2="21" />
+                  <line x1="16" y1="3" x2="14" y2="21" />
+                </svg>
+              ),
+            },
+            {
+              title: "Rôles",
+              description: "Gère les permissions avec un système de rôles : Owner, Admin et Member. Transfère la propriété si besoin.",
+              icon: (
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              ),
+            },
+          ].map((feature) => (
             <div
-              key={title}
-              className="rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-6 shadow-[0_14px_30px_rgba(6,10,20,0.5)]"
+              key={feature.title}
+              className="group rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-6 shadow-[0_14px_30px_rgba(6,10,20,0.5)] transition hover:-translate-y-1 hover:border-[rgba(0,212,255,0.3)] hover:shadow-[0_20px_40px_rgba(0,212,255,0.1)]"
             >
-              <p className="font-semibold text-white">{title}</p>
-              <p className="mt-2 text-sm text-slate-300">{description}</p>
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgba(0,212,255,0.1)] text-[var(--brand-1)]">
+                {feature.icon}
+              </div>
+              <p className="font-semibold text-white">{feature.title}</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">{feature.description}</p>
             </div>
           ))}
         </section>
-
-        
       </main>
+
+      <footer className="relative z-10 px-8 py-6 md:px-12">
+        <p className="text-center text-xs text-slate-600">Nexus - Projet Epitech 2026</p>
+      </footer>
     </div>
   );
 }
