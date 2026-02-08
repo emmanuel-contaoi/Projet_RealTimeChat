@@ -76,7 +76,7 @@ async fn main() {
     let channel_routes = Router::new()
         .route("/channels/{id}", get(modules::servers::handlers::get_channel).put(modules::servers::handlers::update_channel).delete(modules::servers::handlers::delete_channel))
         .route("/channels/{id}/messages", get(modules::servers::handlers::get_chat_history).post(modules::servers::handlers::send_message))
-        .route("/messages/{id}", delete(modules::servers::handlers::delete_message))
+        .route("/messages/{id}", delete(modules::servers::handlers::delete_message).put(modules::servers::handlers::edit_message))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             utils::auth::auth_middleware,
