@@ -123,7 +123,6 @@ export default function useServerManager({
         setMembers([]);
       }
     } catch (err: any) {
-      console.error("[API] Leave server error:", err);
       const msg = err.response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de quitter ce serveur.");
     }
