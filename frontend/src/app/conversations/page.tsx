@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { authService } from "@/services/api";
@@ -51,8 +51,14 @@ export default function ConversationsPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Ref pour passer les evenements WS de useChat a useServerManager
+  // (useChat est initialise avant useServerManager, donc on passe par une ref pour eviter une dependance circulaire)
+  const serverWsHandlerRef = useRef<((event: { type: string; [key: string]: unknown }) => void) | null>(null);
+
   // On utilise des hooks pour separer la logique du chat et des serveurs
-  const chat = useChat();
+  const chat = useChat({
+    onExtraWsEvent: useCallback((e: { type: string; [key: string]: unknown }) => serverWsHandlerRef.current?.(e), []),
+  });
 
   const server = useServerManager({
     isReady,
@@ -64,6 +70,11 @@ export default function ConversationsPage() {
     setActiveChannel: chat.setActiveChannel,
     setMessages: chat.setMessages,
   });
+
+  // On garde la ref a jour avec la derniere version du handler
+  useEffect(() => {
+    serverWsHandlerRef.current = server.handleWsEvent;
+  }, [server.handleWsEvent]);
 
   const friends = useFriendSearch({ isReady, activeTab, onlineUserIds: chat.onlineUserIds });
 

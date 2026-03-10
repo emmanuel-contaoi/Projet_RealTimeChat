@@ -9,6 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 
+// Erreurs metier retournees par les services, converties automatiquement en reponse HTTP
 pub enum ServiceError {
     NotFound(String),
     Forbidden(String),

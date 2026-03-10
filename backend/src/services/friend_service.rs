@@ -9,6 +9,7 @@ use crate::services::ServiceError;
 pub struct FriendService;
 
 impl FriendService {
+    // Retourne la liste des amis de l'utilisateur
     pub async fn list_friends(
         pool: &PgPool,
         user_id: Uuid,
@@ -19,6 +20,7 @@ impl FriendService {
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))
     }
 
+    // Ajoute un ami (verifie qu'on ne s'ajoute pas soi-meme et que l'utilisateur existe)
     pub async fn add_friend(
         pool: &PgPool,
         user_id: Uuid,
@@ -42,6 +44,7 @@ impl FriendService {
         Ok(friend.into())
     }
 
+    // Supprime un ami de la liste
     pub async fn remove_friend(
         pool: &PgPool,
         user_id: Uuid,

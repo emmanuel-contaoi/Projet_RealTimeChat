@@ -6,6 +6,7 @@ use crate::models::User;
 pub struct UserRepository;
 
 impl UserRepository {
+    // Cherche un utilisateur par son email
     pub async fn find_by_email(pool: &PgPool, email: &str) -> sqlx::Result<Option<User>> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
@@ -13,6 +14,7 @@ impl UserRepository {
             .await
     }
 
+    // Cherche un utilisateur par son ID
     pub async fn find_by_id(pool: &PgPool, id: Uuid) -> sqlx::Result<Option<User>> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
@@ -20,6 +22,7 @@ impl UserRepository {
             .await
     }
 
+    // Cree un nouvel utilisateur dans la base de donnees
     pub async fn create(
         pool: &PgPool,
         email: &str,
@@ -43,6 +46,7 @@ impl UserRepository {
         .await
     }
 
+    // Cherche des utilisateurs par email, pseudo ou nom (max 20 resultats)
     pub async fn search(pool: &PgPool, pattern: &str) -> sqlx::Result<Vec<User>> {
         sqlx::query_as::<_, User>(
             "SELECT * FROM users
@@ -58,6 +62,7 @@ impl UserRepository {
         .await
     }
 
+    // Retourne tous les utilisateurs (max 100)
     pub async fn list(pool: &PgPool) -> sqlx::Result<Vec<User>> {
         sqlx::query_as::<_, User>("SELECT * FROM users ORDER BY created_at DESC LIMIT 100")
             .fetch_all(pool)

@@ -12,6 +12,7 @@ use crate::services::ServiceError;
 pub struct MessageService;
 
 impl MessageService {
+    // Retourne l'historique des messages d'un channel (acces reserve aux membres)
     pub async fn get_history(
         pool: &PgPool,
         mongo: &Client,
@@ -31,6 +32,7 @@ impl MessageService {
             .map_err(|e| ServiceError::Internal(format!("Erreur Mongo: {}", e)))
     }
 
+    // Envoie un message dans un channel (acces reserve aux membres)
     pub async fn send_message(
         pool: &PgPool,
         mongo: &Client,
@@ -61,12 +63,13 @@ impl MessageService {
             .map_err(|e| ServiceError::Internal(format!("Erreur Mongo: {}", e)))
     }
 
+    // Modifie le contenu d'un message (auteur seulement), retourne le channel_id pour le broadcast WS
     pub async fn edit_message(
         mongo: &Client,
         user_id: Uuid,
         message_id: &str,
         content: String,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<String, ServiceError> {
         let oid = ObjectId::parse_str(message_id)
             .map_err(|_| ServiceError::BadRequest("ID de message invalide.".to_string()))?;
 
@@ -81,17 +84,20 @@ impl MessageService {
             ));
         }
 
+        let channel_id = message.channel_id.clone();
         MessageRepository::update_content(mongo, oid, &content)
             .await
-            .map_err(|e| ServiceError::Internal(format!("Erreur modification: {}", e)))
+            .map_err(|e| ServiceError::Internal(format!("Erreur modification: {}", e)))?;
+        Ok(channel_id)
     }
 
+    // Supprime un message (auteur ou owner/admin du serveur), retourne le channel_id pour le broadcast WS
     pub async fn delete_message(
         pool: &PgPool,
         mongo: &Client,
         user_id: Uuid,
         message_id: &str,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<String, ServiceError> {
         let oid = ObjectId::parse_str(message_id)
             .map_err(|_| ServiceError::BadRequest("ID de message invalide.".to_string()))?;
 
@@ -119,8 +125,10 @@ impl MessageService {
             }
         }
 
+        let channel_id = message.channel_id.clone();
         MessageRepository::delete(mongo, oid)
             .await
-            .map_err(|e| ServiceError::Internal(format!("Erreur suppression: {}", e)))
+            .map_err(|e| ServiceError::Internal(format!("Erreur suppression: {}", e)))?;
+        Ok(channel_id)
     }
 }

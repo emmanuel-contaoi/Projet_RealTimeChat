@@ -9,6 +9,7 @@ use crate::utils::jwt::create_token;
 pub struct AuthService;
 
 impl AuthService {
+    // Inscrit un nouvel utilisateur : verifie si l'email existe, hash le mot de passe, cree le compte et retourne un token JWT
     pub async fn register(
         pool: &PgPool,
         payload: RegisterRequest,
@@ -43,6 +44,7 @@ impl AuthService {
         Ok(AuthResponse { token, user: user.into() })
     }
 
+    // Connecte un utilisateur : verifie l'email, compare le mot de passe et retourne un token JWT
     pub async fn login(
         pool: &PgPool,
         payload: LoginRequest,

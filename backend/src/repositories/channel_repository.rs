@@ -6,6 +6,7 @@ use crate::modules::servers::models::Channel;
 pub struct ChannelRepository;
 
 impl ChannelRepository {
+    // Cree un nouveau channel dans un serveur
     pub async fn create(
         pool: &PgPool,
         server_id: Uuid,
@@ -22,6 +23,7 @@ impl ChannelRepository {
         .await
     }
 
+    // Cherche un channel par son ID
     pub async fn find_by_id(pool: &PgPool, id: Uuid) -> sqlx::Result<Option<Channel>> {
         sqlx::query_as::<_, Channel>("SELECT * FROM channels WHERE id = $1")
             .bind(id)
@@ -29,6 +31,7 @@ impl ChannelRepository {
             .await
     }
 
+    // Retourne tous les channels d'un serveur
     pub async fn list_for_server(pool: &PgPool, server_id: Uuid) -> sqlx::Result<Vec<Channel>> {
         sqlx::query_as::<_, Channel>("SELECT * FROM channels WHERE server_id = $1")
             .bind(server_id)
@@ -36,6 +39,7 @@ impl ChannelRepository {
             .await
     }
 
+    // Met a jour le nom (et optionnellement le type) d'un channel
     pub async fn update(
         pool: &PgPool,
         id: Uuid,
@@ -52,6 +56,7 @@ impl ChannelRepository {
         .await
     }
 
+    // Supprime un channel par son ID
     pub async fn delete(pool: &PgPool, id: Uuid) -> sqlx::Result<()> {
         sqlx::query("DELETE FROM channels WHERE id = $1")
             .bind(id)
@@ -60,6 +65,7 @@ impl ChannelRepository {
             .map(|_| ())
     }
 
+    // Recupere le role d'un utilisateur dans le serveur qui contient ce channel (par UUID)
     pub async fn get_member_role(
         pool: &PgPool,
         channel_id: Uuid,
@@ -76,6 +82,7 @@ impl ChannelRepository {
         .await
     }
 
+    // Recupere le role d'un utilisateur via l'ID du channel en texte (utile pour les messages MongoDB)
     pub async fn get_member_role_by_channel_str(
         pool: &PgPool,
         channel_id_str: &str,

@@ -1,5 +1,6 @@
 use axum::{
     extract::{State, Path},
+    extract::ws::Message,
     http::StatusCode,
     response::{IntoResponse, Json},
     Extension,
@@ -11,6 +12,7 @@ use crate::utils::auth::AuthUser;
 use crate::modules::servers::models::CreateMessageRequest;
 use crate::services::message_service::MessageService;
 use crate::services::ServiceError;
+use crate::websocket::events::ServerEvent;
 
 pub async fn get_chat_history(
     State(state): State<AppState>,
@@ -49,7 +51,20 @@ pub async fn edit_message(
     Path(message_id): Path<String>,
     Json(payload): Json<CreateMessageRequest>,
 ) -> Result<StatusCode, ServiceError> {
-    MessageService::edit_message(&state.mongo, auth_user.0.id, &message_id, payload.content).await?;
+    let content = payload.content.clone();
+    // On modifie le message et on recupere le channel_id pour le broadcast
+    let channel_id = MessageService::edit_message(&state.mongo, auth_user.0.id, &message_id, payload.content).await?;
+
+    // On notifie tous les utilisateurs du channel que le message a ete modifie
+    let event = ServerEvent::MessageEdited {
+        message_id: message_id.clone(),
+        channel_id: channel_id.clone(),
+        content,
+    };
+    if let Ok(json) = event.to_json() {
+        state.broadcast_to_channel(&channel_id, Message::Text(json.into()), None).await;
+    }
+
     Ok(StatusCode::OK)
 }
 
@@ -58,6 +73,17 @@ pub async fn delete_message(
     Extension(auth_user): Extension<AuthUser>,
     Path(message_id): Path<String>,
 ) -> Result<StatusCode, ServiceError> {
-    MessageService::delete_message(&state.pool, &state.mongo, auth_user.0.id, &message_id).await?;
+    // On supprime le message et on recupere le channel_id pour le broadcast
+    let channel_id = MessageService::delete_message(&state.pool, &state.mongo, auth_user.0.id, &message_id).await?;
+
+    // On notifie tous les utilisateurs du channel que le message a ete supprime
+    let event = ServerEvent::MessageDeleted {
+        message_id: message_id.clone(),
+        channel_id: channel_id.clone(),
+    };
+    if let Ok(json) = event.to_json() {
+        state.broadcast_to_channel(&channel_id, Message::Text(json.into()), None).await;
+    }
+
     Ok(StatusCode::NO_CONTENT)
 }

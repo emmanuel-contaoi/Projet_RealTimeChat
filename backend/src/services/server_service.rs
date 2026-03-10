@@ -10,6 +10,7 @@ use crate::services::ServiceError;
 pub struct ServerService;
 
 impl ServerService {
+    // Cree un serveur avec un code d'invitation unique et ajoute le createur comme owner
     pub async fn create_server(
         pool: &PgPool,
         user_id: Uuid,
@@ -28,12 +29,14 @@ impl ServerService {
         Ok(server)
     }
 
+    // Retourne tous les serveurs dont l'utilisateur est membre
     pub async fn list_servers(pool: &PgPool, user_id: Uuid) -> Result<Vec<Server>, ServiceError> {
         ServerRepository::list_for_user(pool, user_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur récupération: {}", e)))
     }
 
+    // Rejoint un serveur via son code d'invitation et ajoute l'utilisateur comme membre
     pub async fn join_server(
         pool: &PgPool,
         user_id: Uuid,
@@ -51,6 +54,7 @@ impl ServerService {
         Ok(server)
     }
 
+    // Quitte un serveur (interdit si l'utilisateur est owner)
     pub async fn leave_server(
         pool: &PgPool,
         user_id: Uuid,
@@ -79,6 +83,7 @@ impl ServerService {
             .map_err(|e| ServiceError::Internal(format!("Erreur suppression: {}", e)))
     }
 
+    // Supprime un serveur (seul le owner peut faire ca)
     pub async fn delete_server(
         pool: &PgPool,
         user_id: Uuid,
@@ -107,6 +112,7 @@ impl ServerService {
             .map_err(|e| ServiceError::Internal(format!("Erreur suppression: {}", e)))
     }
 
+    // Retourne les infos d'un serveur si l'utilisateur en est membre
     pub async fn get_server(
         pool: &PgPool,
         user_id: Uuid,
@@ -128,6 +134,7 @@ impl ServerService {
             .ok_or(ServiceError::NotFound("Serveur introuvable".to_string()))
     }
 
+    // Renomme un serveur (owner ou admin seulement)
     pub async fn update_server(
         pool: &PgPool,
         user_id: Uuid,
@@ -158,6 +165,7 @@ impl ServerService {
             .ok_or(ServiceError::NotFound("Serveur introuvable".to_string()))
     }
 
+    // Transfere la propriete du serveur a un autre membre (owner devient admin, cible devient owner)
     pub async fn transfer_ownership(
         pool: &PgPool,
         user_id: Uuid,
@@ -189,6 +197,7 @@ impl ServerService {
             .map_err(|e| ServiceError::Internal(format!("Erreur transfert: {}", e)))
     }
 
+    // Retourne la liste des membres d'un serveur (acces reserve aux membres)
     pub async fn list_members(
         pool: &PgPool,
         user_id: Uuid,
@@ -209,6 +218,7 @@ impl ServerService {
             .map_err(|e| ServiceError::Internal(format!("Erreur membres: {}", e)))
     }
 
+    // Change le role d'un membre (owner seulement, ne peut pas changer son propre role)
     pub async fn update_member_role(
         pool: &PgPool,
         caller_id: Uuid,
