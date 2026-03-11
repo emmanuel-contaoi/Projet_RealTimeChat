@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { serversService, channelsService } from "@/services/api";
 import type { Server, Channel, Member } from "../types";
 
@@ -244,7 +244,7 @@ export default function useServerManager({
     if (addChannelTarget === "server" && selectedServer) {
       try {
         const ch = await channelsService.create(selectedServer, trimmedName);
-        setChannels((prev) => [...prev, ch]);
+        setChannels((prev) => prev.some((c) => c.id === ch.id) ? prev : [...prev, ch]);
         setSelectedChannel(ch.id);
       } catch (err) {
         console.error("[API] Failed to create channel:", err);
@@ -313,6 +313,123 @@ export default function useServerManager({
     setIsAddChannelOpen(true);
   }, []);
 
+  // Refs to avoid stale closures in handleWsEvent
+  const selectedServerRef = useRef(selectedServer);
+  selectedServerRef.current = selectedServer;
+  const selectedChannelRef = useRef(selectedChannel);
+  selectedChannelRef.current = selectedChannel;
+
+  // Gere les evenements WebSocket lies aux serveurs, channels et membres
+  const handleWsEvent = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      if (event.type === "server_deleted") {
+        const sid = event.server_id as string;
+        setServerList((prev) => prev.filter((s) => s.id !== sid));
+        if (selectedServerRef.current === sid) {
+          setSelectedServer("");
+          setChannels([]);
+          setSelectedChannel("");
+          setMembers([]);
+        }
+      }
+
+      if (event.type === "channel_created") {
+        const ch: Channel = {
+          id: event.channel_id as string,
+          server_id: event.server_id as string,
+          name: event.name as string,
+          type: event.channel_type as string,
+        };
+        if (ch.server_id === selectedServerRef.current) {
+          setChannels((prev) => {
+            if (prev.some((c) => c.id === ch.id)) return prev;
+            return [...prev, ch];
+          });
+        }
+      }
+
+      if (event.type === "channel_deleted") {
+        const cid = event.channel_id as string;
+        setChannels((prev) => prev.filter((c) => c.id !== cid));
+        if (selectedChannelRef.current === cid) {
+          setSelectedChannel("");
+          setMessages([]);
+        }
+      }
+
+      if (event.type === "member_role_updated") {
+        const uid = event.user_id as string;
+        const sid = event.server_id as string;
+        const role = event.role as string;
+        if (sid === selectedServerRef.current) {
+          setMembers((prev) =>
+            prev.map((m) => (m.user_id === uid ? { ...m, role } : m))
+          );
+        }
+      }
+
+      if (event.type === "member_left") {
+        const uid = event.user_id as string;
+        const sid = event.server_id as string;
+        if (sid === selectedServerRef.current) {
+          setMembers((prev) => prev.filter((m) => m.user_id !== uid));
+        }
+      }
+
+      if (event.type === "member_joined") {
+        const sid = event.server_id as string;
+        if (sid === selectedServerRef.current) {
+          const newMember = {
+            user_id: event.user_id as string,
+            username: event.username as string,
+            role: event.role as string,
+            is_online: true,
+          };
+          setMembers((prev) => {
+            if (prev.some((m) => m.user_id === newMember.user_id)) return prev;
+            return [...prev, newMember];
+          });
+        }
+      }
+
+      if (event.type === "channel_updated") {
+        const sid = event.server_id as string;
+        if (sid === selectedServerRef.current) {
+          setChannels((prev) =>
+            prev.map((c) =>
+              c.id === (event.channel_id as string)
+                ? { ...c, name: event.name as string, type: event.channel_type as string }
+                : c
+            )
+          );
+        }
+      }
+
+      if (event.type === "server_updated") {
+        const sid = event.server_id as string;
+        const name = event.name as string;
+        setServerList((prev) =>
+          prev.map((s) => (s.id === sid ? { ...s, name } : s))
+        );
+      }
+
+      if (event.type === "user_connected") {
+        const uid = event.user_id as string;
+        setMembers((prev) =>
+          prev.map((m) => (m.user_id === uid ? { ...m, is_online: true } : m))
+        );
+      }
+
+      if (event.type === "user_disconnected") {
+        const uid = event.user_id as string;
+        setMembers((prev) =>
+          prev.map((m) => (m.user_id === uid ? { ...m, is_online: false } : m))
+        );
+      }
+    },
+    [setMessages]
+  );
+
   return {
     // State des serveurs
     serverList,
@@ -361,5 +478,6 @@ export default function useServerManager({
     handleAddChannel,
     openCreateChannelOnServer,
     openCreateChannelInModal,
+    handleWsEvent,
   };
 }

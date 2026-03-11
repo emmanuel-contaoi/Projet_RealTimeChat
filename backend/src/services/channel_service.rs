@@ -9,6 +9,7 @@ use crate::services::ServiceError;
 pub struct ChannelService;
 
 impl ChannelService {
+    // Cree un channel dans un serveur (owner ou admin seulement)
     pub async fn create_channel(
         pool: &PgPool,
         user_id: Uuid,
@@ -38,6 +39,7 @@ impl ChannelService {
             .map_err(|e| ServiceError::Internal(format!("Erreur création du salon: {}", e)))
     }
 
+    // Retourne tous les channels d'un serveur (acces reserve aux membres)
     pub async fn list_channels(
         pool: &PgPool,
         user_id: Uuid,
@@ -58,6 +60,7 @@ impl ChannelService {
             .map_err(|e| ServiceError::Internal(format!("Erreur récupération des salons: {}", e)))
     }
 
+    // Retourne un channel si l'utilisateur est membre du serveur associe
     pub async fn get_channel(
         pool: &PgPool,
         user_id: Uuid,
@@ -77,6 +80,7 @@ impl ChannelService {
             .ok_or(ServiceError::NotFound("Salon introuvable".to_string()))
     }
 
+    // Renomme un channel (owner ou admin seulement)
     pub async fn update_channel(
         pool: &PgPool,
         user_id: Uuid,
@@ -103,6 +107,7 @@ impl ChannelService {
             .ok_or(ServiceError::NotFound("Salon introuvable".to_string()))
     }
 
+    // Supprime un channel (owner ou admin seulement)
     pub async fn delete_channel(
         pool: &PgPool,
         user_id: Uuid,

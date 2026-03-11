@@ -9,10 +9,12 @@ use crate::modules::servers::models::Message;
 pub struct MessageRepository;
 
 impl MessageRepository {
+    // Retourne la collection MongoDB "messages" de la base "chat"
     fn collection(mongo: &Client) -> mongodb::Collection<Message> {
         mongo.database("chat").collection::<Message>("messages")
     }
 
+    // Retourne tous les messages d'un channel
     pub async fn find_by_channel(
         mongo: &Client,
         channel_id: &str,
@@ -26,6 +28,7 @@ impl MessageRepository {
         Ok(messages)
     }
 
+    // Cherche un message par son ObjectId MongoDB
     pub async fn find_by_id(
         mongo: &Client,
         oid: ObjectId,
@@ -35,6 +38,7 @@ impl MessageRepository {
             .await
     }
 
+    // Insere un nouveau message dans MongoDB
     pub async fn insert(mongo: &Client, message: Message) -> mongodb::error::Result<()> {
         Self::collection(mongo)
             .insert_one(message, None)
@@ -42,6 +46,7 @@ impl MessageRepository {
             .map(|_| ())
     }
 
+    // Met a jour le contenu d'un message existant
     pub async fn update_content(
         mongo: &Client,
         oid: ObjectId,
@@ -57,6 +62,7 @@ impl MessageRepository {
             .map(|_| ())
     }
 
+    // Supprime un message par son ObjectId
     pub async fn delete(mongo: &Client, oid: ObjectId) -> mongodb::error::Result<()> {
         Self::collection(mongo)
             .delete_one(doc! { "_id": oid }, None)

@@ -1,5 +1,6 @@
 use axum::{
     extract::{State, Path},
+    extract::ws::Message,
     http::StatusCode,
     response::{IntoResponse, Json},
     Extension,
@@ -11,6 +12,8 @@ use crate::utils::auth::AuthUser;
 use crate::modules::servers::models::UpdateRoleRequest;
 use crate::services::server_service::ServerService;
 use crate::services::ServiceError;
+use crate::repositories::server_repository::ServerRepository;
+use crate::websocket::events::ServerEvent;
 
 pub async fn list_members(
     State(state): State<AppState>,
@@ -39,6 +42,7 @@ pub async fn update_member_role(
     Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
     Json(payload): Json<UpdateRoleRequest>,
 ) -> Result<StatusCode, ServiceError> {
+    let role = payload.role.clone();
     ServerService::update_member_role(
         &state.pool,
         auth_user.0.id,
@@ -47,5 +51,19 @@ pub async fn update_member_role(
         payload.role,
     )
     .await?;
+
+    // On notifie tous les membres du serveur que le role a change
+    let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
+        .await
+        .unwrap_or_default();
+    let event = ServerEvent::MemberRoleUpdated {
+        user_id: target_user_id.to_string(),
+        server_id: server_id.to_string(),
+        role,
+    };
+    if let Ok(json) = event.to_json() {
+        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+    }
+
     Ok(StatusCode::OK)
 }

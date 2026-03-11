@@ -61,6 +61,19 @@ impl AppState {
         }
     }
 
+    // Envoie un message WebSocket a tous les utilisateurs dont l'ID est dans la liste
+    pub async fn broadcast_to_users(&self, user_ids: &[String], message: Message) {
+        let connections = self.connections.read().await;
+        let user_info = self.user_info.read().await;
+        for (conn_id, (uid, _)) in user_info.iter() {
+            if user_ids.contains(uid) {
+                if let Some(sender) = connections.get(conn_id) {
+                    let _ = sender.send(message.clone());
+                }
+            }
+        }
+    }
+
     pub async fn broadcast_to_channel(&self, channel_id: &str, message: Message, exclude_connection: Option<&str>) {
         let connection_ids = self.room_manager
             .lock()

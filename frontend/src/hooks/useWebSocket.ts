@@ -8,6 +8,7 @@ type ServerEvent = {
 type UseWebSocketOptions = {
   onMessage?: (event: ServerEvent) => void;
   onOpen?: () => void;
+  onExtraWsEvent?: (event: ServerEvent) => void;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -17,15 +18,18 @@ const RECONNECT_DELAY = 3000;
 export default function useWebSocket(options?: UseWebSocketOptions) {
   const onMessage = options?.onMessage;
   const onOpen = options?.onOpen;
+  const onExtraWsEvent = options?.onExtraWsEvent;
   const wsRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
   const onOpenRef = useRef(onOpen);
+  const onExtraWsEventRef = useRef(onExtraWsEvent);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
   const [isConnected, setIsConnected] = useState(false);
 
   onMessageRef.current = onMessage;
   onOpenRef.current = onOpen;
+  onExtraWsEventRef.current = onExtraWsEvent;
 
   const connect = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -53,7 +57,9 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
     ws.onmessage = (ev) => {
       try {
         const data = JSON.parse(ev.data) as ServerEvent;
+        // Envoie l'evenement au handler principal (chat), puis au handler secondaire (serveurs)
         onMessageRef.current?.(data);
+        onExtraWsEventRef.current?.(data);
       } catch {
         // on ignore les messages qui sont pas du JSON
       }

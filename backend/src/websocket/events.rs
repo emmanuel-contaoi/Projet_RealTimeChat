@@ -56,6 +56,53 @@ pub enum ServerEvent {
     Error {
         message: String,
     },
+    ServerDeleted {
+        server_id: String,
+    },
+    ChannelCreated {
+        channel_id: String,
+        server_id: String,
+        name: String,
+        channel_type: String,
+    },
+    ChannelDeleted {
+        channel_id: String,
+        server_id: String,
+    },
+    MessageEdited {
+        message_id: String,
+        channel_id: String,
+        content: String,
+    },
+    MessageDeleted {
+        message_id: String,
+        channel_id: String,
+    },
+    MemberRoleUpdated {
+        user_id: String,
+        server_id: String,
+        role: String,
+    },
+    MemberLeft {
+        user_id: String,
+        server_id: String,
+    },
+    MemberJoined {
+        user_id: String,
+        server_id: String,
+        username: String,
+        role: String,
+    },
+    ChannelUpdated {
+        channel_id: String,
+        server_id: String,
+        name: String,
+        channel_type: String,
+    },
+    ServerUpdated {
+        server_id: String,
+        name: String,
+    },
 }
 
 #[derive(Debug, Serialize)]

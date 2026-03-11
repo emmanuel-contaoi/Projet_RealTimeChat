@@ -3,7 +3,11 @@ import useWebSocket from "@/hooks/useWebSocket";
 import { authService, messagesService } from "@/services/api";
 import type { ChannelMessage } from "../types";
 
-export default function useChat() {
+type UseChatOptions = {
+  onExtraWsEvent?: (event: { type: string; [key: string]: unknown }) => void;
+};
+
+export default function useChat(options?: UseChatOptions) {
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [typingUsers, setTypingUsers] = useState<
     Record<string, { username: string; timer: ReturnType<typeof setTimeout> }>
@@ -69,6 +73,21 @@ export default function useChat() {
         });
       }
 
+      // Met a jour le contenu du message modifie dans la liste
+      if (event.type === "message_edited") {
+        const mid = event.message_id as string;
+        const content = event.content as string;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === mid ? { ...m, content } : m))
+        );
+      }
+
+      // Retire le message supprime de la liste
+      if (event.type === "message_deleted") {
+        const mid = event.message_id as string;
+        setMessages((prev) => prev.filter((m) => m.id !== mid));
+      }
+
       if (event.type === "error") {
         console.warn("[WS] Server error:", event.message);
       }
@@ -91,7 +110,7 @@ export default function useChat() {
   );
 
   const { sendMessage, joinChannel, leaveChannel, startTyping, stopTyping, isConnected } =
-    useWebSocket({ onMessage: handleWsMessage });
+    useWebSocket({ onMessage: handleWsMessage, onExtraWsEvent: options?.onExtraWsEvent });
 
   // Charge l'historique des messages quand on change de channel
   const loadMessages = useCallback(async (channelId: string) => {
