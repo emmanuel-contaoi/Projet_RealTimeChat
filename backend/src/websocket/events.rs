@@ -87,6 +87,10 @@ pub enum ServerEvent {
         user_id: String,
         server_id: String,
     },
+    MemberKicked {
+        user_id: String,
+        server_id: String,
+    },
     MemberJoined {
         user_id: String,
         server_id: String,
