@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Member } from "../types";
 
 type MembersPanelProps = {
@@ -7,6 +8,8 @@ type MembersPanelProps = {
   currentUserRole: string;
   onUpdateRole: (userId: string, role: string) => void;
   onTransferOwnership: (userId: string) => void;
+  onKickMember: (userId: string) => void;
+  onBanMember: (userId: string, durationMinutes?: number) => void;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -29,8 +32,13 @@ export default function MembersPanel({
   currentUserRole,
   onUpdateRole,
   onTransferOwnership,
+  onKickMember,
+  onBanMember,
 }: MembersPanelProps) {
-  // On trie les membres par role (owner en premier, puis admin, puis member)
+  // userId en cours de ban tempo (pour afficher l'input durée inline)
+  const [banTarget, setBanTarget] = useState<string | null>(null);
+  const [banDuration, setBanDuration] = useState("");
+
   const sorted = [...members].sort(
     (a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3)
   );
@@ -54,64 +62,144 @@ export default function MembersPanel({
             const isMe = member.user_id === currentUserId;
             const canChangeRole = isOwner && !isMe && member.role !== "owner";
             const canTransfer = isOwner && !isMe && member.role !== "owner";
+            const isAdmin = currentUserRole === "admin";
+            const canKick =
+              !isMe &&
+              member.role !== "owner" &&
+              (isOwner || (isAdmin && member.role === "member"));
+            // Seul le owner peut ban un admin, un admin ne peut ban que des membres
+            const canBan = canKick;
 
             return (
               <div
                 key={member.user_id}
-                className="flex items-center gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-2"
+                className="flex flex-col gap-1 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-2"
               >
-                <span
-                  className={`h-2 w-2 shrink-0 rounded-full ${
-                    isOnline ? "bg-green-400" : "bg-slate-600"
-                  }`}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm text-white">
-                    {member.username}{isMe ? " (vous)" : ""}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span
-                      className={`text-[10px] uppercase tracking-[0.15em] ${
-                        member.role === "owner"
-                          ? "text-yellow-400"
-                          : member.role === "admin"
-                            ? "text-[var(--brand-1)]"
-                            : "text-slate-400"
-                      }`}
-                    >
-                      {ROLE_LABELS[member.role] ?? member.role}
-                    </span>
-                    {canChangeRole && (
-                      <button
-                        type="button"
-                        className="text-[10px] text-slate-500 hover:text-white transition"
-                        onClick={() =>
-                          onUpdateRole(
-                            member.user_id,
-                            member.role === "admin" ? "member" : "admin"
-                          )
-                        }
-                        title={
-                          member.role === "admin"
-                            ? "Retrograder en membre"
-                            : "Promouvoir admin"
-                        }
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${
+                      isOnline ? "bg-green-400" : "bg-slate-600"
+                    }`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm text-white">
+                      {member.username}{isMe ? " (vous)" : ""}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className={`text-[10px] uppercase tracking-[0.15em] ${
+                          member.role === "owner"
+                            ? "text-yellow-400"
+                            : member.role === "admin"
+                              ? "text-[var(--brand-1)]"
+                              : "text-slate-400"
+                        }`}
                       >
-                        {member.role === "admin" ? "Retrograder" : "Promouvoir"}
-                      </button>
-                    )}
-                    {canTransfer && (
-                      <button
-                        type="button"
-                        className="text-[10px] text-slate-500 hover:text-yellow-400 transition"
-                        onClick={() => onTransferOwnership(member.user_id)}
-                        title="Transferer la propriete"
-                      >
-                        Transferer
-                      </button>
-                    )}
+                        {ROLE_LABELS[member.role] ?? member.role}
+                      </span>
+                      {canChangeRole && (
+                        <button
+                          type="button"
+                          className="text-[10px] text-slate-500 hover:text-white transition"
+                          onClick={() =>
+                            onUpdateRole(
+                              member.user_id,
+                              member.role === "admin" ? "member" : "admin"
+                            )
+                          }
+                          title={
+                            member.role === "admin"
+                              ? "Retrograder en membre"
+                              : "Promouvoir admin"
+                          }
+                        >
+                          {member.role === "admin" ? "Retrograder" : "Promouvoir"}
+                        </button>
+                      )}
+                      {canTransfer && (
+                        <button
+                          type="button"
+                          className="text-[10px] text-slate-500 hover:text-yellow-400 transition"
+                          onClick={() => onTransferOwnership(member.user_id)}
+                          title="Transferer la propriete"
+                        >
+                          Transferer
+                        </button>
+                      )}
+                      {canKick && (
+                        <button
+                          type="button"
+                          className="text-[10px] text-slate-500 hover:text-red-400 transition"
+                          onClick={() => onKickMember(member.user_id)}
+                          title="Expulser ce membre"
+                        >
+                          Kick
+                        </button>
+                      )}
+                      {canBan && (
+                        <>
+                          <button
+                            type="button"
+                            className="text-[10px] text-slate-500 hover:text-orange-400 transition"
+                            onClick={() => onBanMember(member.user_id)}
+                            title="Bannir definitivement"
+                          >
+                            Ban
+                          </button>
+                          <button
+                            type="button"
+                            className="text-[10px] text-slate-500 hover:text-orange-300 transition"
+                            onClick={() => {
+                              setBanTarget(member.user_id);
+                              setBanDuration("");
+                            }}
+                            title="Bannir temporairement"
+                          >
+                            Ban tempo
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Input durée du ban temporaire, visible uniquement pour le membre ciblé */}
+                {banTarget === member.user_id && (
+                  <form
+                    className="flex items-center gap-2 mt-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const mins = parseInt(banDuration, 10);
+                      if (!mins || mins <= 0) return;
+                      onBanMember(member.user_id, mins);
+                      setBanTarget(null);
+                      setBanDuration("");
+                    }}
+                  >
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="Durée (minutes)"
+                      value={banDuration}
+                      onChange={(e) => setBanDuration(e.target.value)}
+                      className="w-32 rounded-lg bg-[var(--surface)] border border-[var(--stroke)] px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="text-[10px] text-orange-400 hover:text-orange-300 transition"
+                    >
+                      Confirmer
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[10px] text-slate-500 hover:text-white transition"
+                      onClick={() => setBanTarget(null)}
+                    >
+                      Annuler
+                    </button>
+                  </form>
+                )}
               </div>
             );
           })
