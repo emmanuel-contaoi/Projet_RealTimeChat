@@ -105,6 +105,74 @@ export const messagesService = {
   delete: (messageId: string) => api.delete(`/messages/${messageId}`),
 };
 
+type GiphyGifApiItem = {
+  id: string;
+  title: string;
+  images?: {
+    fixed_width_small_still?: { url?: string };
+    fixed_height_small_still?: { url?: string };
+    fixed_width?: { url?: string; width?: string; height?: string };
+    fixed_height?: { url?: string; width?: string; height?: string };
+    original?: { url?: string; width?: string; height?: string };
+  };
+};
+
+export type GifItem = {
+  id: string;
+  title: string;
+  previewUrl: string;
+  url: string;
+  width: number;
+  height: number;
+};
+
+const GIPHY_API_URL = 'https://api.giphy.com/v1/gifs';
+const GIPHY_API_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || '';
+
+const mapGiphyGif = (gif: GiphyGifApiItem): GifItem | null => {
+  const animated = gif.images?.fixed_width ?? gif.images?.fixed_height ?? gif.images?.original;
+  const still = gif.images?.fixed_width_small_still ?? gif.images?.fixed_height_small_still;
+
+  const url = animated?.url;
+  if (!url) return null;
+
+  const width = Number.parseInt(animated?.width ?? '0', 10) || 0;
+  const height = Number.parseInt(animated?.height ?? '0', 10) || 0;
+
+  return {
+    id: gif.id,
+    title: gif.title || 'GIF',
+    previewUrl: still?.url ?? url,
+    url,
+    width,
+    height,
+  };
+};
+
+const fetchGiphy = async (endpoint: 'trending' | 'search', params: Record<string, string | number>) => {
+  if (!GIPHY_API_KEY) {
+    throw new Error('NEXT_PUBLIC_GIPHY_API_KEY is missing');
+  }
+
+  const response = await axios.get<{ data: GiphyGifApiItem[] }>(`${GIPHY_API_URL}/${endpoint}`, {
+    params: {
+      api_key: GIPHY_API_KEY,
+      rating: 'pg-13',
+      ...params,
+    },
+  });
+
+  return response.data.data
+    .map(mapGiphyGif)
+    .filter((gif): gif is GifItem => gif !== null);
+};
+
+export const gifService = {
+  isConfigured: () => Boolean(GIPHY_API_KEY),
+  trending: (limit = 24) => fetchGiphy('trending', { limit }),
+  search: (query: string, limit = 24) => fetchGiphy('search', { q: query, limit }),
+};
+
 export const friendsService = {
   list: async () => {
     const response = await api.get('/friends');
