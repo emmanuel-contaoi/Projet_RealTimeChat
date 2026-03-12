@@ -5,7 +5,9 @@ use crate::modules::servers::models::{
     CreateServerRequest, MemberRow, Server, UpdateServerRequest,
 };
 use crate::repositories::server_repository::ServerRepository;
+use crate::repositories::ban_repository::BanRepository;
 use crate::services::ServiceError;
+use chrono::NaiveDateTime;
 
 pub struct ServerService;
 
@@ -46,6 +48,19 @@ impl ServerService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?
             .ok_or(ServiceError::NotFound("Code d'invitation invalide".to_string()))?;
+
+        // Vérifie si l'utilisateur est banni de ce serveur
+        let active_ban = BanRepository::get_active_ban(pool, server.id, user_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur ban: {}", e)))?;
+
+        if let Some(ban) = active_ban {
+            let msg = match ban.expires_at {
+                None => "Vous etes banni definitivement de ce serveur.".to_string(),
+                Some(exp) => format!("Vous etes banni de ce serveur jusqu'au {}.", exp.format("%d/%m/%Y %H:%M")),
+            };
+            return Err(ServiceError::Forbidden(msg));
+        }
 
         ServerRepository::add_member(pool, server.id, user_id, "member")
             .await
@@ -307,6 +322,59 @@ impl ServerService {
         }
 
         // 4. Supprime le membre (il pourra revenir avec le code d'invitation)
+        ServerRepository::remove_member(pool, server_id, target_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur expulsion: {}", e)))
+    }
+
+    // Bannit un membre du serveur (owner ou admin, mêmes règles que kick)
+    // expires_at = None → ban permanent, Some(...) → ban temporaire
+    pub async fn ban_member(
+        pool: &PgPool,
+        caller_id: Uuid,
+        server_id: Uuid,
+        target_id: Uuid,
+        expires_at: Option<NaiveDateTime>,
+    ) -> Result<(), ServiceError> {
+        // 1. Vérifie les permissions du caller (même logique que kick)
+        let caller_role = ServerRepository::get_member_role(pool, server_id, caller_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+
+        match caller_role.as_deref() {
+            Some("owner") | Some("admin") => {}
+            _ => return Err(ServiceError::Forbidden(
+                "Seuls owner et admin peuvent bannir un membre.".to_string(),
+            )),
+        }
+
+        // 2. Vérifie la cible
+        let target_role = ServerRepository::get_member_role(pool, server_id, target_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+
+        match target_role.as_deref() {
+            None => return Err(ServiceError::NotFound(
+                "Ce membre n'est pas dans le serveur.".to_string(),
+            )),
+            Some("owner") => return Err(ServiceError::Forbidden(
+                "Impossible de bannir le owner.".to_string(),
+            )),
+            _ => {}
+        }
+
+        if caller_role.as_deref() == Some("admin") && target_role.as_deref() == Some("admin") {
+            return Err(ServiceError::Forbidden(
+                "Un admin ne peut pas bannir un autre admin.".to_string(),
+            ));
+        }
+
+        // 3. Enregistre le ban en BDD
+        BanRepository::insert(pool, server_id, target_id, caller_id, expires_at)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur ban: {}", e)))?;
+
+        // 4. Supprime le membre du serveur (comme un kick)
         ServerRepository::remove_member(pool, server_id, target_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur expulsion: {}", e)))

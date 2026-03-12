@@ -185,6 +185,7 @@ export default function ConversationsPage() {
             onUpdateRole={server.handleUpdateRole}
             onTransferOwnership={server.handleTransferOwnership}
             onKickMember={server.handleKickMember}
+            onBanMember={server.handleBanMember}
           />
         ) : null}
       </main>

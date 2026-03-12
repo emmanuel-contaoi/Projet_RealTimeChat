@@ -88,3 +88,9 @@ pub struct MemberRow {
 pub struct UpdateRoleRequest {
     pub role: String,
 }
+
+#[derive(Deserialize)]
+pub struct BanRequest {
+    // Durée du ban en minutes. None ou absent = ban permanent
+    pub duration_minutes: Option<i64>,
+}

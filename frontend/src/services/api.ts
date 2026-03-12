@@ -85,6 +85,9 @@ export const serversService = {
     api.post(`/servers/${serverId}/transfer`, { new_owner_id: newOwnerId }).then(r => r.data),
   kick: (serverId: string, userId: string) =>
     api.delete(`/servers/${serverId}/members/${userId}`),
+  // duration_minutes = undefined → ban permanent, sinon ban temporaire
+  ban: (serverId: string, userId: string, duration_minutes?: number) =>
+    api.post(`/servers/${serverId}/members/${userId}/ban`, { duration_minutes }),
 };
 
 export const channelsService = {

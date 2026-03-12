@@ -17,6 +17,7 @@ pub fn router() -> Router<AppState> {
         .route("/{id}/leave", delete(handlers::leave_server))
         .route("/{id}/members", get(handlers::list_members))
         .route("/{id}/members/{user_id}", delete(handlers::kick_member))
+        .route("/{id}/members/{user_id}/ban", post(handlers::ban_member))
         .route("/{id}/members/{user_id}/role", put(handlers::update_member_role))
         .route("/{id}/transfer", post(handlers::transfer_ownership))
 
