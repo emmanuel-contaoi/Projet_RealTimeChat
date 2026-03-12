@@ -14,6 +14,7 @@ use crate::websocket::{
 use crate::state::AppState;
 use crate::utils::jwt::{Claims, validate_token_claims};
 use crate::modules::servers::models::Message as ChatMessage;
+use crate::repositories::channel_repository::ChannelRepository;
 
 #[derive(Deserialize)]
 pub struct WsQuery {
@@ -128,6 +129,20 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
 async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, username: &str, state: &AppState) {
     match event {
         ClientEvent::MessageSend { channel_id, content } => {
+            // Vérifie que l'utilisateur est toujours membre du serveur (protège contre les kickés)
+            let channel_uuid = match Uuid::parse_str(&channel_id) {
+                Ok(id) => id,
+                Err(_) => return,
+            };
+            let user_uuid = match Uuid::parse_str(user_id) {
+                Ok(id) => id,
+                Err(_) => return,
+            };
+            let membership = ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
+            if membership.map(|m| m.is_none()).unwrap_or(true) {
+                return; // Pas membre → on ignore le message silencieusement
+            }
+
             // On s'assure que l'envoyeur est bien dans la room
             state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
 

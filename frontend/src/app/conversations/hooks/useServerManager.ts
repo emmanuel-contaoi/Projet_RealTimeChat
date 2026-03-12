@@ -332,6 +332,8 @@ export default function useServerManager({
   selectedServerRef.current = selectedServer;
   const selectedChannelRef = useRef(selectedChannel);
   selectedChannelRef.current = selectedChannel;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
 
   // Gere les evenements WebSocket lies aux serveurs, channels et membres
   const handleWsEvent = useCallback(
@@ -397,7 +399,7 @@ export default function useServerManager({
           // Retire le membre de la liste pour tout le monde
           setMembers((prev) => prev.filter((m) => m.user_id !== uid));
           // Si c'est moi qui me fais kick, je quitte le serveur
-          if (uid === currentUserId) {
+          if (uid === currentUserIdRef.current) {
             setServerList((prev) => prev.filter((s) => s.id !== sid));
             setSelectedServer("");
             setChannels([]);
