@@ -258,4 +258,57 @@ impl ServerService {
 
         Ok(())
     }
+
+    // Expulse un membre du serveur (owner ou admin seulement, ne peut pas kick un owner)
+    pub async fn kick_member(
+        pool: &PgPool,
+        caller_id: Uuid,
+        server_id: Uuid,
+        target_id: Uuid,
+    ) -> Result<(), ServiceError> {
+        // 1. Vérifie que celui qui kick a le droit (owner ou admin)
+        let caller_role = ServerRepository::get_member_role(pool, server_id, caller_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+
+        match caller_role.as_deref() {
+            Some("owner") | Some("admin") => {}
+            _ => {
+                return Err(ServiceError::Forbidden(
+                    "Seuls owner et admin peuvent expulser un membre.".to_string(),
+                ))
+            }
+        }
+
+        // 2. Vérifie que la cible n'est pas le owner (intouchable)
+        let target_role = ServerRepository::get_member_role(pool, server_id, target_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+
+        match target_role.as_deref() {
+            None => {
+                return Err(ServiceError::NotFound(
+                    "Ce membre n'est pas dans le serveur.".to_string(),
+                ))
+            }
+            Some("owner") => {
+                return Err(ServiceError::Forbidden(
+                    "Impossible d'expulser le owner.".to_string(),
+                ))
+            }
+            _ => {}
+        }
+
+        // 3. Un admin ne peut pas kick un autre admin
+        if caller_role.as_deref() == Some("admin") && target_role.as_deref() == Some("admin") {
+            return Err(ServiceError::Forbidden(
+                "Un admin ne peut pas expulser un autre admin.".to_string(),
+            ));
+        }
+
+        // 4. Supprime le membre (il pourra revenir avec le code d'invitation)
+        ServerRepository::remove_member(pool, server_id, target_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Erreur expulsion: {}", e)))
+    }
 }
