@@ -302,6 +302,36 @@ export default function useServerManager({
     }
   };
 
+  const handleBanMember = async (userId: string, durationMinutes?: number) => {
+    if (!selectedServer) return;
+    const label = durationMinutes
+      ? `Bannir ce membre pour ${durationMinutes} minutes ?`
+      : "Bannir définitivement ce membre ? Il ne pourra plus rejoindre ce serveur.";
+    if (!confirm(label)) return;
+    try {
+      await serversService.ban(selectedServer, userId, durationMinutes);
+      setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+    } catch (err: any) {
+      console.error("[API] Ban error:", err);
+      const msg = err.response?.data;
+      alert(typeof msg === "string" ? msg : "Impossible de bannir ce membre.");
+    }
+  };
+
+  const handleKickMember = async (userId: string) => {
+    if (!selectedServer) return;
+    if (!confirm("Expulser ce membre ? Il pourra revenir avec le code d'invitation.")) return;
+    try {
+      await serversService.kick(selectedServer, userId);
+      // Mise a jour locale immediate — le WS member_kicked fera pareil pour les autres
+      setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+    } catch (err: any) {
+      console.error("[API] Kick error:", err);
+      const msg = err.response?.data;
+      alert(typeof msg === "string" ? msg : "Impossible d'expulser ce membre.");
+    }
+  };
+
   const openCreateChannelOnServer = useCallback(() => {
     setAddChannelTarget("server");
     setNewChannelName("");
@@ -318,6 +348,8 @@ export default function useServerManager({
   selectedServerRef.current = selectedServer;
   const selectedChannelRef = useRef(selectedChannel);
   selectedChannelRef.current = selectedChannel;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
 
   // Gere les evenements WebSocket lies aux serveurs, channels et membres
   const handleWsEvent = useCallback(
@@ -373,6 +405,40 @@ export default function useServerManager({
         const sid = event.server_id as string;
         if (sid === selectedServerRef.current) {
           setMembers((prev) => prev.filter((m) => m.user_id !== uid));
+        }
+      }
+
+      if (event.type === "member_banned") {
+        const uid = event.user_id as string;
+        const sid = event.server_id as string;
+        if (sid === selectedServerRef.current) {
+          setMembers((prev) => prev.filter((m) => m.user_id !== uid));
+          if (uid === currentUserIdRef.current) {
+            setServerList((prev) => prev.filter((s) => s.id !== sid));
+            setSelectedServer("");
+            setChannels([]);
+            setSelectedChannel("");
+            setMembers([]);
+            setMessages([]);
+          }
+        }
+      }
+
+      if (event.type === "member_kicked") {
+        const uid = event.user_id as string;
+        const sid = event.server_id as string;
+        if (sid === selectedServerRef.current) {
+          // Retire le membre de la liste pour tout le monde
+          setMembers((prev) => prev.filter((m) => m.user_id !== uid));
+          // Si c'est moi qui me fais kick, je quitte le serveur
+          if (uid === currentUserIdRef.current) {
+            setServerList((prev) => prev.filter((s) => s.id !== sid));
+            setSelectedServer("");
+            setChannels([]);
+            setSelectedChannel("");
+            setMembers([]);
+            setMessages([]);
+          }
         }
       }
 
@@ -473,6 +539,8 @@ export default function useServerManager({
     handleUpdateServer,
     handleUpdateChannel,
     handleTransferOwnership,
+    handleKickMember,
+    handleBanMember,
     handleJoinServer,
     handleCreateServer,
     handleAddChannel,

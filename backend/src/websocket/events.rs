@@ -87,6 +87,16 @@ pub enum ServerEvent {
         user_id: String,
         server_id: String,
     },
+    MemberKicked {
+        user_id: String,
+        server_id: String,
+    },
+    MemberBanned {
+        user_id: String,
+        server_id: String,
+        // "permanent" ou la date d'expiration ISO8601
+        expires_at: Option<String>,
+    },
     MemberJoined {
         user_id: String,
         server_id: String,
