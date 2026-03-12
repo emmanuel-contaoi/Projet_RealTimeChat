@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChannelMessage } from "../types";
 import EmojiPicker, { Theme } from "emoji-picker-react";
+import { gifService } from "@/services/api";
+import type { GifItem } from "@/services/api";
 
 type ChatPanelProps = {
   channelName: string;
@@ -14,6 +16,17 @@ type ChatPanelProps = {
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
   onDeleteMessage: (messageId: string) => void;
+};
+
+const isGifUrl = (value: string) => {
+  if (!/^https?:\/\//i.test(value)) return false;
+  const url = value.toLowerCase();
+  return (
+    url.includes(".gif") ||
+    url.includes("giphy.com/media/") ||
+    url.includes("media.giphy.com/") ||
+    url.includes("tenor.com/")
+  );
 };
 
 // Affiche les messages du channel et le formulaire pour envoyer
@@ -32,9 +45,15 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearch, setGifSearch] = useState("");
+  const [gifResults, setGifResults] = useState<GifItem[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+  const gifPickerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Envoie le message quand on appuie sur entree
@@ -54,16 +73,60 @@ export default function ChatPanel({
     }
   };
 
-  // Ferme le picker emoji si on clique en dehors
+  // Ferme les pickers si on clique en dehors
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
         setShowEmojiPicker(false);
       }
+      if (gifPickerRef.current && !gifPickerRef.current.contains(e.target as Node)) {
+        setShowGifPicker(false);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Charge les GIFs trending/recherche quand le panel est ouvert
+  useEffect(() => {
+    if (!showGifPicker) return;
+
+    if (!gifService.isConfigured()) {
+      setGifResults([]);
+      setGifLoading(false);
+      setGifError("Ajoute NEXT_PUBLIC_GIPHY_API_KEY dans frontend/.env.local");
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setGifLoading(true);
+      setGifError("");
+      try {
+        const query = gifSearch.trim();
+        const data = query
+          ? await gifService.search(query, 24)
+          : await gifService.trending(24);
+        if (!cancelled) {
+          setGifResults(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setGifResults([]);
+          setGifError("Impossible de charger les GIFs pour le moment.");
+        }
+      } finally {
+        if (!cancelled) {
+          setGifLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [showGifPicker, gifSearch]);
 
   // Scroll automatique vers le dernier message
   useEffect(() => {
@@ -183,7 +246,16 @@ export default function ChatPanel({
                       <button type="button" className="text-[10px] text-slate-400 hover:text-slate-300" onClick={() => setEditingId(null)}>Annuler</button>
                     </form>
                   ) : (
-                    <p className="break-all">{message.content}</p>
+                    isGifUrl(message.content) ? (
+                      <img
+                        src={message.content}
+                        alt="GIF"
+                        loading="lazy"
+                        className="max-h-64 w-auto rounded-xl object-contain"
+                      />
+                    ) : (
+                      <p className="break-all">{message.content}</p>
+                    )
                   )}
                   {message.created_at && (
                     <p className={`mt-1 text-[10px] ${isMe ? "text-slate-900/50" : "text-slate-500"}`}>
@@ -271,6 +343,60 @@ export default function ChatPanel({
                 height={400}
                 searchPlaceHolder="Rechercher..."
               />
+            </div>
+          )}
+        </div>
+        <div className="relative" ref={gifPickerRef}>
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-[11px] font-semibold tracking-wide transition hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              setShowGifPicker((prev) => !prev);
+              setShowEmojiPicker(false);
+            }}
+            disabled={!selectedChannel}
+            title="GIF"
+          >
+            GIF
+          </button>
+          {showGifPicker && (
+            <div className="absolute bottom-12 right-0 z-50 w-[340px] rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-3 shadow-[0_14px_30px_rgba(6,10,20,0.6)]">
+              <input
+                className="mb-3 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[var(--brand-1)]"
+                placeholder="Rechercher un GIF..."
+                value={gifSearch}
+                onChange={(e) => setGifSearch(e.target.value)}
+              />
+              {gifError ? (
+                <p className="py-4 text-center text-xs text-rose-300">{gifError}</p>
+              ) : gifLoading ? (
+                <p className="py-4 text-center text-xs text-slate-400">Chargement des GIFs...</p>
+              ) : gifResults.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-400">Aucun GIF trouve.</p>
+              ) : (
+                <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto">
+                  {gifResults.map((gif) => (
+                    <button
+                      key={gif.id}
+                      type="button"
+                      className="overflow-hidden rounded-lg border border-[var(--stroke)] transition hover:border-[var(--brand-1)]"
+                      onClick={() => {
+                        onSendMessage(gif.url);
+                        setShowGifPicker(false);
+                        setGifSearch("");
+                      }}
+                      title={gif.title}
+                    >
+                      <img
+                        src={gif.previewUrl}
+                        alt={gif.title}
+                        loading="lazy"
+                        className="h-28 w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
