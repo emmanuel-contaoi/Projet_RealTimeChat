@@ -52,6 +52,29 @@ pub async fn run_migrations(pool: &PgPool) {
     ).execute(pool).await.expect("Migration user_friends echouee");
 
     sqlx::query(
+        "CREATE TABLE IF NOT EXISTS friend_requests (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            receiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            responded_at TIMESTAMPTZ,
+            CHECK (sender_id <> receiver_id),
+            CHECK (status IN ('pending', 'accepted', 'rejected'))
+        )"
+    ).execute(pool).await.expect("Migration friend_requests echouee");
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_friend_requests_receiver_status
+         ON friend_requests(receiver_id, status, created_at DESC)"
+    ).execute(pool).await.expect("Migration idx_friend_requests_receiver_status echouee");
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_friend_requests_sender_status
+         ON friend_requests(sender_id, status, created_at DESC)"
+    ).execute(pool).await.expect("Migration idx_friend_requests_sender_status echouee");
+
+    sqlx::query(
         "CREATE TABLE IF NOT EXISTS server_bans (
             id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
             server_id   UUID NOT NULL REFERENCES servers(id) ON DELETE CASCADE,

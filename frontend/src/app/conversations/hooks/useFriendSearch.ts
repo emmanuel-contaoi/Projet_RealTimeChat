@@ -1,14 +1,27 @@
-// Hook pour gerer la recherche d'amis et la liste d'utilisateurs
+// Hook pour gerer la liste d'amis, les demandes et la recherche d'utilisateurs
 
-import { useEffect, useState } from "react";
-import { friendsService } from "@/services/api";
+import { useCallback, useEffect, useState } from "react";
+import { authService, friendsService } from "@/services/api";
 import { formatUserLabel } from "../utils";
-import type { Friend, UserSearchResult } from "../types";
+import type { Friend, FriendRequest, UserSearchResult } from "../types";
 
 type UseFriendSearchParams = {
   isReady: boolean;
   activeTab: "servers" | "friends";
   onlineUserIds: Set<string>;
+};
+
+type ApiErrorShape = {
+  response?: {
+    data?: unknown;
+  };
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  const apiError = error as ApiErrorShape;
+  const payload = apiError.response?.data;
+  if (typeof payload === "string" && payload.trim()) return payload;
+  return fallback;
 };
 
 export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: UseFriendSearchParams) {
@@ -20,29 +33,44 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
   const [allUsersLoading, setAllUsersLoading] = useState(false);
   const [friendSearchLoading, setFriendSearchLoading] = useState(false);
   const [friendSearchError, setFriendSearchError] = useState("");
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  const currentUserId = authService.getCurrentUser()?.id ?? "";
 
-  // Charger la liste d'amis au demarrage
+  const mapFriends = useCallback(
+    (users: UserSearchResult[]) =>
+      users.map((user) => ({
+        id: user.id,
+        name: formatUserLabel(user),
+        status: onlineUserIds.has(user.id) ? "En ligne" : "Hors ligne",
+      })),
+    [onlineUserIds]
+  );
+
+  const refreshFriendsData = useCallback(async () => {
+    const [friendsData, incomingData, outgoingData] = await Promise.all([
+      friendsService.list() as Promise<UserSearchResult[]>,
+      friendsService.incomingRequests() as Promise<FriendRequest[]>,
+      friendsService.outgoingRequests() as Promise<FriendRequest[]>,
+    ]);
+    setFriendList(mapFriends(friendsData));
+    setIncomingRequests(incomingData);
+    setOutgoingRequests(outgoingData);
+  }, [mapFriends]);
+
+  // Charger amis + demandes au demarrage
   useEffect(() => {
     if (!isReady) return;
     (async () => {
       try {
-        const data = await friendsService.list();
-        const mapped = data.map((user: UserSearchResult) => ({
-          id: user.id,
-          name: formatUserLabel(user),
-          status: onlineUserIds.has(user.id) ? "En ligne" : "Hors ligne",
-        }));
-        setFriendList(mapped);
-        if (!selectedFriend && mapped.length) {
-          setSelectedFriend(mapped[0].name);
-        }
-      } catch {
-        setFriendSearchError("Impossible de charger la liste d'amis.");
+        await refreshFriendsData();
+      } catch (error) {
+        setFriendSearchError(getErrorMessage(error, "Impossible de charger les donnees des amis."));
       }
     })();
-  }, [isReady]);
+  }, [isReady, refreshFriendsData]);
 
   // Mettre a jour le statut en ligne quand onlineUserIds change
   useEffect(() => {
@@ -85,7 +113,7 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
             });
             if (!response.ok) throw new Error("Chargement impossible.");
             const data = (await response.json()) as UserSearchResult[];
-            setAllUsers(data);
+            setAllUsers(data.filter((u) => u.id !== currentUserId));
           } catch (error) {
             if ((error as Error).name === "AbortError") return;
             setFriendSearchError("Impossible de charger la liste des utilisateurs.");
@@ -113,7 +141,7 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
         );
         if (!response.ok) throw new Error("Recherche impossible.");
         const data = (await response.json()) as UserSearchResult[];
-        setFriendResults(data);
+        setFriendResults(data.filter((u) => u.id !== currentUserId));
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
         setFriendSearchError("Impossible de charger les utilisateurs.");
@@ -126,25 +154,45 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [activeTab, apiBaseUrl, friendSearch, allUsers.length]);
+  }, [activeTab, apiBaseUrl, friendSearch, allUsers.length, currentUserId]);
 
-  // Ajouter un ami
-  const handleAddFriend = async (user: UserSearchResult) => {
+  const handleSendFriendRequest = async (user: UserSearchResult) => {
     try {
-      const added = await friendsService.add(user.id);
-      const label = formatUserLabel(added);
-      setFriendList((prev) => {
-        if (prev.some((f) => f.id === added.id)) return prev;
-        return [...prev, { id: added.id, name: label, status: "En ligne" }];
-      });
-      setSelectedFriend(label);
-      setFriendSearch("");
-      setFriendResults([]);
+      await friendsService.sendRequest(user.id);
       setFriendSearchError("");
-    } catch (err: any) {
-      console.error("[Friends] Add error:", err);
-      const msg = err.response?.data;
-      setFriendSearchError(typeof msg === "string" ? msg : "Impossible d'ajouter cet ami.");
+      await refreshFriendsData();
+    } catch (error) {
+      setFriendSearchError(getErrorMessage(error, "Impossible d'envoyer cette demande."));
+    }
+  };
+
+  const handleAcceptFriendRequest = async (requestId: string) => {
+    try {
+      await friendsService.acceptRequest(requestId);
+      setFriendSearchError("");
+      await refreshFriendsData();
+    } catch (error) {
+      setFriendSearchError(getErrorMessage(error, "Impossible d'accepter la demande."));
+    }
+  };
+
+  const handleRejectFriendRequest = async (requestId: string) => {
+    try {
+      await friendsService.rejectRequest(requestId);
+      setFriendSearchError("");
+      await refreshFriendsData();
+    } catch (error) {
+      setFriendSearchError(getErrorMessage(error, "Impossible de refuser la demande."));
+    }
+  };
+
+  const handleCancelFriendRequest = async (requestId: string) => {
+    try {
+      await friendsService.cancelRequest(requestId);
+      setFriendSearchError("");
+      await refreshFriendsData();
+    } catch (error) {
+      setFriendSearchError(getErrorMessage(error, "Impossible d'annuler la demande."));
     }
   };
 
@@ -152,9 +200,10 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
   const handleRemoveFriend = async (friendId: string) => {
     try {
       await friendsService.remove(friendId);
-      setFriendList((prev) => prev.filter((f) => f.id !== friendId));
-    } catch {
-      setFriendSearchError("Impossible de supprimer cet ami.");
+      setFriendSearchError("");
+      await refreshFriendsData();
+    } catch (error) {
+      setFriendSearchError(getErrorMessage(error, "Impossible de supprimer cet ami."));
     }
   };
 
@@ -169,7 +218,12 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     friendSearchLoading,
     allUsers,
     allUsersLoading,
-    handleAddFriend,
+    incomingRequests,
+    outgoingRequests,
+    handleSendFriendRequest,
+    handleAcceptFriendRequest,
+    handleRejectFriendRequest,
+    handleCancelFriendRequest,
     handleRemoveFriend,
   };
 }

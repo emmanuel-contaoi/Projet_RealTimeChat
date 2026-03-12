@@ -56,3 +56,56 @@ impl From<User> for UserResponse {
         }
     }
 }
+
+#[allow(dead_code)]
+#[derive(Debug, sqlx::FromRow)]
+pub struct FriendRequest {
+    pub id: Uuid,
+    pub sender_id: Uuid,
+    pub receiver_id: Uuid,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub responded_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct FriendRequestListItem {
+    pub request_id: Uuid,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub responded_at: Option<DateTime<Utc>>,
+    pub user_id: Uuid,
+    pub user_email: String,
+    pub user_first_name: Option<String>,
+    pub user_last_name: Option<String>,
+    pub user_username: Option<String>,
+    pub user_created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FriendRequestResponse {
+    pub id: Uuid,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub responded_at: Option<DateTime<Utc>>,
+    pub user: UserResponse,
+}
+
+impl FriendRequestResponse {
+    pub fn from_list_item(item: FriendRequestListItem) -> Self {
+        Self {
+            id: item.request_id,
+            status: item.status,
+            created_at: item.created_at,
+            responded_at: item.responded_at,
+            user: UserResponse {
+                id: item.user_id,
+                email: item.user_email,
+                first_name: item.user_first_name,
+                last_name: item.user_last_name,
+                username: item.user_username,
+                created_at: item.user_created_at,
+            },
+        }
+    }
+}

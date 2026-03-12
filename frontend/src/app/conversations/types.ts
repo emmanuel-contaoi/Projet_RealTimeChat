@@ -27,6 +27,14 @@ export type Friend = {
   status: string;
 };
 
+export type FriendRequest = {
+  id: string;
+  status: string;
+  created_at: string;
+  responded_at?: string | null;
+  user: UserSearchResult;
+};
+
 export type Member = {
   user_id: string;
   username: string;

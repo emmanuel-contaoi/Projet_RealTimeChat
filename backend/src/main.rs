@@ -59,7 +59,12 @@ async fn main() {
         .route("/auth/logout", post(routes::auth::logout))
         .route("/users/search", get(routes::users::search_users))
         .route("/users", get(routes::users::list_users))
-        .route("/friends", get(routes::friends::list_friends).post(routes::friends::add_friend))
+        .route("/friends", get(routes::friends::list_friends).post(routes::friends::send_friend_request))
+        .route("/friends/requests/incoming", get(routes::friends::list_incoming_requests))
+        .route("/friends/requests/outgoing", get(routes::friends::list_outgoing_requests))
+        .route("/friends/requests/{request_id}/accept", post(routes::friends::accept_friend_request))
+        .route("/friends/requests/{request_id}/reject", post(routes::friends::reject_friend_request))
+        .route("/friends/requests/{request_id}", delete(routes::friends::cancel_friend_request))
         .route("/friends/{friend_id}", delete(routes::friends::remove_friend))
         .layer(middleware::from_fn_with_state(
             state.clone(),

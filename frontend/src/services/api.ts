@@ -179,9 +179,30 @@ export const friendsService = {
     return response.data;
   },
 
-  add: async (friendId: string) => {
-    const response = await api.post('/friends', { friend_id: friendId });
+  sendRequest: async (friendId: string) => {
+    await api.post('/friends', { friend_id: friendId });
+  },
+
+  incomingRequests: async () => {
+    const response = await api.get('/friends/requests/incoming');
     return response.data;
+  },
+
+  outgoingRequests: async () => {
+    const response = await api.get('/friends/requests/outgoing');
+    return response.data;
+  },
+
+  acceptRequest: async (requestId: string) => {
+    await api.post(`/friends/requests/${requestId}/accept`);
+  },
+
+  rejectRequest: async (requestId: string) => {
+    await api.post(`/friends/requests/${requestId}/reject`);
+  },
+
+  cancelRequest: async (requestId: string) => {
+    await api.delete(`/friends/requests/${requestId}`);
   },
 
   remove: async (friendId: string) => {
