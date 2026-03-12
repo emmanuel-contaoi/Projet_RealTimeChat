@@ -7,7 +7,7 @@ use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{
-    models::UserResponse,
+    models::{FriendRequestResponse, UserResponse},
     state::AppState,
     utils::auth::AuthUser,
 };
@@ -27,13 +27,56 @@ pub async fn list_friends(
     Ok(Json(friends))
 }
 
-pub async fn add_friend(
+pub async fn send_friend_request(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Json(payload): Json<AddFriendRequest>,
-) -> Result<Json<UserResponse>, ServiceError> {
-    let friend = FriendService::add_friend(&state.pool, user.id, payload.friend_id).await?;
-    Ok(Json(friend))
+) -> Result<StatusCode, ServiceError> {
+    FriendService::send_friend_request(&state.pool, user.id, payload.friend_id).await?;
+    Ok(StatusCode::CREATED)
+}
+
+pub async fn list_incoming_requests(
+    State(state): State<AppState>,
+    axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
+) -> Result<Json<Vec<FriendRequestResponse>>, ServiceError> {
+    let requests = FriendService::list_incoming_requests(&state.pool, user.id).await?;
+    Ok(Json(requests))
+}
+
+pub async fn list_outgoing_requests(
+    State(state): State<AppState>,
+    axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
+) -> Result<Json<Vec<FriendRequestResponse>>, ServiceError> {
+    let requests = FriendService::list_outgoing_requests(&state.pool, user.id).await?;
+    Ok(Json(requests))
+}
+
+pub async fn accept_friend_request(
+    State(state): State<AppState>,
+    axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
+    Path(request_id): Path<Uuid>,
+) -> Result<StatusCode, ServiceError> {
+    FriendService::accept_request(&state.pool, user.id, request_id).await?;
+    Ok(StatusCode::OK)
+}
+
+pub async fn reject_friend_request(
+    State(state): State<AppState>,
+    axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
+    Path(request_id): Path<Uuid>,
+) -> Result<StatusCode, ServiceError> {
+    FriendService::reject_request(&state.pool, user.id, request_id).await?;
+    Ok(StatusCode::OK)
+}
+
+pub async fn cancel_friend_request(
+    State(state): State<AppState>,
+    axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
+    Path(request_id): Path<Uuid>,
+) -> Result<StatusCode, ServiceError> {
+    FriendService::cancel_request(&state.pool, user.id, request_id).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn remove_friend(

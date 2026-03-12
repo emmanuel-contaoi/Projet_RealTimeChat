@@ -172,7 +172,13 @@ export default function ConversationsPage() {
             friendResults={friends.friendResults}
             allUsersLoading={friends.allUsersLoading}
             allUsers={friends.allUsers}
-            onAddFriend={friends.handleAddFriend}
+            friendList={friends.friendList}
+            incomingRequests={friends.incomingRequests}
+            outgoingRequests={friends.outgoingRequests}
+            onSendFriendRequest={friends.handleSendFriendRequest}
+            onAcceptRequest={friends.handleAcceptFriendRequest}
+            onRejectRequest={friends.handleRejectFriendRequest}
+            onCancelRequest={friends.handleCancelFriendRequest}
           />
         )}
 
