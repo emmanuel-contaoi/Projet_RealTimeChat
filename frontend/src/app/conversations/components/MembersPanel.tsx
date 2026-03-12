@@ -7,6 +7,7 @@ type MembersPanelProps = {
   currentUserRole: string;
   onUpdateRole: (userId: string, role: string) => void;
   onTransferOwnership: (userId: string) => void;
+  onKickMember: (userId: string) => void;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -29,6 +30,7 @@ export default function MembersPanel({
   currentUserRole,
   onUpdateRole,
   onTransferOwnership,
+  onKickMember,
 }: MembersPanelProps) {
   // On trie les membres par role (owner en premier, puis admin, puis member)
   const sorted = [...members].sort(
@@ -54,6 +56,13 @@ export default function MembersPanel({
             const isMe = member.user_id === currentUserId;
             const canChangeRole = isOwner && !isMe && member.role !== "owner";
             const canTransfer = isOwner && !isMe && member.role !== "owner";
+            // Owner et admin peuvent kick, mais pas le owner cible, pas soi-même
+            // Un admin ne peut pas kick un autre admin (géré aussi côté backend)
+            const isAdmin = currentUserRole === "admin";
+            const canKick =
+              !isMe &&
+              member.role !== "owner" &&
+              (isOwner || (isAdmin && member.role === "member"));
 
             return (
               <div
@@ -108,6 +117,16 @@ export default function MembersPanel({
                         title="Transferer la propriete"
                       >
                         Transferer
+                      </button>
+                    )}
+                    {canKick && (
+                      <button
+                        type="button"
+                        className="text-[10px] text-slate-500 hover:text-red-400 transition"
+                        onClick={() => onKickMember(member.user_id)}
+                        title="Expulser ce membre"
+                      >
+                        Kick
                       </button>
                     )}
                   </div>
