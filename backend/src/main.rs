@@ -66,6 +66,7 @@ async fn main() {
         .route("/friends/requests/{request_id}/reject", post(routes::friends::reject_friend_request))
         .route("/friends/requests/{request_id}", delete(routes::friends::cancel_friend_request))
         .route("/friends/{friend_id}", delete(routes::friends::remove_friend))
+        .route("/dms", post(routes::dms::get_or_create_dm))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             utils::auth::auth_middleware,
