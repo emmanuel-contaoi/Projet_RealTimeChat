@@ -23,6 +23,7 @@ export default function ConversationsPage() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
+  const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // On verifie le token au chargement, sinon on redirige vers login
@@ -98,6 +99,45 @@ export default function ConversationsPage() {
     return <LoadingScreen />;
   }
 
+  // --- NOUVELLE FONCTION POUR LES DMs ---
+  const handleSelectFriend = async (friend: any) => {
+    // 1. On garde la logique visuelle (sélectionner l'ami dans le menu)
+    friends.setSelectedFriend(friend);
+
+    try {
+      // 2. On contacte ton backend Rust !
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3001/dms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ target_user_id: friend.id }) // L'ID que le Rust attend
+      });
+
+      if (!response.ok) {
+        throw new Error("Impossible de récupérer la conversation privée");
+      }
+
+      // récupère la réponse de Rust 
+      const dmChannel = await response.json();
+      console.log("🔥 Succès ! ID du salon privé :", dmChannel.id);
+
+      setActiveDmChannel(dmChannel.id); 
+
+      chat.joinChannel(dmChannel.id);
+      chat.setActiveChannel(dmChannel.id);
+
+      // connecte au WebSockets pour ce salon
+      chat.joinChannel(dmChannel.id);
+      chat.setActiveChannel(dmChannel.id);
+
+    } catch (error) {
+      console.error("Erreur lors de la création du DM :", error);
+    }
+  };
+
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
@@ -126,17 +166,21 @@ export default function ConversationsPage() {
           selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
           currentUserRole={server.currentUserRole}
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            if (tab === "servers") setActiveDmChannel(null);
+            }}
           onSelectServer={server.setSelectedServer}
           onCreateServer={() => server.setIsCreateServerOpen(true)}
           onJoinServer={() => server.setIsJoinServerOpen(true)}
           onLeaveServer={server.handleLeaveServer}
           onDeleteServer={server.handleDeleteServer}
           onUpdateServer={server.handleUpdateServer}
-          onSelectFriend={friends.setSelectedFriend}
+          onSelectFriend={handleSelectFriend}
           onRemoveFriend={friends.handleRemoveFriend}
         />
 
+        {/* PANNEAU DES CANAUX (Seulement sur les serveurs) */}
         {activeTab === "servers" ? (
           <ChannelsPanel
             channels={server.channels}
@@ -149,7 +193,9 @@ export default function ConversationsPage() {
           />
         ) : null}
 
+        {/* LOGIQUE D'AFFICHAGE CENTRAL (SERVEURS vs DMs vs GESTION DES AMIS) */}
         {activeTab === "servers" ? (
+         
           <ChatPanel
             channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
             selectedChannel={server.selectedChannel}
@@ -163,7 +209,23 @@ export default function ConversationsPage() {
             onEditMessage={chat.handleEditMessage}
             onDeleteMessage={chat.handleDeleteMessage}
           />
+        ) : activeDmChannel && friends.selectedFriend ? (
+          
+          <ChatPanel
+            channelName={friends.selectedFriend.name} // Le nom de l'ami en haut
+            selectedChannel={activeDmChannel}
+            selectedServer="Messages Privés"
+            messages={chat.messages}
+            currentUserId={currentUserId}
+            currentUserRole="member" // Pas de rôle admin en DM
+            typingUsers={chat.typingUserNames}
+            onSendMessage={chat.handleSendMessage}
+            onTyping={chat.handleTyping}
+            onEditMessage={chat.handleEditMessage}
+            onDeleteMessage={chat.handleDeleteMessage}
+          />
         ) : (
+        
           <FriendsPanel
             friendSearch={friends.friendSearch}
             onFriendSearchChange={friends.setFriendSearch}

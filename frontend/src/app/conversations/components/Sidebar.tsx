@@ -16,7 +16,7 @@ type SidebarProps = {
   onLeaveServer: (serverId: string) => void;
   onDeleteServer: (serverId: string) => void;
   onUpdateServer: (serverId: string, newName: string) => void;
-  onSelectFriend: (friendName: string) => void;
+  onSelectFriend: (friend: Friend) => void;
   onRemoveFriend: (friendId: string) => void;
 };
 

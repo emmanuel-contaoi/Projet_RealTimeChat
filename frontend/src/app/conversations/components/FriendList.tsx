@@ -3,7 +3,8 @@ import type { Friend } from "../types";
 type FriendListProps = {
   friendList: Friend[];
   selectedFriend: string;
-  onSelectFriend: (friendName: string) => void;
+  // 1️⃣ CHANGEMENT ICI : On dit qu'on renvoie tout l'objet Friend, pas juste le nom
+  onSelectFriend: (friend: Friend) => void; 
   onRemoveFriend: (friendId: string) => void;
 };
 
@@ -23,15 +24,18 @@ export default function FriendList({
               ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.12)]"
               : "border-[var(--stroke)] bg-[var(--surface-strong)] hover:bg-[var(--surface)]"
           }`}
-          onClick={() => onSelectFriend(friend.name)}
+          // 2️⃣ CHANGEMENT ICI : On envoie tout l'objet friend
+          onClick={() => onSelectFriend(friend)} 
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
-              onSelectFriend(friend.name);
+              // 3️⃣ CHANGEMENT ICI AUSSI
+              onSelectFriend(friend); 
             }
           }}
           role="button"
           tabIndex={0}
         >
+          {/* ... Le reste de ton HTML reste EXACTEMENT pareil (le nom, le statut, le bouton supprimer) ... */}
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-white">{friend.name}</p>
             <div className="flex items-center gap-2">
@@ -52,25 +56,10 @@ export default function FriendList({
                 aria-label={`Supprimer ${friend.name}`}
                 title="Supprimer"
               >
-                <svg
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
+                <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M3 6h18" strokeLinecap="round" strokeLinejoin="round" />
-                  <path
-                    d="M8 6V4h8v2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M6 6l1 14h10l1-14"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M8 6V4h8v2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6 6l1 14h10l1-14" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
