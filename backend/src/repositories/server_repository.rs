@@ -40,13 +40,11 @@ impl ServerRepository {
     }
 
     pub async fn update(pool: &PgPool, id: Uuid, name: &str) -> sqlx::Result<Option<Server>> {
-        sqlx::query_as::<_, Server>(
-            "UPDATE servers SET name = $1 WHERE id = $2 RETURNING *",
-        )
-        .bind(name)
-        .bind(id)
-        .fetch_optional(pool)
-        .await
+        sqlx::query_as::<_, Server>("UPDATE servers SET name = $1 WHERE id = $2 RETURNING *")
+            .bind(name)
+            .bind(id)
+            .fetch_optional(pool)
+            .await
     }
 
     pub async fn delete(pool: &PgPool, id: Uuid) -> sqlx::Result<()> {
@@ -88,11 +86,7 @@ impl ServerRepository {
         .map(|_| ())
     }
 
-    pub async fn remove_member(
-        pool: &PgPool,
-        server_id: Uuid,
-        user_id: Uuid,
-    ) -> sqlx::Result<()> {
+    pub async fn remove_member(pool: &PgPool, server_id: Uuid, user_id: Uuid) -> sqlx::Result<()> {
         sqlx::query("DELETE FROM members WHERE server_id = $1 AND user_id = $2")
             .bind(server_id)
             .bind(user_id)
@@ -118,7 +112,10 @@ impl ServerRepository {
 
     // Retourne les IDs de tous les membres du serveur correspondant a un code d'invitation
     // (utilise avant le join pour savoir a qui envoyer l'evenement MemberJoined)
-    pub async fn get_member_user_ids_by_invite(pool: &PgPool, invite_code: &str) -> sqlx::Result<Vec<String>> {
+    pub async fn get_member_user_ids_by_invite(
+        pool: &PgPool,
+        invite_code: &str,
+    ) -> sqlx::Result<Vec<String>> {
         sqlx::query_scalar::<_, String>(
             "SELECT m.user_id::text FROM members m
              JOIN servers s ON s.id = m.server_id
@@ -131,12 +128,10 @@ impl ServerRepository {
 
     // Retourne les IDs de tous les membres d'un serveur (pour diffuser des evenements WebSocket)
     pub async fn get_member_user_ids(pool: &PgPool, server_id: Uuid) -> sqlx::Result<Vec<String>> {
-        sqlx::query_scalar::<_, String>(
-            "SELECT user_id::text FROM members WHERE server_id = $1",
-        )
-        .bind(server_id)
-        .fetch_all(pool)
-        .await
+        sqlx::query_scalar::<_, String>("SELECT user_id::text FROM members WHERE server_id = $1")
+            .bind(server_id)
+            .fetch_all(pool)
+            .await
     }
 
     pub async fn list_members(pool: &PgPool, server_id: Uuid) -> sqlx::Result<Vec<MemberRow>> {

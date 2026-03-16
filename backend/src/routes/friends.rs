@@ -6,13 +6,13 @@ use axum::{
 use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::services::friend_service::FriendService;
+use crate::services::ServiceError;
 use crate::{
     models::{FriendRequestResponse, UserResponse},
     state::AppState,
     utils::auth::AuthUser,
 };
-use crate::services::friend_service::FriendService;
-use crate::services::ServiceError;
 
 #[derive(Debug, Deserialize)]
 pub struct AddFriendRequest {

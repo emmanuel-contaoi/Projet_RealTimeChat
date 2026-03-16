@@ -25,44 +25,64 @@ impl AuthService {
         let password_hash = hash(payload.password.as_bytes(), DEFAULT_COST)
             .map_err(|e| ServiceError::Internal(format!("Hash error: {}", e)))?;
 
-        let first_name = payload.first_name.as_deref().filter(|s| !s.trim().is_empty());
-        let last_name = payload.last_name.as_deref().filter(|s| !s.trim().is_empty());
+        let first_name = payload
+            .first_name
+            .as_deref()
+            .filter(|s| !s.trim().is_empty());
+        let last_name = payload
+            .last_name
+            .as_deref()
+            .filter(|s| !s.trim().is_empty());
         let username = payload.username.as_deref().filter(|s| !s.trim().is_empty());
 
-        let user = UserRepository::create(pool, &payload.email, &password_hash, first_name, last_name, username)
-            .await
-            .map_err(|e| {
-                if e.to_string().contains("unique") {
-                    ServiceError::Conflict("Email ou pseudo déjà utilisé".to_string())
-                } else {
-                    ServiceError::Internal(format!("Failed to create user: {}", e))
-                }
-            })?;
+        let user = UserRepository::create(
+            pool,
+            &payload.email,
+            &password_hash,
+            first_name,
+            last_name,
+            username,
+        )
+        .await
+        .map_err(|e| {
+            if e.to_string().contains("unique") {
+                ServiceError::Conflict("Email ou pseudo déjà utilisé".to_string())
+            } else {
+                ServiceError::Internal(format!("Failed to create user: {}", e))
+            }
+        })?;
 
         let token = create_token(user.id).map_err(ServiceError::Internal)?;
 
-        Ok(AuthResponse { token, user: user.into() })
+        Ok(AuthResponse {
+            token,
+            user: user.into(),
+        })
     }
 
     // Connecte un utilisateur : verifie l'email, compare le mot de passe et retourne un token JWT
-    pub async fn login(
-        pool: &PgPool,
-        payload: LoginRequest,
-    ) -> Result<AuthResponse, ServiceError> {
+    pub async fn login(pool: &PgPool, payload: LoginRequest) -> Result<AuthResponse, ServiceError> {
         let user = UserRepository::find_by_email(pool, &payload.email)
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?
-            .ok_or(ServiceError::Unauthorized("Invalid credentials".to_string()))?;
+            .ok_or(ServiceError::Unauthorized(
+                "Invalid credentials".to_string(),
+            ))?;
 
         let valid = verify(payload.password.as_bytes(), &user.password_hash)
             .map_err(|e| ServiceError::Internal(format!("Verify error: {}", e)))?;
 
         if !valid {
-            return Err(ServiceError::Unauthorized("Invalid credentials".to_string()));
+            return Err(ServiceError::Unauthorized(
+                "Invalid credentials".to_string(),
+            ));
         }
 
         let token = create_token(user.id).map_err(ServiceError::Internal)?;
 
-        Ok(AuthResponse { token, user: user.into() })
+        Ok(AuthResponse {
+            token,
+            user: user.into(),
+        })
     }
 }

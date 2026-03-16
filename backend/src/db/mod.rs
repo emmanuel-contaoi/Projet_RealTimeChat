@@ -1,2 +1,2 @@
-pub mod mongo;
 pub mod migrations;
+pub mod mongo;

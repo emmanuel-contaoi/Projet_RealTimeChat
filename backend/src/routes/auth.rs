@@ -1,12 +1,12 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
 };
 
-use crate::models::{RegisterRequest, LoginRequest, AuthResponse, UserResponse};
-use crate::state::AppState;
+use crate::models::{AuthResponse, LoginRequest, RegisterRequest, UserResponse};
 use crate::services::auth_service::AuthService;
 use crate::services::ServiceError;
+use crate::state::AppState;
 
 pub async fn register(
     State(state): State<AppState>,
@@ -26,7 +26,9 @@ pub async fn login(
 
 pub async fn me(
     State(_state): State<AppState>,
-    axum::extract::Extension(crate::utils::auth::AuthUser(user)): axum::extract::Extension<crate::utils::auth::AuthUser>,
+    axum::extract::Extension(crate::utils::auth::AuthUser(user)): axum::extract::Extension<
+        crate::utils::auth::AuthUser,
+    >,
 ) -> Result<Json<UserResponse>, ServiceError> {
     Ok(Json(user.into()))
 }

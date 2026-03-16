@@ -1,6 +1,6 @@
 use chrono::Utc;
-use mongodb::Client;
 use mongodb::bson::oid::ObjectId;
+use mongodb::Client;
 use sqlx::PgPool;
 use uuid::Uuid;
 

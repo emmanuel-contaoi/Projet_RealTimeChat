@@ -25,7 +25,6 @@ impl RoomManager {
             .entry(channel_id.to_string())
             .or_insert_with(HashSet::new)
             .insert(connection_id.to_string());
-        
     }
 
     // Retire une connexion d'un channel

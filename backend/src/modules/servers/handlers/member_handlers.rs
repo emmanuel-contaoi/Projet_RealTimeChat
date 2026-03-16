@@ -1,20 +1,20 @@
 use axum::{
-    extract::{State, Path},
     extract::ws::Message,
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     Extension,
 };
 use uuid::Uuid;
 
-use crate::state::AppState;
-use crate::utils::auth::AuthUser;
-use crate::modules::servers::models::{UpdateRoleRequest, BanRequest};
-use chrono::{Utc, Duration};
+use crate::modules::servers::models::{BanRequest, UpdateRoleRequest};
+use crate::repositories::server_repository::ServerRepository;
 use crate::services::server_service::ServerService;
 use crate::services::ServiceError;
-use crate::repositories::server_repository::ServerRepository;
+use crate::state::AppState;
+use crate::utils::auth::AuthUser;
 use crate::websocket::events::ServerEvent;
+use chrono::{Duration, Utc};
 
 pub async fn list_members(
     State(state): State<AppState>,
@@ -56,9 +56,13 @@ pub async fn kick_member(
         server_id: server_id.to_string(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.clone().into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.clone().into()))
+            .await;
         // On notifie aussi la personne kickée (elle n'est plus dans member_ids)
-        state.broadcast_to_users(&[target_user_id.to_string()], Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&[target_user_id.to_string()], Message::Text(json.into()))
+            .await;
     }
 
     Ok(StatusCode::OK)
@@ -71,13 +75,20 @@ pub async fn ban_member(
     Json(payload): Json<BanRequest>,
 ) -> Result<StatusCode, ServiceError> {
     // Calcule expires_at à partir de la durée en minutes (None = permanent)
-    let expires_at = payload.duration_minutes.map(|mins| {
-        (Utc::now() + Duration::minutes(mins)).naive_utc()
-    });
+    let expires_at = payload
+        .duration_minutes
+        .map(|mins| (Utc::now() + Duration::minutes(mins)).naive_utc());
 
     let expires_at_str = expires_at.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S").to_string());
 
-    ServerService::ban_member(&state.pool, auth_user.0.id, server_id, target_user_id, expires_at).await?;
+    ServerService::ban_member(
+        &state.pool,
+        auth_user.0.id,
+        server_id,
+        target_user_id,
+        expires_at,
+    )
+    .await?;
 
     // Notifie les membres restants
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
@@ -90,9 +101,13 @@ pub async fn ban_member(
         expires_at: expires_at_str,
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.clone().into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.clone().into()))
+            .await;
         // Notifie aussi le banni lui-même
-        state.broadcast_to_users(&[target_user_id.to_string()], Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&[target_user_id.to_string()], Message::Text(json.into()))
+            .await;
     }
 
     Ok(StatusCode::OK)
@@ -124,7 +139,9 @@ pub async fn update_member_role(
         role,
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok(StatusCode::OK)

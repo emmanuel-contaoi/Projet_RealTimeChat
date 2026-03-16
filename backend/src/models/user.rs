@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, sqlx::FromRow, serde::Serialize, serde::Deserialize)]
 pub struct User {

@@ -4,8 +4,8 @@ use uuid::Uuid;
 use crate::modules::servers::models::{
     CreateServerRequest, MemberRow, Server, UpdateServerRequest,
 };
-use crate::repositories::server_repository::ServerRepository;
 use crate::repositories::ban_repository::BanRepository;
+use crate::repositories::server_repository::ServerRepository;
 use crate::services::ServiceError;
 use chrono::NaiveDateTime;
 
@@ -47,7 +47,9 @@ impl ServerService {
         let server = ServerRepository::find_by_invite_code(pool, invite_code)
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?
-            .ok_or(ServiceError::NotFound("Code d'invitation invalide".to_string()))?;
+            .ok_or(ServiceError::NotFound(
+                "Code d'invitation invalide".to_string(),
+            ))?;
 
         // Vérifie si l'utilisateur est banni de ce serveur
         let active_ban = BanRepository::get_active_ban(pool, server.id, user_id)
@@ -57,7 +59,10 @@ impl ServerService {
         if let Some(ban) = active_ban {
             let msg = match ban.expires_at {
                 None => "Vous etes banni definitivement de ce serveur.".to_string(),
-                Some(exp) => format!("Vous etes banni de ce serveur jusqu'au {}.", exp.format("%d/%m/%Y %H:%M")),
+                Some(exp) => format!(
+                    "Vous etes banni de ce serveur jusqu'au {}.",
+                    exp.format("%d/%m/%Y %H:%M")
+                ),
             };
             return Err(ServiceError::Forbidden(msg));
         }
@@ -343,9 +348,11 @@ impl ServerService {
 
         match caller_role.as_deref() {
             Some("owner") | Some("admin") => {}
-            _ => return Err(ServiceError::Forbidden(
-                "Seuls owner et admin peuvent bannir un membre.".to_string(),
-            )),
+            _ => {
+                return Err(ServiceError::Forbidden(
+                    "Seuls owner et admin peuvent bannir un membre.".to_string(),
+                ))
+            }
         }
 
         // 2. Vérifie la cible
@@ -354,12 +361,16 @@ impl ServerService {
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
         match target_role.as_deref() {
-            None => return Err(ServiceError::NotFound(
-                "Ce membre n'est pas dans le serveur.".to_string(),
-            )),
-            Some("owner") => return Err(ServiceError::Forbidden(
-                "Impossible de bannir le owner.".to_string(),
-            )),
+            None => {
+                return Err(ServiceError::NotFound(
+                    "Ce membre n'est pas dans le serveur.".to_string(),
+                ))
+            }
+            Some("owner") => {
+                return Err(ServiceError::Forbidden(
+                    "Impossible de bannir le owner.".to_string(),
+                ))
+            }
             _ => {}
         }
 

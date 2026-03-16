@@ -1,6 +1,6 @@
+use chrono::NaiveDateTime;
 use sqlx::PgPool;
 use uuid::Uuid;
-use chrono::NaiveDateTime;
 
 pub struct BanRepository;
 
@@ -55,18 +55,12 @@ impl BanRepository {
     }
 
     // Supprime le ban d'un utilisateur (unban)
-    pub async fn delete(
-        pool: &PgPool,
-        server_id: Uuid,
-        user_id: Uuid,
-    ) -> sqlx::Result<u64> {
-        sqlx::query(
-            "DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2",
-        )
-        .bind(server_id)
-        .bind(user_id)
-        .execute(pool)
-        .await
-        .map(|r| r.rows_affected())
+    pub async fn delete(pool: &PgPool, server_id: Uuid, user_id: Uuid) -> sqlx::Result<u64> {
+        sqlx::query("DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2")
+            .bind(server_id)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .map(|r| r.rows_affected())
     }
 }

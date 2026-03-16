@@ -154,7 +154,10 @@ impl FriendRepository {
     }
 
     // Trouve une demande par son ID
-    pub async fn find_request_by_id(pool: &PgPool, request_id: Uuid) -> sqlx::Result<Option<FriendRequest>> {
+    pub async fn find_request_by_id(
+        pool: &PgPool,
+        request_id: Uuid,
+    ) -> sqlx::Result<Option<FriendRequest>> {
         sqlx::query_as::<_, FriendRequest>("SELECT * FROM friend_requests WHERE id = $1")
             .bind(request_id)
             .fetch_optional(pool)

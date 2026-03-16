@@ -1,10 +1,10 @@
-use sqlx::PgPool;
+use crate::websocket::rooms::RoomManager;
+use axum::extract::ws::Message;
 use mongodb::Client as MongoClient;
+use sqlx::PgPool;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use axum::extract::ws::Message;
-use crate::websocket::rooms::RoomManager;
 
 pub type ConnectionId = String;
 pub type Sender = tokio::sync::mpsc::UnboundedSender<Message>;
@@ -31,7 +31,11 @@ impl AppState {
     // Retirer une connexion WebSocket
     pub async fn remove_connection(&self, connection_id: &str) {
         self.connections.write().await.remove(connection_id);
-        self.room_manager.lock().await.leave_all_rooms(connection_id).await;
+        self.room_manager
+            .lock()
+            .await
+            .leave_all_rooms(connection_id)
+            .await;
     }
 
     pub async fn register_user(&self, conn_id: &str, user_id: &str, username: &str) {
@@ -46,7 +50,11 @@ impl AppState {
     }
 
     pub async fn is_user_online(&self, user_id: &str) -> bool {
-        self.user_info.read().await.values().any(|(uid, _)| uid == user_id)
+        self.user_info
+            .read()
+            .await
+            .values()
+            .any(|(uid, _)| uid == user_id)
     }
 
     pub async fn broadcast_all(&self, message: Message, exclude_connection: Option<&str>) {
@@ -74,8 +82,14 @@ impl AppState {
         }
     }
 
-    pub async fn broadcast_to_channel(&self, channel_id: &str, message: Message, exclude_connection: Option<&str>) {
-        let connection_ids = self.room_manager
+    pub async fn broadcast_to_channel(
+        &self,
+        channel_id: &str,
+        message: Message,
+        exclude_connection: Option<&str>,
+    ) {
+        let connection_ids = self
+            .room_manager
             .lock()
             .await
             .get_room_connections(channel_id)

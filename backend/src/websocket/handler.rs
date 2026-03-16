@@ -1,20 +1,21 @@
 use axum::{
-    extract::{ws::{WebSocket, WebSocketUpgrade, Message}, State, Query},
-    response::Response,
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Query, State,
+    },
     http::StatusCode,
+    response::Response,
 };
 use futures::{sink::SinkExt, stream::StreamExt};
-use tokio::sync::mpsc;
 use serde::Deserialize;
+use tokio::sync::mpsc;
 use uuid::Uuid;
 
-use crate::websocket::{
-    events::{ClientEvent, ServerEvent, ChannelUser},
-};
-use crate::state::AppState;
-use crate::utils::jwt::{Claims, validate_token_claims};
 use crate::modules::servers::models::Message as ChatMessage;
 use crate::repositories::channel_repository::ChannelRepository;
+use crate::state::AppState;
+use crate::utils::jwt::{validate_token_claims, Claims};
+use crate::websocket::events::{ChannelUser, ClientEvent, ServerEvent};
 
 #[derive(Deserialize)]
 pub struct WsQuery {
@@ -26,8 +27,7 @@ pub async fn websocket_handler(
     State(state): State<AppState>,
     Query(query): Query<WsQuery>,
 ) -> Result<Response, StatusCode> {
-    let claims = validate_token_claims(&query.token)
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+    let claims = validate_token_claims(&query.token).map_err(|_| StatusCode::UNAUTHORIZED)?;
 
     Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, claims)))
 }
@@ -57,7 +57,9 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
         username: username.clone(),
     };
     if let Ok(json) = connected_event.to_json() {
-        state.broadcast_all(Message::Text(json.into()), Some(&conn_id)).await;
+        state
+            .broadcast_all(Message::Text(json.into()), Some(&conn_id))
+            .await;
     }
 
     let state_clone = state.clone();
@@ -78,25 +80,31 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_receiver.next().await {
             match msg {
-                Message::Text(text) => {
-                    match serde_json::from_str::<ClientEvent>(&text) {
-                        Ok(event) => {
-                            handle_client_event(event, &user_id_clone, &conn_id_clone, &username_clone, &state_clone).await;
-                        }
-                        Err(e) => {
-                            let error = ServerEvent::Error {
-                                message: format!("JSON invalide: {}", e),
-                            };
-                            if let Ok(json) = error.to_json() {
-                                let _ = state_clone.connections
-                                    .read()
-                                    .await
-                                    .get(&conn_id_clone)
-                                    .map(|sender| sender.send(Message::Text(json.into())));
-                            }
+                Message::Text(text) => match serde_json::from_str::<ClientEvent>(&text) {
+                    Ok(event) => {
+                        handle_client_event(
+                            event,
+                            &user_id_clone,
+                            &conn_id_clone,
+                            &username_clone,
+                            &state_clone,
+                        )
+                        .await;
+                    }
+                    Err(e) => {
+                        let error = ServerEvent::Error {
+                            message: format!("JSON invalide: {}", e),
+                        };
+                        if let Ok(json) = error.to_json() {
+                            let _ = state_clone
+                                .connections
+                                .read()
+                                .await
+                                .get(&conn_id_clone)
+                                .map(|sender| sender.send(Message::Text(json.into())));
                         }
                     }
-                }
+                },
                 Message::Close(_) => break,
                 Message::Ping(data) => {
                     if let Some(sender) = state_clone.connections.read().await.get(&conn_id_clone) {
@@ -126,9 +134,18 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
     state.remove_connection(&conn_id).await;
 }
 
-async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, username: &str, state: &AppState) {
+async fn handle_client_event(
+    event: ClientEvent,
+    user_id: &str,
+    conn_id: &str,
+    username: &str,
+    state: &AppState,
+) {
     match event {
-        ClientEvent::MessageSend { channel_id, content } => {
+        ClientEvent::MessageSend {
+            channel_id,
+            content,
+        } => {
             // Vérifie que l'utilisateur est toujours membre du serveur (protège contre les kickés)
             let channel_uuid = match Uuid::parse_str(&channel_id) {
                 Ok(id) => id,
@@ -138,17 +155,26 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
                 Ok(id) => id,
                 Err(_) => return,
             };
-            let membership = ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
+            let membership =
+                ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
             if membership.map(|m| m.is_none()).unwrap_or(true) {
                 return; // Pas membre → on ignore le message silencieusement
             }
 
             // On s'assure que l'envoyeur est bien dans la room
-            state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
+            state
+                .room_manager
+                .lock()
+                .await
+                .join_room(&channel_id, conn_id)
+                .await;
 
             let created_at = chrono::Utc::now().to_rfc3339();
 
-            let collection = state.mongo.database("chat").collection::<ChatMessage>("messages");
+            let collection = state
+                .mongo
+                .database("chat")
+                .collection::<ChatMessage>("messages");
             let new_message = ChatMessage {
                 id: None,
                 channel_id: channel_id.clone(),
@@ -159,7 +185,8 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
             };
 
             let msg_id = match collection.insert_one(new_message, None).await {
-                Ok(result) => result.inserted_id
+                Ok(result) => result
+                    .inserted_id
                     .as_object_id()
                     .map(|oid| oid.to_hex())
                     .unwrap_or_default(),
@@ -176,7 +203,9 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
             };
 
             if let Ok(json) = response.to_json() {
-                state.broadcast_to_channel(&channel_id, Message::Text(json.into()), None).await;
+                state
+                    .broadcast_to_channel(&channel_id, Message::Text(json.into()), None)
+                    .await;
             }
         }
 
@@ -188,17 +217,29 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
             };
 
             if let Ok(json) = typing_event.to_json() {
-                state.broadcast_to_channel(&channel_id, Message::Text(json.into()), Some(conn_id)).await;
+                state
+                    .broadcast_to_channel(&channel_id, Message::Text(json.into()), Some(conn_id))
+                    .await;
             }
         }
 
         ClientEvent::TypingStop { .. } => {}
 
         ClientEvent::JoinChannel { channel_id } => {
-            state.room_manager.lock().await.join_room(&channel_id, conn_id).await;
+            state
+                .room_manager
+                .lock()
+                .await
+                .join_room(&channel_id, conn_id)
+                .await;
 
             // On envoie la liste des utilisateurs connectes au channel
-            let conn_ids = state.room_manager.lock().await.get_room_connections(&channel_id).await;
+            let conn_ids = state
+                .room_manager
+                .lock()
+                .await
+                .get_room_connections(&channel_id)
+                .await;
             let user_info = state.user_info.read().await;
             let mut seen = std::collections::HashSet::new();
             let mut users = Vec::new();
@@ -226,7 +267,12 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
         }
 
         ClientEvent::LeaveChannel { channel_id } => {
-            state.room_manager.lock().await.leave_room(&channel_id, conn_id).await;
+            state
+                .room_manager
+                .lock()
+                .await
+                .leave_room(&channel_id, conn_id)
+                .await;
         }
     }
 }

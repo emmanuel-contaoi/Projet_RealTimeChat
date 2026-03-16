@@ -4,9 +4,9 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::{models::UserResponse, state::AppState};
 use crate::repositories::user_repository::UserRepository;
 use crate::services::ServiceError;
+use crate::{models::UserResponse, state::AppState};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchUsersQuery {

@@ -1,19 +1,21 @@
 use axum::{
-    extract::{State, Path},
     extract::ws::Message,
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     Extension,
 };
 use uuid::Uuid;
 
-use crate::state::AppState;
-use crate::utils::auth::AuthUser;
-use crate::modules::servers::models::{CreateServerRequest, JoinServerRequest, UpdateServerRequest, TransferOwnershipRequest};
+use crate::modules::servers::models::{
+    CreateServerRequest, JoinServerRequest, TransferOwnershipRequest, UpdateServerRequest,
+};
+use crate::repositories::server_repository::ServerRepository;
 use crate::services::server_service::ServerService;
 use crate::services::ServiceError;
+use crate::state::AppState;
+use crate::utils::auth::AuthUser;
 use crate::websocket::events::ServerEvent;
-use crate::repositories::server_repository::ServerRepository;
 
 pub async fn create_server(
     State(state): State<AppState>,
@@ -38,13 +40,17 @@ pub async fn join_server(
     Json(payload): Json<JoinServerRequest>,
 ) -> Result<impl IntoResponse, ServiceError> {
     // On recupere les membres existants avant de rejoindre, pour leur envoyer l'evenement
-    let member_ids = ServerRepository::get_member_user_ids_by_invite(&state.pool, &payload.invite_code)
-        .await
-        .unwrap_or_default();
+    let member_ids =
+        ServerRepository::get_member_user_ids_by_invite(&state.pool, &payload.invite_code)
+            .await
+            .unwrap_or_default();
 
-    let server = ServerService::join_server(&state.pool, auth_user.0.id, &payload.invite_code).await?;
+    let server =
+        ServerService::join_server(&state.pool, auth_user.0.id, &payload.invite_code).await?;
 
-    let username = auth_user.0.username
+    let username = auth_user
+        .0
+        .username
         .or(auth_user.0.first_name)
         .unwrap_or_else(|| auth_user.0.email.clone());
 
@@ -56,7 +62,9 @@ pub async fn join_server(
         role: "member".to_string(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok(Json(server))
@@ -80,7 +88,9 @@ pub async fn leave_server(
         server_id: server_id.to_string(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok(StatusCode::NO_CONTENT)
@@ -103,7 +113,9 @@ pub async fn delete_server(
         server_id: server_id.to_string(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok(StatusCode::NO_CONTENT)
@@ -124,7 +136,8 @@ pub async fn update_server(
     Path(server_id): Path<Uuid>,
     Json(payload): Json<UpdateServerRequest>,
 ) -> Result<impl IntoResponse, ServiceError> {
-    let server = ServerService::update_server(&state.pool, auth_user.0.id, server_id, payload).await?;
+    let server =
+        ServerService::update_server(&state.pool, auth_user.0.id, server_id, payload).await?;
 
     // On notifie tous les membres du nouveau nom du serveur
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
@@ -135,7 +148,9 @@ pub async fn update_server(
         name: server.name.clone(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok(Json(server))
@@ -169,7 +184,9 @@ pub async fn transfer_ownership(
     ];
     for event in events {
         if let Ok(json) = event.to_json() {
-            state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+            state
+                .broadcast_to_users(&member_ids, Message::Text(json.into()))
+                .await;
         }
     }
 

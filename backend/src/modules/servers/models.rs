@@ -1,10 +1,13 @@
+use chrono::NaiveDateTime;
+use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize, Serializer};
 use sqlx::FromRow;
 use uuid::Uuid;
-use chrono::NaiveDateTime;
-use mongodb::bson::oid::ObjectId;
 
-fn serialize_object_id_as_hex<S: Serializer>(id: &Option<ObjectId>, s: S) -> Result<S::Ok, S::Error> {
+fn serialize_object_id_as_hex<S: Serializer>(
+    id: &Option<ObjectId>,
+    s: S,
+) -> Result<S::Ok, S::Error> {
     match id {
         Some(oid) => s.serialize_str(&oid.to_hex()),
         None => s.serialize_none(),
@@ -39,13 +42,13 @@ pub struct Channel {
     pub id: Uuid,
     pub server_id: Uuid,
     pub name: String,
-    pub r#type: String, 
+    pub r#type: String,
 }
 
 #[derive(Deserialize)]
 pub struct CreateChannelRequest {
     pub name: String,
-    pub r#type: String, 
+    pub r#type: String,
 }
 
 #[derive(Deserialize)]
@@ -55,7 +58,11 @@ pub struct JoinServerRequest {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {
-    #[serde(rename(serialize = "id", deserialize = "_id"), skip_serializing_if = "Option::is_none", serialize_with = "serialize_object_id_as_hex")]
+    #[serde(
+        rename(serialize = "id", deserialize = "_id"),
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_object_id_as_hex"
+    )]
     pub id: Option<ObjectId>,
     pub channel_id: String,
     pub user_id: String,
@@ -64,7 +71,6 @@ pub struct Message {
     #[serde(default)]
     pub created_at: Option<String>,
 }
-
 
 #[derive(Deserialize)]
 pub struct UpdateChannelRequest {

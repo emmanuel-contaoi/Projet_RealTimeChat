@@ -1,20 +1,20 @@
 use axum::{
-    extract::{State, Path},
     extract::ws::Message,
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Json},
     Extension,
 };
 use uuid::Uuid;
 
-use crate::state::AppState;
-use crate::utils::auth::AuthUser;
 use crate::modules::servers::models::{CreateChannelRequest, UpdateChannelRequest};
+use crate::repositories::channel_repository::ChannelRepository;
+use crate::repositories::server_repository::ServerRepository;
 use crate::services::channel_service::ChannelService;
 use crate::services::ServiceError;
+use crate::state::AppState;
+use crate::utils::auth::AuthUser;
 use crate::websocket::events::ServerEvent;
-use crate::repositories::server_repository::ServerRepository;
-use crate::repositories::channel_repository::ChannelRepository;
 
 pub async fn create_channel(
     State(state): State<AppState>,
@@ -22,7 +22,8 @@ pub async fn create_channel(
     Path(server_id): Path<Uuid>,
     Json(payload): Json<CreateChannelRequest>,
 ) -> Result<(StatusCode, impl IntoResponse), ServiceError> {
-    let channel = ChannelService::create_channel(&state.pool, auth_user.0.id, server_id, payload).await?;
+    let channel =
+        ChannelService::create_channel(&state.pool, auth_user.0.id, server_id, payload).await?;
 
     // On notifie tous les membres du serveur qu'un nouveau channel a ete cree
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
@@ -35,7 +36,9 @@ pub async fn create_channel(
         channel_type: channel.r#type.clone(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok((StatusCode::CREATED, Json(channel)))
@@ -65,7 +68,8 @@ pub async fn update_channel(
     Path(channel_id): Path<Uuid>,
     Json(payload): Json<UpdateChannelRequest>,
 ) -> Result<impl IntoResponse, ServiceError> {
-    let channel = ChannelService::update_channel(&state.pool, auth_user.0.id, channel_id, payload).await?;
+    let channel =
+        ChannelService::update_channel(&state.pool, auth_user.0.id, channel_id, payload).await?;
 
     // On notifie tous les membres du serveur que le channel a ete renomme
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, channel.server_id)
@@ -78,7 +82,9 @@ pub async fn update_channel(
         channel_type: channel.r#type.clone(),
     };
     if let Ok(json) = event.to_json() {
-        state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
     }
 
     Ok(Json(channel))
@@ -107,7 +113,9 @@ pub async fn delete_channel(
             server_id: ch.server_id.to_string(),
         };
         if let Ok(json) = event.to_json() {
-            state.broadcast_to_users(&member_ids, Message::Text(json.into())).await;
+            state
+                .broadcast_to_users(&member_ids, Message::Text(json.into()))
+                .await;
         }
     }
 

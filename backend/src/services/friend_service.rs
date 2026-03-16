@@ -35,7 +35,9 @@ impl FriendService {
         UserRepository::find_by_id(pool, friend_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?
-            .ok_or(ServiceError::NotFound("Utilisateur introuvable".to_string()))?;
+            .ok_or(ServiceError::NotFound(
+                "Utilisateur introuvable".to_string(),
+            ))?;
 
         if FriendRepository::are_friends(pool, user_id, friend_id)
             .await
@@ -70,7 +72,11 @@ impl FriendService {
     ) -> Result<Vec<FriendRequestResponse>, ServiceError> {
         FriendRepository::list_incoming_requests(pool, user_id)
             .await
-            .map(|rows| rows.into_iter().map(FriendRequestResponse::from_list_item).collect())
+            .map(|rows| {
+                rows.into_iter()
+                    .map(FriendRequestResponse::from_list_item)
+                    .collect()
+            })
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))
     }
 
@@ -81,7 +87,11 @@ impl FriendService {
     ) -> Result<Vec<FriendRequestResponse>, ServiceError> {
         FriendRepository::list_outgoing_requests(pool, user_id)
             .await
-            .map(|rows| rows.into_iter().map(FriendRequestResponse::from_list_item).collect())
+            .map(|rows| {
+                rows.into_iter()
+                    .map(FriendRequestResponse::from_list_item)
+                    .collect()
+            })
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))
     }
 
@@ -102,7 +112,9 @@ impl FriendService {
             ));
         }
         if request.status != "pending" {
-            return Err(ServiceError::Conflict("Cette demande n'est plus en attente.".to_string()));
+            return Err(ServiceError::Conflict(
+                "Cette demande n'est plus en attente.".to_string(),
+            ));
         }
 
         FriendRepository::update_request_status(pool, request_id, "accepted")
@@ -136,7 +148,9 @@ impl FriendService {
             ));
         }
         if request.status != "pending" {
-            return Err(ServiceError::Conflict("Cette demande n'est plus en attente.".to_string()));
+            return Err(ServiceError::Conflict(
+                "Cette demande n'est plus en attente.".to_string(),
+            ));
         }
 
         FriendRepository::update_request_status(pool, request_id, "rejected")
@@ -157,7 +171,9 @@ impl FriendService {
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
         if deleted == 0 {
-            return Err(ServiceError::NotFound("Demande introuvable ou deja traitee.".to_string()));
+            return Err(ServiceError::NotFound(
+                "Demande introuvable ou deja traitee.".to_string(),
+            ));
         }
 
         Ok(())
