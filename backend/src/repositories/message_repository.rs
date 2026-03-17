@@ -33,9 +33,7 @@ impl MessageRepository {
         mongo: &Client,
         oid: ObjectId,
     ) -> mongodb::error::Result<Option<Message>> {
-        Self::collection(mongo)
-            .find_one(doc! { "_id": oid })
-            .await
+        Self::collection(mongo).find_one(doc! { "_id": oid }).await
     }
 
     // Insere un nouveau message dans MongoDB
@@ -53,10 +51,7 @@ impl MessageRepository {
         content: &str,
     ) -> mongodb::error::Result<()> {
         Self::collection(mongo)
-            .update_one(
-                doc! { "_id": oid },
-                doc! { "$set": { "content": content } },
-            )
+            .update_one(doc! { "_id": oid }, doc! { "$set": { "content": content } })
             .await
             .map(|_| ())
     }
