@@ -4,32 +4,36 @@ type ChannelsPanelProps = {
   channels: Channel[];
   selectedChannel: string;
   canManageChannels: boolean;
+  // NOUVEAU : On reçoit la liste des salons non lus depuis le parent
+  unreadChannels: Set<string>;
   onSelectChannel: (channelId: string) => void;
   onDeleteChannel: (channelId: string) => void;
   onUpdateChannel: (channelId: string, newName: string) => void;
   onCreateChannel: () => void;
 };
 
-// Affiche la liste des channels du serveur selectionne
+// Affiche la liste des channels du serveur sélectionné
 export default function ChannelsPanel({
   channels,
   selectedChannel,
   canManageChannels,
+  unreadChannels, // On le récupère ici
   onSelectChannel,
   onDeleteChannel,
   onUpdateChannel,
   onCreateChannel,
 }: ChannelsPanelProps) {
-  // Supprime un channel (on bloque la propagation pour pas selectionner le channel)
+  
+  // Supprime un channel (on bloque la propagation pour ne pas le sélectionner)
   const handleDelete = (e: React.MouseEvent, channelId: string) => {
     e.stopPropagation();
     onDeleteChannel(channelId);
   };
 
-  // Renomme un channel avec un prompt (max 20 caracteres)
+  // Renomme un channel avec un prompt
   const handleRename = (e: React.MouseEvent, channelId: string, currentName: string) => {
     e.stopPropagation();
-    const newName = prompt("Nouveau nom du channel (20 caracteres max) :", currentName);
+    const newName = prompt("Nouveau nom du channel (20 caractères max) :", currentName);
     if (newName && newName.trim() && newName.trim() !== currentName) {
       onUpdateChannel(channelId, newName.trim().slice(0, 20));
     }
@@ -53,13 +57,18 @@ export default function ChannelsPanel({
         {channels.length ? (
           channels.map((channel) => {
             const isActive = selectedChannel === channel.id;
+            // NOUVEAU : On vérifie si ce channel a des messages non lus
+            const isUnread = unreadChannels.has(channel.id) && !isActive;
+
             return (
               <div
                 key={channel.id}
-                className={`group flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-semibold transition cursor-pointer ${
+                className={`group relative flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition cursor-pointer ${
                   isActive
-                    ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.10)] text-white"
-                    : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-300 hover:border-[rgba(0,212,255,0.3)] hover:bg-[var(--surface)] hover:text-white"
+                    ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.10)] text-white font-semibold"
+                    : isUnread
+                    ? "border-[rgba(255,255,255,0.2)] bg-[var(--surface-strong)] text-white font-bold" // Plus visible si non lu
+                    : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-400 font-medium hover:border-[rgba(0,212,255,0.3)] hover:bg-[var(--surface)] hover:text-white"
                 }`}
                 onClick={() => onSelectChannel(channel.id)}
                 role="button"
@@ -68,12 +77,21 @@ export default function ChannelsPanel({
                   if (e.key === "Enter") onSelectChannel(channel.id);
                 }}
               >
-                <span className="truncate"># {channel.name}</span>
+                {/* PASTILLE DE NOTIFICATION (Point rouge/bleu) */}
+                {isUnread && (
+                  <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
+                )}
+
+                <span className="truncate flex items-center gap-2">
+                  <span className={isActive ? "text-[var(--brand-1)]" : "text-slate-500"}>#</span>
+                  {channel.name}
+                </span>
+
                 {canManageChannels && (
                   <span className="ml-2 flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
                     <button
                       type="button"
-                      className="rounded-full p-1 text-slate-600 transition hover:text-[var(--brand-1)]"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-[var(--brand-1)]"
                       onClick={(e) => handleRename(e, channel.id, channel.name)}
                       title="Renommer ce channel"
                     >
@@ -84,7 +102,7 @@ export default function ChannelsPanel({
                     </button>
                     <button
                       type="button"
-                      className="rounded-full p-1 text-slate-600 transition hover:text-red-400"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
                       onClick={(e) => handleDelete(e, channel.id)}
                       title="Supprimer ce channel"
                     >

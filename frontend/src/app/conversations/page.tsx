@@ -88,7 +88,7 @@ export default function ConversationsPage() {
   };
 
   const handleSelectFriend = async (friend: any) => {
-    friends.setSelectedFriend(friend);
+    friends.setSelectedFriend(friend.id); // On s'assure de passer l'ID
 
     try {
       const token = localStorage.getItem("token");
@@ -124,6 +124,9 @@ export default function ConversationsPage() {
     return <LoadingScreen />;
   }
 
+  // Permet de retrouver le nom de l'ami actif
+  const currentFriendName = friends.friendList.find((f: any) => f.id === friends.selectedFriend)?.username || "Messages Privés";
+
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
@@ -152,6 +155,8 @@ export default function ConversationsPage() {
           selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
           currentUserRole={server.currentUserRole}
+          // NOUVEAU : On envoie la liste des non lus au Sidebar pour l'onglet Serveur et DM
+          unreadChannels={chat.unreadChannels} 
           onTabChange={async (tab) => {
             setActiveTab(tab);
             if (tab === "servers") {
@@ -183,6 +188,8 @@ export default function ConversationsPage() {
             channels={server.channels}
             selectedChannel={server.selectedChannel}
             canManageChannels={server.canManageChannels}
+            // NOUVEAU : On envoie les alertes aux channels !
+            unreadChannels={chat.unreadChannels}
             onSelectChannel={server.setSelectedChannel}
             onDeleteChannel={server.handleDeleteChannel}
             onUpdateChannel={server.handleUpdateChannel}
@@ -206,7 +213,7 @@ export default function ConversationsPage() {
           />
         ) : activeDmChannel && friends.selectedFriend ? (
           <ChatPanel
-            channelName="Messages Privés"
+            channelName={currentFriendName}
             selectedChannel={activeDmChannel}
             selectedServer="Messages Privés"
             messages={chat.messages}
