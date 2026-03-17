@@ -1,11 +1,11 @@
 name: CI
 
-# Tourne sur chaque push (toutes branches) et sur les PRs vers main
+# Tourne sur chaque push (toutes branches) et sur les PRs vers dev et main
 on:
   push:
     branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   # Vérifie la qualité du code (format, lint, types)
@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Backend Rust
       - name: Installer Rust (avec rustfmt et clippy)
@@ -32,7 +32,7 @@ jobs:
 
       # Frontend Next.js
       - name: Installer Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
 
@@ -55,14 +55,14 @@ jobs:
     needs: quality-checks
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Backend Rust avec cache
       - name: Installer Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Mettre en cache les dépendances Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -80,7 +80,7 @@ jobs:
 
       # Frontend avec cache
       - name: Installer Node.js (avec cache npm)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -104,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Backend
       - name: Installer Rust
@@ -119,7 +119,7 @@ jobs:
 
       # Frontend
       - name: Installer Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
 
