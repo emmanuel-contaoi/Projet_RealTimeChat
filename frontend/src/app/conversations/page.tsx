@@ -18,7 +18,6 @@ import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
 
-// Page principale : affiche les serveurs, channels, chat et membres
 export default function ConversationsPage() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,7 +25,6 @@ export default function ConversationsPage() {
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // On verifie le token au chargement, sinon on redirige vers login
   const [auth, setAuth] = useState({ isReady: false, currentUserId: "" });
   const { isReady, currentUserId } = auth;
 
@@ -34,13 +32,12 @@ export default function ConversationsPage() {
     const token = localStorage.getItem("token");
     const user = token ? authService.getCurrentUser() : null;
     if (token && user?.id) {
-      setAuth({ isReady: true, currentUserId: user.id }); // eslint-disable-line react-hooks/set-state-in-effect
+      setAuth({ isReady: true, currentUserId: user.id });
     } else {
       router.replace("/login");
     }
   }, [router]);
 
-  // Ferme le menu si on clique en dehors
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       if (!menuRef.current) return;
@@ -52,11 +49,8 @@ export default function ConversationsPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Ref pour passer les evenements WS de useChat a useServerManager
-  // (useChat est initialise avant useServerManager, donc on passe par une ref pour eviter une dependance circulaire)
   const serverWsHandlerRef = useRef<((event: { type: string; [key: string]: unknown }) => void) | null>(null);
 
-  // On utilise des hooks pour separer la logique du chat et des serveurs
   const chat = useChat({
     onExtraWsEvent: useCallback((e: { type: string; [key: string]: unknown }) => serverWsHandlerRef.current?.(e), []),
   });
@@ -72,14 +66,12 @@ export default function ConversationsPage() {
     setMessages: chat.setMessages,
   });
 
-  // On garde la ref a jour avec la derniere version du handler
   useEffect(() => {
     serverWsHandlerRef.current = server.handleWsEvent;
   }, [server.handleWsEvent]);
 
   const friends = useFriendSearch({ isReady, activeTab, onlineUserIds: chat.onlineUserIds });
 
-  // Deconnexion, changement de compte, etc.
   const handleLogout = async () => {
     await authService.logout();
     router.push("/");
@@ -95,17 +87,10 @@ export default function ConversationsPage() {
     router.push("/register");
   };
 
-  if (!isReady) {
-    return <LoadingScreen />;
-  }
-
-  // --- NOUVELLE FONCTION POUR LES DMs ---
   const handleSelectFriend = async (friend: any) => {
-    // 1. On garde la logique visuelle (sélectionner l'ami dans le menu)
     friends.setSelectedFriend(friend);
 
     try {
-      // 2. On contacte ton backend Rust !
       const token = localStorage.getItem("token");
       const response = await fetch("http://localhost:3001/dms", {
         method: "POST",
@@ -113,30 +98,31 @@ export default function ConversationsPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ target_user_id: friend.id }) // L'ID que le Rust attend
+        body: JSON.stringify({ target_user_id: friend.id })
       });
 
       if (!response.ok) {
         throw new Error("Impossible de récupérer la conversation privée");
       }
 
-      // récupère la réponse de Rust 
       const dmChannel = await response.json();
-      console.log("🔥 Succès ! ID du salon privé :", dmChannel.id);
 
       setActiveDmChannel(dmChannel.id); 
 
-      chat.joinChannel(dmChannel.id);
-      chat.setActiveChannel(dmChannel.id);
-
-      // connecte au WebSockets pour ce salon
-      chat.joinChannel(dmChannel.id);
+      chat.setMessages([]);
+      await chat.loadMessages(dmChannel.id);
+      
+      chat.syncChannel(dmChannel.id);
       chat.setActiveChannel(dmChannel.id);
 
     } catch (error) {
-      console.error("Erreur lors de la création du DM :", error);
+      console.error(error);
     }
   };
+
+  if (!isReady) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -166,11 +152,23 @@ export default function ConversationsPage() {
           selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
           currentUserRole={server.currentUserRole}
-          onTabChange={(tab) => {
+          onTabChange={async (tab) => {
             setActiveTab(tab);
-            if (tab === "servers") setActiveDmChannel(null);
-            }}
-          onSelectServer={server.setSelectedServer}
+            if (tab === "servers") {
+              setActiveDmChannel(null);
+              if (server.selectedChannel) {
+                chat.setMessages([]);
+                await chat.loadMessages(server.selectedChannel);
+                chat.syncChannel(server.selectedChannel);
+                chat.setActiveChannel(server.selectedChannel);
+              }
+            }
+          }}
+          onSelectServer={(serverId) => {
+            server.setSelectedServer(serverId);
+            setActiveTab("servers");
+            setActiveDmChannel(null);
+          }}
           onCreateServer={() => server.setIsCreateServerOpen(true)}
           onJoinServer={() => server.setIsJoinServerOpen(true)}
           onLeaveServer={server.handleLeaveServer}
@@ -180,7 +178,6 @@ export default function ConversationsPage() {
           onRemoveFriend={friends.handleRemoveFriend}
         />
 
-        {/* PANNEAU DES CANAUX (Seulement sur les serveurs) */}
         {activeTab === "servers" ? (
           <ChannelsPanel
             channels={server.channels}
@@ -193,9 +190,7 @@ export default function ConversationsPage() {
           />
         ) : null}
 
-        {/* LOGIQUE D'AFFICHAGE CENTRAL (SERVEURS vs DMs vs GESTION DES AMIS) */}
         {activeTab === "servers" ? (
-         
           <ChatPanel
             channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
             selectedChannel={server.selectedChannel}
@@ -210,14 +205,13 @@ export default function ConversationsPage() {
             onDeleteMessage={chat.handleDeleteMessage}
           />
         ) : activeDmChannel && friends.selectedFriend ? (
-          
           <ChatPanel
-            channelName={friends.selectedFriend.name} // Le nom de l'ami en haut
+            channelName={friends.selectedFriend.name}
             selectedChannel={activeDmChannel}
             selectedServer="Messages Privés"
             messages={chat.messages}
             currentUserId={currentUserId}
-            currentUserRole="member" // Pas de rôle admin en DM
+            currentUserRole="member"
             typingUsers={chat.typingUserNames}
             onSendMessage={chat.handleSendMessage}
             onTyping={chat.handleTyping}
@@ -225,7 +219,6 @@ export default function ConversationsPage() {
             onDeleteMessage={chat.handleDeleteMessage}
           />
         ) : (
-        
           <FriendsPanel
             friendSearch={friends.friendSearch}
             onFriendSearchChange={friends.setFriendSearch}
@@ -285,7 +278,6 @@ export default function ConversationsPage() {
         onChannelNameChange={server.setNewChannelName}
         onSubmit={server.handleAddChannel}
       />
-
     </div>
   );
 }

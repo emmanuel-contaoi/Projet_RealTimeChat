@@ -129,7 +129,6 @@ async fn handle_socket(socket: WebSocket, state: AppState, claims: Claims) {
 async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, username: &str, state: &AppState) {
     match event {
         ClientEvent::MessageSend { channel_id, content } => {
-            // Vérifie que l'utilisateur est toujours membre du serveur (protège contre les kickés)
             let channel_uuid = match Uuid::parse_str(&channel_id) {
                 Ok(id) => id,
                 Err(_) => return,
@@ -138,9 +137,28 @@ async fn handle_client_event(event: ClientEvent, user_id: &str, conn_id: &str, u
                 Ok(id) => id,
                 Err(_) => return,
             };
+
+            // 1. On vérifie d'abord si l'utilisateur a un rôle dans ce salon (Serveur)
             let membership = ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
-            if membership.map(|m| m.is_none()).unwrap_or(true) {
-                return; // Pas membre → on ignore le message silencieusement
+            let mut is_authorized = membership.unwrap_or(None).is_some();
+
+            // 2. Si ce n'est pas un serveur, on vérifie si c'est un Message Privé (DM)
+            if !is_authorized {
+                let is_dm = sqlx::query_scalar::<_, bool>(
+                    "SELECT EXISTS(SELECT 1 FROM dm_channels WHERE id = $1 AND (user1_id = $2 OR user2_id = $2))"
+                )
+                .bind(channel_uuid)
+                .bind(user_uuid)
+                .fetch_one(&state.pool)
+                .await
+                .unwrap_or(false);
+
+                is_authorized = is_dm;
+            }
+
+            // 3. Si ce n'est ni un serveur ni un DM valide, on bloque le message silencieusement
+            if !is_authorized {
+                return; 
             }
 
             // On s'assure que l'envoyeur est bien dans la room
