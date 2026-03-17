@@ -184,7 +184,7 @@ async fn handle_client_event(
                 created_at: Some(created_at.clone()),
             };
 
-            let msg_id = match collection.insert_one(new_message, None).await {
+            let msg_id = match collection.insert_one(new_message).await {
                 Ok(result) => result
                     .inserted_id
                     .as_object_id()
