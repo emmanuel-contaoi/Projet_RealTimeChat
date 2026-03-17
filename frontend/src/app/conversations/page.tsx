@@ -206,7 +206,7 @@ export default function ConversationsPage() {
           />
         ) : activeDmChannel && friends.selectedFriend ? (
           <ChatPanel
-            channelName={friends.selectedFriend.name}
+            channelName="Messages Privés"
             selectedChannel={activeDmChannel}
             selectedServer="Messages Privés"
             messages={chat.messages}
