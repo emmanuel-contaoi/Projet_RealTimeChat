@@ -1,4 +1,7 @@
+"use client";
+
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Member } from "../types";
 
 type MembersPanelProps = {
@@ -12,19 +15,12 @@ type MembersPanelProps = {
   onBanMember: (userId: string, durationMinutes?: number) => void;
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  member: "Membre",
-};
-
 const ROLE_ORDER: Record<string, number> = {
   owner: 0,
   admin: 1,
   member: 2,
 };
 
-// Affiche la liste des membres du serveur avec leurs roles
 export default function MembersPanel({
   members,
   onlineUserIds,
@@ -35,7 +31,9 @@ export default function MembersPanel({
   onKickMember,
   onBanMember,
 }: MembersPanelProps) {
-  // userId en cours de ban tempo (pour afficher l'input durée inline)
+  const t = useTranslations("members");
+  const tc = useTranslations("common");
+
   const [banTarget, setBanTarget] = useState<string | null>(null);
   const [banDuration, setBanDuration] = useState("");
 
@@ -46,12 +44,18 @@ export default function MembersPanel({
   const onlineCount = members.filter((m) => onlineUserIds.has(m.user_id)).length;
   const isOwner = currentUserRole === "owner";
 
+  const ROLE_LABELS: Record<string, string> = {
+    owner: t("role_owner"),
+    admin: t("role_admin"),
+    member: t("role_member"),
+  };
+
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex shrink-0 items-center justify-between">
-        <p className="text-sm font-semibold text-white">Membres</p>
+        <p className="text-sm font-semibold text-white">{t("title")}</p>
         <span className="text-[10px] text-slate-400">
-          {onlineCount} en ligne
+          {t("online_count", { count: onlineCount })}
         </span>
       </div>
 
@@ -67,7 +71,6 @@ export default function MembersPanel({
               !isMe &&
               member.role !== "owner" &&
               (isOwner || (isAdmin && member.role === "member"));
-            // Seul le owner peut ban un admin, un admin ne peut ban que des membres
             const canBan = canKick;
 
             return (
@@ -83,7 +86,7 @@ export default function MembersPanel({
                   />
                   <div className="flex-1 min-w-0">
                     <p className="truncate text-sm text-white">
-                      {member.username}{isMe ? " (vous)" : ""}
+                      {member.username}{isMe ? ` ${t("you")}` : ""}
                     </p>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span
@@ -109,11 +112,11 @@ export default function MembersPanel({
                           }
                           title={
                             member.role === "admin"
-                              ? "Retrograder en membre"
-                              : "Promouvoir admin"
+                              ? t("demote_title")
+                              : t("promote_title")
                           }
                         >
-                          {member.role === "admin" ? "Retrograder" : "Promouvoir"}
+                          {member.role === "admin" ? t("demote") : t("promote")}
                         </button>
                       )}
                       {canTransfer && (
@@ -121,9 +124,9 @@ export default function MembersPanel({
                           type="button"
                           className="text-[10px] text-slate-500 hover:text-yellow-400 transition"
                           onClick={() => onTransferOwnership(member.user_id)}
-                          title="Transferer la propriete"
+                          title={t("transfer_title")}
                         >
-                          Transferer
+                          {t("transfer")}
                         </button>
                       )}
                       {canKick && (
@@ -131,9 +134,9 @@ export default function MembersPanel({
                           type="button"
                           className="text-[10px] text-slate-500 hover:text-red-400 transition"
                           onClick={() => onKickMember(member.user_id)}
-                          title="Expulser ce membre"
+                          title={t("kick_title")}
                         >
-                          Kick
+                          {t("kick")}
                         </button>
                       )}
                       {canBan && (
@@ -142,9 +145,9 @@ export default function MembersPanel({
                             type="button"
                             className="text-[10px] text-slate-500 hover:text-orange-400 transition"
                             onClick={() => onBanMember(member.user_id)}
-                            title="Bannir definitivement"
+                            title={t("ban_title")}
                           >
-                            Ban
+                            {t("ban")}
                           </button>
                           <button
                             type="button"
@@ -153,9 +156,9 @@ export default function MembersPanel({
                               setBanTarget(member.user_id);
                               setBanDuration("");
                             }}
-                            title="Bannir temporairement"
+                            title={t("ban_temp_title")}
                           >
-                            Ban tempo
+                            {t("ban_temp")}
                           </button>
                         </>
                       )}
@@ -163,7 +166,6 @@ export default function MembersPanel({
                   </div>
                 </div>
 
-                {/* Input durée du ban temporaire, visible uniquement pour le membre ciblé */}
                 {banTarget === member.user_id && (
                   <form
                     className="flex items-center gap-2 mt-1"
@@ -179,7 +181,7 @@ export default function MembersPanel({
                     <input
                       type="number"
                       min={1}
-                      placeholder="Durée (minutes)"
+                      placeholder={t("ban_duration_placeholder")}
                       value={banDuration}
                       onChange={(e) => setBanDuration(e.target.value)}
                       className="w-32 rounded-lg bg-[var(--surface)] border border-[var(--stroke)] px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none"
@@ -189,14 +191,14 @@ export default function MembersPanel({
                       type="submit"
                       className="text-[10px] text-orange-400 hover:text-orange-300 transition"
                     >
-                      Confirmer
+                      {tc("confirm")}
                     </button>
                     <button
                       type="button"
                       className="text-[10px] text-slate-500 hover:text-white transition"
                       onClick={() => setBanTarget(null)}
                     >
-                      Annuler
+                      {tc("cancel")}
                     </button>
                   </form>
                 )}
@@ -204,7 +206,7 @@ export default function MembersPanel({
             );
           })
         ) : (
-          <p className="text-xs text-slate-400">Aucun membre.</p>
+          <p className="text-xs text-slate-400">{t("empty")}</p>
         )}
       </div>
     </section>

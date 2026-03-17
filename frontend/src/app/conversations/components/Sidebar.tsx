@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { Friend, Server } from "../types";
 import FriendList from "./FriendList";
 import ServerList from "./ServerList";
@@ -37,37 +40,35 @@ export default function Sidebar({
   onSelectFriend,
   onRemoveFriend,
 }: SidebarProps) {
+  const t = useTranslations("sidebar");
+
   return (
     <aside className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             className={`text-sm font-semibold transition ${
-              activeTab === "servers"
-                ? "text-white"
-                : "text-slate-400 hover:text-white"
+              activeTab === "servers" ? "text-white" : "text-slate-400 hover:text-white"
             }`}
             onClick={() => onTabChange("servers")}
             type="button"
           >
-            Serveurs
+            {t("servers")}
           </button>
           <button
             className={`text-sm font-semibold transition ${
-              activeTab === "friends"
-                ? "text-white"
-                : "text-slate-400 hover:text-white"
+              activeTab === "friends" ? "text-white" : "text-slate-400 hover:text-white"
             }`}
             onClick={() => onTabChange("friends")}
             type="button"
           >
-            Amis
+            {t("friends")}
           </button>
         </div>
         <span className="text-xs text-slate-400">
           {activeTab === "servers"
-            ? `${serverList.length} actifs`
-            : `${friendList.length} amis`}
+            ? t("servers_count", { count: serverList.length })
+            : t("friends_count", { count: friendList.length })}
         </span>
       </div>
 

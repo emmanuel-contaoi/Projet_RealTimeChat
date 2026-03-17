@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { UserSearchResult } from "../types";
 import { formatUserLabel } from "../utils";
 
@@ -22,6 +25,8 @@ export default function FriendsPanel({
   allUsers,
   onAddFriend,
 }: FriendsPanelProps) {
+  const t = useTranslations("friends");
+
   const trimmedSearch = friendSearch.trim();
 
   const renderUserList = (users: UserSearchResult[]) => (
@@ -42,7 +47,7 @@ export default function FriendsPanel({
               onClick={() => onAddFriend(user)}
               type="button"
             >
-              +
+              {t("add")}
             </button>
           </div>
         );
@@ -54,23 +59,19 @@ export default function FriendsPanel({
     <section className="flex h-full flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-6 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-white">
-            Trouver des utilisateurs
-          </p>
-          <p className="text-xs text-slate-400">
-            Recherche et ajoute de nouveaux amis
-          </p>
+          <p className="text-sm font-semibold text-white">{t("search_title")}</p>
+          <p className="text-xs text-slate-400">{t("search_subtitle")}</p>
         </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-4">
         <label className="grid gap-2 text-sm text-slate-200">
-          Rechercher
+          {t("search_button")}
           <input
             className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]"
             value={friendSearch}
             onChange={(event) => onFriendSearchChange(event.target.value)}
-            placeholder="Pseudo, email, prenom..."
+            placeholder={t("search_placeholder")}
           />
         </label>
 
@@ -79,7 +80,7 @@ export default function FriendsPanel({
         ) : null}
 
         {friendSearchLoading ? (
-          <p className="text-xs text-slate-400">Recherche en cours...</p>
+          <p className="text-xs text-slate-400">{t("searching")}</p>
         ) : null}
 
         {trimmedSearch && !friendSearchLoading ? (
@@ -87,20 +88,18 @@ export default function FriendsPanel({
             renderUserList(friendResults)
           ) : (
             <p className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-slate-400">
-              Aucun utilisateur trouve.
+              {t("no_results")}
             </p>
           )
         ) : (
           <div className="flex flex-col gap-2">
             {allUsersLoading ? (
-              <p className="text-xs text-slate-400">
-                Chargement des utilisateurs...
-              </p>
+              <p className="text-xs text-slate-400">{t("loading")}</p>
             ) : allUsers.length ? (
               renderUserList(allUsers)
             ) : (
               <p className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-slate-400">
-                Aucun utilisateur disponible.
+                {t("no_users")}
               </p>
             )}
           </div>

@@ -1,4 +1,7 @@
+"use client";
+
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Server } from "../types";
 
 type ServerListProps = {
@@ -13,7 +16,6 @@ type ServerListProps = {
   onUpdateServer: (serverId: string, newName: string) => void;
 };
 
-// Liste des serveurs avec les boutons pour copier le code, quitter, renommer, supprimer
 export default function ServerList({
   serverList,
   selectedServer,
@@ -25,9 +27,10 @@ export default function ServerList({
   onDeleteServer,
   onUpdateServer,
 }: ServerListProps) {
+  const t = useTranslations("server_list");
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Copie le code d'invitation dans le presse-papier
   const handleCopyCode = (e: React.MouseEvent, server: Server) => {
     e.stopPropagation();
     navigator.clipboard.writeText(server.invite_code);
@@ -45,10 +48,9 @@ export default function ServerList({
     onDeleteServer(serverId);
   };
 
-  // Ouvre un prompt pour renommer le serveur (max 20 caracteres)
   const handleRename = (e: React.MouseEvent, server: Server) => {
     e.stopPropagation();
-    const newName = prompt("Nouveau nom du serveur (20 caracteres max) :", server.name);
+    const newName = prompt(t("rename_prompt"), server.name);
     if (newName && newName.trim() && newName.trim() !== server.name) {
       onUpdateServer(server.id, newName.trim().slice(0, 20));
     }
@@ -62,14 +64,14 @@ export default function ServerList({
           onClick={onCreateServer}
           type="button"
         >
-          + Creer
+          {t("create")}
         </button>
         <button
           className="flex-1 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-center text-sm font-semibold text-[var(--brand-1)] transition hover:-translate-y-0.5 hover:bg-[var(--surface)]"
           onClick={onJoinServer}
           type="button"
         >
-          Rejoindre
+          {t("join")}
         </button>
       </div>
       <div className="mt-4 flex flex-col gap-3">
@@ -89,9 +91,7 @@ export default function ServerList({
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  onSelectServer(server.id);
-                }
+                if (event.key === "Enter" || event.key === " ") onSelectServer(server.id);
               }}
             >
               <div className="flex items-center justify-between">
@@ -110,16 +110,16 @@ export default function ServerList({
                       : "text-slate-500 hover:text-slate-300"
                   }`}
                   onClick={(e) => handleCopyCode(e, server)}
-                  title="Copier le code d'invitation"
+                  title={t("copy_invite")}
                 >
-                  {copiedId === server.id ? "Copie !" : server.invite_code.slice(0, 8)}
+                  {copiedId === server.id ? t("copied") : server.invite_code.slice(0, 8)}
                 </button>
 
                 <button
                   type="button"
                   className="shrink-0 rounded-full p-1 text-slate-600 transition hover:text-red-400"
                   onClick={(e) => handleLeave(e, server.id)}
-                  title="Quitter le serveur"
+                  title={t("leave")}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -134,7 +134,7 @@ export default function ServerList({
                       type="button"
                       className="shrink-0 rounded-full p-1 text-slate-600 transition hover:text-[var(--brand-1)]"
                       onClick={(e) => handleRename(e, server)}
-                      title="Renommer le serveur"
+                      title={t("rename")}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -145,13 +145,12 @@ export default function ServerList({
                       type="button"
                       className="shrink-0 rounded-full p-1 text-slate-600 transition hover:text-red-400"
                       onClick={(e) => handleDelete(e, server.id)}
-                      title="Supprimer le serveur"
+                      title={t("delete")}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6" />
                         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                        <path d="M10 11v6" />
-                        <path d="M14 11v6" />
+                        <path d="M10 11v6" /><path d="M14 11v6" />
                         <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                       </svg>
                     </button>
