@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authService } from '@/services/api';
 
 // Page d'inscription : on remplit le formulaire et on cree le compte
@@ -40,9 +41,9 @@ export default function InscriptionPage() {
         formData.username || undefined
       );
       router.push("/conversations");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[Register] Error:", err);
-      const message = err.response?.data;
+      const message = (err as { response?: { data?: unknown } }).response?.data;
       setError(typeof message === 'string' ? message : 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
@@ -138,12 +139,12 @@ export default function InscriptionPage() {
           )}
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <a
+            <Link
               className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-center text-base font-semibold text-slate-200 transition hover:bg-[var(--surface-strong)]"
               href="/"
             >
               Retour
-            </a>
+            </Link>
             <button
               className="flex-1 rounded-full bg-[var(--brand-1)] px-6 py-3 text-base font-semibold text-white shadow-[0_12px_28px_rgba(0,212,255,0.35)] transition hover:-translate-y-0.5 disabled:opacity-50"
               type="submit"

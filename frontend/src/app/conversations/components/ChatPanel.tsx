@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import type { ChannelMessage } from "../types";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { gifService } from "@/services/api";
@@ -247,10 +248,12 @@ export default function ChatPanel({
                     </form>
                   ) : (
                     isGifUrl(message.content) ? (
-                      <img
+                      <Image
                         src={message.content}
                         alt="GIF"
-                        loading="lazy"
+                        width={400}
+                        height={256}
+                        unoptimized
                         className="max-h-64 w-auto rounded-xl object-contain"
                       />
                     ) : (
@@ -387,10 +390,12 @@ export default function ChatPanel({
                       }}
                       title={gif.title}
                     >
-                      <img
+                      <Image
                         src={gif.previewUrl}
                         alt={gif.title}
-                        loading="lazy"
+                        width={gif.width || 200}
+                        height={gif.height || 112}
+                        unoptimized
                         className="h-28 w-full object-cover"
                       />
                     </button>
