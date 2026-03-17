@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 type ConversationsHeaderProps = {
   isMenuOpen: boolean;
@@ -80,8 +81,10 @@ export default function ConversationsHeader({
         <img src="/logo.svg" alt="Nexus" className="h-12 w-auto" />
       </div>
 
-      {/* Right: empty for balance */}
-      <div />
+      {/* Right: language switcher */}
+      <div className="flex justify-end">
+        <LanguageSwitcher />
+      </div>
     </header>
   );
 }
