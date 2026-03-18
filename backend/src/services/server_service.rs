@@ -334,7 +334,10 @@ impl ServerService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
-        ensure_server_membership(membership.as_deref(), "Vous n'etes pas membre de ce serveur.")?;
+        ensure_server_membership(
+            membership.as_deref(),
+            "Vous n'etes pas membre de ce serveur.",
+        )?;
 
         ServerRepository::list_members(pool, server_id)
             .await
@@ -701,8 +704,7 @@ mod tests {
             .and_hms_opt(23, 0, 0)
             .expect("time should be valid");
         let ban_result =
-            ServerService::ban_member(&pool, user_id, server_id, target_id, Some(expires_at))
-                .await;
+            ServerService::ban_member(&pool, user_id, server_id, target_id, Some(expires_at)).await;
         assert_internal_error(ban_result, "Erreur serveur:");
     }
 }

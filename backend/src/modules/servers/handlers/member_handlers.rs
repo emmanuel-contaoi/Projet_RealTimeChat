@@ -300,7 +300,13 @@ mod tests {
             _ => panic!("unexpected list_members result"),
         }
 
-        match kick_member(state.clone(), auth_user.clone(), Path((server_id, target_user_id))).await {
+        match kick_member(
+            state.clone(),
+            auth_user.clone(),
+            Path((server_id, target_user_id)),
+        )
+        .await
+        {
             Err(ServiceError::Internal(message)) => assert!(message.contains("Erreur serveur")),
             _ => panic!("unexpected kick_member result"),
         }

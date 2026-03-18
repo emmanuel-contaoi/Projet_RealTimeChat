@@ -61,10 +61,7 @@ fn build_app(state: AppState) -> Router {
             "/friends/{friend_id}",
             delete(routes::friends::remove_friend),
         )
-        .route(
-            "/dms",
-            post(routes::dms::get_or_create_dm),
-        )
+        .route("/dms", post(routes::dms::get_or_create_dm))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             utils::auth::auth_middleware,

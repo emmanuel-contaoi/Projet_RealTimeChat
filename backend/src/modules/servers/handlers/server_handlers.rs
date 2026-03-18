@@ -364,7 +364,9 @@ mod tests {
         }
 
         match list_servers(state.clone(), auth_user.clone()).await {
-            Err(ServiceError::Internal(message)) => assert!(message.contains("Erreur récupération")),
+            Err(ServiceError::Internal(message)) => {
+                assert!(message.contains("Erreur récupération"))
+            }
             _ => panic!("unexpected list_servers result"),
         }
 

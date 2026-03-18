@@ -157,7 +157,8 @@ async fn handle_client_event(
             };
 
             // 1. On vérifie d'abord si l'utilisateur a un rôle dans ce salon (Serveur)
-            let membership = ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
+            let membership =
+                ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
             let mut is_authorized = membership.unwrap_or(None).is_some();
 
             // 2. Si ce n'est pas un serveur, on vérifie si c'est un Message Privé (DM)
@@ -176,7 +177,7 @@ async fn handle_client_event(
 
             // 3. Si ce n'est ni un serveur ni un DM valide, on bloque le message silencieusement
             if !is_authorized {
-                return; 
+                return;
             }
 
             // On s'assure que l'envoyeur est bien dans la room

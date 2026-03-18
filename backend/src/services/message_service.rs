@@ -99,7 +99,9 @@ impl MessageService {
         }
 
         if !is_authorized {
-            return Err(ServiceError::Forbidden("Accès refusé à cette conversation.".to_string()));
+            return Err(ServiceError::Forbidden(
+                "Accès refusé à cette conversation.".to_string(),
+            ));
         }
 
         // 3. Si autorisé, on récupère les messages dans MongoDB
@@ -138,7 +140,9 @@ impl MessageService {
         }
 
         if !is_authorized {
-            return Err(ServiceError::Forbidden("Vous n'êtes pas autorisé à envoyer un message ici.".to_string()));
+            return Err(ServiceError::Forbidden(
+                "Vous n'êtes pas autorisé à envoyer un message ici.".to_string(),
+            ));
         }
 
         // 2. Préparation du message pour MongoDB
@@ -408,27 +412,18 @@ mod tests {
             MessageService::edit_message(&mongo, user_id, &message_id, "updated".to_string()).await;
         assert_internal_error(edit_result, "Erreur Mongo:");
 
-        let delete_result = MessageService::delete_message(&pool, &mongo, user_id, &message_id).await;
+        let delete_result =
+            MessageService::delete_message(&pool, &mongo, user_id, &message_id).await;
         assert_internal_error(delete_result, "Erreur Mongo:");
 
-        let add_result = MessageService::add_reaction(
-            &pool,
-            &mongo,
-            user_id,
-            &message_id,
-            "🔥".to_string(),
-        )
-        .await;
+        let add_result =
+            MessageService::add_reaction(&pool, &mongo, user_id, &message_id, "🔥".to_string())
+                .await;
         assert_internal_error(add_result, "Erreur Mongo:");
 
-        let remove_result = MessageService::remove_reaction(
-            &pool,
-            &mongo,
-            user_id,
-            &message_id,
-            "🔥".to_string(),
-        )
-        .await;
+        let remove_result =
+            MessageService::remove_reaction(&pool, &mongo, user_id, &message_id, "🔥".to_string())
+                .await;
         assert_internal_error(remove_result, "Erreur Mongo:");
     }
 
