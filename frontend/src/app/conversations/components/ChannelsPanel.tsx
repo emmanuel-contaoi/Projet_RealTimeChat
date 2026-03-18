@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { Channel } from "../types";
 
 type ChannelsPanelProps = {
@@ -10,7 +13,6 @@ type ChannelsPanelProps = {
   onCreateChannel: () => void;
 };
 
-// Affiche la liste des channels du serveur selectionne
 export default function ChannelsPanel({
   channels,
   selectedChannel,
@@ -20,16 +22,16 @@ export default function ChannelsPanel({
   onUpdateChannel,
   onCreateChannel,
 }: ChannelsPanelProps) {
-  // Supprime un channel (on bloque la propagation pour pas selectionner le channel)
+  const t = useTranslations("channels");
+
   const handleDelete = (e: React.MouseEvent, channelId: string) => {
     e.stopPropagation();
     onDeleteChannel(channelId);
   };
 
-  // Renomme un channel avec un prompt (max 20 caracteres)
   const handleRename = (e: React.MouseEvent, channelId: string, currentName: string) => {
     e.stopPropagation();
-    const newName = prompt("Nouveau nom du channel (20 caracteres max) :", currentName);
+    const newName = prompt(t("rename_prompt"), currentName);
     if (newName && newName.trim() && newName.trim() !== currentName) {
       onUpdateChannel(channelId, newName.trim().slice(0, 20));
     }
@@ -38,14 +40,14 @@ export default function ChannelsPanel({
   return (
     <section className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
       <div className="flex shrink-0 items-center justify-between">
-        <p className="text-sm font-semibold text-white">Channels</p>
+        <p className="text-sm font-semibold text-white">{t("title")}</p>
         {canManageChannels && (
           <button
             type="button"
             className="rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] px-3 py-1 text-[11px] text-[var(--brand-1)] transition hover:bg-[var(--surface)]"
             onClick={onCreateChannel}
           >
-            + Ajouter
+            {t("add")}
           </button>
         )}
       </div>
@@ -64,9 +66,7 @@ export default function ChannelsPanel({
                 onClick={() => onSelectChannel(channel.id)}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") onSelectChannel(channel.id);
-                }}
+                onKeyDown={(e) => { if (e.key === "Enter") onSelectChannel(channel.id); }}
               >
                 <span className="truncate"># {channel.name}</span>
                 {canManageChannels && (
@@ -75,7 +75,7 @@ export default function ChannelsPanel({
                       type="button"
                       className="rounded-full p-1 text-slate-600 transition hover:text-[var(--brand-1)]"
                       onClick={(e) => handleRename(e, channel.id, channel.name)}
-                      title="Renommer ce channel"
+                      title={t("rename")}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -86,11 +86,10 @@ export default function ChannelsPanel({
                       type="button"
                       className="rounded-full p-1 text-slate-600 transition hover:text-red-400"
                       onClick={(e) => handleDelete(e, channel.id)}
-                      title="Supprimer ce channel"
+                      title={t("delete")}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                       </svg>
                     </button>
                   </span>
@@ -100,7 +99,7 @@ export default function ChannelsPanel({
           })
         ) : (
           <p className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-slate-400">
-            Aucun channel pour ce serveur.
+            {t("empty")}
           </p>
         )}
       </div>

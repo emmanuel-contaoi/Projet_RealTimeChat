@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { Friend } from "../types";
 
 type FriendListProps = {
@@ -13,6 +16,8 @@ export default function FriendList({
   onSelectFriend,
   onRemoveFriend,
 }: FriendListProps) {
+  const t = useTranslations("friends");
+
   return (
     <div className="mt-4 flex flex-col gap-3">
       {friendList.map((friend) => (
@@ -25,9 +30,7 @@ export default function FriendList({
           }`}
           onClick={() => onSelectFriend(friend.name)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              onSelectFriend(friend.name);
-            }
+            if (event.key === "Enter" || event.key === " ") onSelectFriend(friend.name);
           }}
           role="button"
           tabIndex={0}
@@ -40,7 +43,7 @@ export default function FriendList({
                   ? "bg-[rgba(74,222,128,0.2)] text-green-400"
                   : "bg-[rgba(100,116,139,0.2)] text-slate-400"
               }`}>
-                {friend.status}
+                {friend.status === "En ligne" ? t("online") : t("offline")}
               </span>
               <button
                 className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface)] text-slate-300 transition hover:bg-[rgba(255,77,255,0.12)]"
@@ -49,28 +52,13 @@ export default function FriendList({
                   onRemoveFriend(friend.id);
                 }}
                 type="button"
-                aria-label={`Supprimer ${friend.name}`}
-                title="Supprimer"
+                aria-label={`${t("remove")} ${friend.name}`}
+                title={t("remove")}
               >
-                <svg
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
+                <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path d="M3 6h18" strokeLinecap="round" strokeLinejoin="round" />
-                  <path
-                    d="M8 6V4h8v2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M6 6l1 14h10l1-14"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M8 6V4h8v2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M6 6l1 14h10l1-14" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
