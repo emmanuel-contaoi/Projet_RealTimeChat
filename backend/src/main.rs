@@ -10,7 +10,6 @@ mod websocket;
 
 use crate::state::AppState;
 use axum::{
-    body::{to_bytes, Body},
     middleware,
     routing::{delete, get, post, put},
     Router,
@@ -168,6 +167,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::{to_bytes, Body};
     use axum::http::{header, Request, StatusCode};
     use tower::util::ServiceExt;
     use uuid::Uuid;

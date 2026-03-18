@@ -31,6 +31,7 @@ fn serialize_member_presence(
     })
 }
 
+#[allow(dead_code)]
 fn compute_ban_expiration(
     duration_minutes: Option<i64>,
     now: chrono::DateTime<Utc>,
@@ -38,6 +39,7 @@ fn compute_ban_expiration(
     duration_minutes.map(|mins| (now + Duration::minutes(mins)).naive_utc())
 }
 
+#[allow(dead_code)]
 fn format_ban_expiration_for_event(expires_at: Option<chrono::NaiveDateTime>) -> Option<String> {
     expires_at.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S").to_string())
 }

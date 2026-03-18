@@ -231,7 +231,7 @@ impl MessageService {
 
     // Ajoute une reaction emoji a un message
     pub async fn add_reaction(
-        pool: &PgPool,
+        _pool: &PgPool,
         mongo: &Client,
         user_id: Uuid,
         message_id: &str,
@@ -258,7 +258,7 @@ impl MessageService {
 
     // Retire une reaction emoji d'un message
     pub async fn remove_reaction(
-        pool: &PgPool,
+        _pool: &PgPool,
         mongo: &Client,
         user_id: Uuid,
         message_id: &str,

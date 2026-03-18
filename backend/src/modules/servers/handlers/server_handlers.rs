@@ -96,7 +96,7 @@ pub async fn join_server(
     let server =
         ServerService::join_server(&state.pool, auth_user.0.id, &payload.invite_code).await?;
 
-    let username = auth_user
+    let _username = auth_user
         .0
         .username
         .clone()

@@ -8,12 +8,6 @@ use crate::utils::jwt::create_token;
 
 pub struct AuthService;
 
-fn normalize_optional_field(value: Option<&str>) -> Option<String> {
-    value
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-}
 
 impl AuthService {
     // Inscrit un nouvel utilisateur : verifie si l'email existe, hash le mot de passe, cree le compte et retourne un token JWT
@@ -46,9 +40,9 @@ impl AuthService {
             pool,
             &payload.email,
             &password_hash,
-            first_name.as_deref(),
-            last_name.as_deref(),
-            username.as_deref(),
+            first_name,
+            last_name,
+            username,
         )
         .await
         .map_err(|e| {
