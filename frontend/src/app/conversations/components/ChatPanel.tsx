@@ -70,16 +70,12 @@ export default function ChatPanel({
     if (e.target.value.trim()) onTyping();
   };
 
-<<<<<<< features/internationalization
-=======
   const hasReacted = (message: ChannelMessage, emoji: string) =>
     message.reactions.some(
       (reaction) =>
         reaction.emoji === emoji && reaction.user_ids.includes(currentUserId)
     );
 
-  // Ferme les pickers si on clique en dehors
->>>>>>> dev
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
@@ -99,8 +95,6 @@ export default function ChatPanel({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-<<<<<<< features/internationalization
-=======
   useEffect(() => {
     setReactionPickerMessageId(null);
   }, [selectedChannel]);
@@ -147,7 +141,6 @@ export default function ChatPanel({
   }, [showGifPicker, gifSearch]);
 
   // Scroll automatique vers le dernier message
->>>>>>> dev
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -196,10 +189,28 @@ export default function ChatPanel({
                     <div className="h-px flex-1 bg-[var(--stroke)]" />
                   </div>
                 )}
-<<<<<<< features/internationalization
-                <div className={`group flex items-end gap-1.5 ${isMe ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`group flex items-end gap-1.5 ${isMe ? "justify-end" : "justify-start"}`}
+                >
                   {isMe && message.id && editingId !== message.id && (
                     <div className="hidden items-center gap-1 pb-1 group-hover:flex">
+                      <button
+                        type="button"
+                        className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
+                        onClick={() =>
+                          setReactionPickerMessageId((prev) =>
+                            prev === message.id ? null : message.id!
+                          )
+                        }
+                        title={t("react")}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                          <line x1="9" y1="9" x2="9.01" y2="9" />
+                          <line x1="15" y1="9" x2="15.01" y2="9" />
+                        </svg>
+                      </button>
                       <button
                         type="button"
                         className="rounded-full p-1 text-slate-500 transition hover:text-blue-400"
@@ -218,104 +229,19 @@ export default function ChatPanel({
                         title={t("delete")}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                       </button>
                     </div>
-=======
-              <div
-                className={`group flex items-end gap-1.5 ${isMe ? "justify-end" : "justify-start"}`}
-              >
-                {isMe && message.id && editingId !== message.id && (
-                  <div className="hidden items-center gap-1 pb-1 group-hover:flex">
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
-                      onClick={() =>
-                        setReactionPickerMessageId((prev) =>
-                          prev === message.id ? null : message.id!
-                        )
-                      }
-                      title="Reagir avec un emoji"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                        <line x1="9" y1="9" x2="9.01" y2="9" />
-                        <line x1="15" y1="9" x2="15.01" y2="9" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-blue-400"
-                      onClick={() => { setEditingId(message.id!); setEditContent(message.content); }}
-                      title="Modifier ce message"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
-                      onClick={() => onDeleteMessage(message.id!)}
-                      title="Supprimer ce message"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-                <div
-                  className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                    isMe
-                      ? "bg-[var(--brand-1)] text-slate-900"
-                      : "bg-[var(--surface-strong)] text-slate-200"
-                  }`}
-                >
-                  {!isMe && (
-                    <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--brand-1)]">
-                      {message.username}
-                    </p>
                   )}
-                  {editingId === message.id ? (
-                    <form
-                      className="flex gap-2"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (editContent.trim() && message.id) {
-                          onEditMessage(message.id, editContent.trim());
-                          setEditingId(null);
-                        }
-                      }}
-                    >
-                      <input
-                        className="flex-1 rounded-lg bg-[rgba(0,0,0,0.2)] px-2 py-1 text-sm text-white outline-none"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        autoFocus
-                        onKeyDown={(e) => { if (e.key === "Escape") setEditingId(null); }}
-                      />
-                      <button type="submit" className="text-[10px] text-green-400 hover:text-green-300">OK</button>
-                      <button type="button" className="text-[10px] text-slate-400 hover:text-slate-300" onClick={() => setEditingId(null)}>Annuler</button>
-                    </form>
-                  ) : (
-                    isGifUrl(message.content) ? (
-                      <img
-                        src={message.content}
-                        alt="GIF"
-                        loading="lazy"
-                        className="max-h-64 w-auto rounded-xl object-contain"
-                      />
-                    ) : (
-                      <p className="break-all">{message.content}</p>
-                    )
->>>>>>> dev
-                  )}
-                  <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isMe ? "bg-[var(--brand-1)] text-slate-900" : "bg-[var(--surface-strong)] text-slate-200"}`}>
+                  <div
+                    className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                      isMe
+                        ? "bg-[var(--brand-1)] text-slate-900"
+                        : "bg-[var(--surface-strong)] text-slate-200"
+                    }`}
+                  >
                     {!isMe && (
                       <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--brand-1)]">
                         {message.username}
@@ -343,7 +269,16 @@ export default function ChatPanel({
                         <button type="button" className="text-[10px] text-slate-400 hover:text-slate-300" onClick={() => setEditingId(null)}>{tc("cancel")}</button>
                       </form>
                     ) : (
-                      <p className="break-all">{message.content}</p>
+                      isGifUrl(message.content) ? (
+                        <img
+                          src={message.content}
+                          alt="GIF"
+                          loading="lazy"
+                          className="max-h-64 w-auto rounded-xl object-contain"
+                        />
+                      ) : (
+                        <p className="break-all">{message.content}</p>
+                      )
                     )}
                     {message.created_at && (
                       <p className={`mt-1 text-[10px] ${isMe ? "text-slate-900/50" : "text-slate-500"}`}>
@@ -351,118 +286,100 @@ export default function ChatPanel({
                       </p>
                     )}
                   </div>
-                  {!isMe && message.id && editingId !== message.id && canDelete && (
-                    <div className="hidden items-center pb-1 group-hover:flex">
+                  {!isMe && message.id && editingId !== message.id && (
+                    <div className="hidden items-center gap-1 pb-1 group-hover:flex">
                       <button
                         type="button"
-                        className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
-                        onClick={() => onDeleteMessage(message.id!)}
-                        title={t("delete")}
+                        className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
+                        onClick={() =>
+                          setReactionPickerMessageId((prev) =>
+                            prev === message.id ? null : message.id!
+                          )
+                        }
+                        title={t("react")}
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                          <line x1="9" y1="9" x2="9.01" y2="9" />
+                          <line x1="15" y1="9" x2="15.01" y2="9" />
                         </svg>
                       </button>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
+                          onClick={() => onDeleteMessage(message.id!)}
+                          title={t("delete")}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
-<<<<<<< features/internationalization
-=======
-                {!isMe && message.id && editingId !== message.id && (
-                  <div className="hidden items-center gap-1 pb-1 group-hover:flex">
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
-                      onClick={() =>
-                        setReactionPickerMessageId((prev) =>
-                          prev === message.id ? null : message.id!
-                        )
-                      }
-                      title="Reagir avec un emoji"
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                        <line x1="9" y1="9" x2="9.01" y2="9" />
-                        <line x1="15" y1="9" x2="15.01" y2="9" />
-                      </svg>
-                    </button>
-                    {canDelete && (
+                {message.id && (
+                  <div
+                    className={`flex ${isMe ? "justify-end" : "justify-start"} px-1`}
+                  >
+                    <div className="relative flex flex-wrap items-center gap-1" ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}>
+                      {message.reactions.map((reaction) => {
+                        const reactedByMe = hasReacted(message, reaction.emoji);
+                        return (
+                          <button
+                            key={`${message.id}-${reaction.emoji}`}
+                            type="button"
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
+                              reactedByMe
+                                ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.2)] text-[var(--brand-1)]"
+                                : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-300 hover:border-slate-400"
+                            }`}
+                            onClick={() => {
+                              if (reactedByMe) {
+                                onRemoveReaction(message.id!, reaction.emoji);
+                              } else {
+                                onAddReaction(message.id!, reaction.emoji);
+                              }
+                            }}
+                            title={reactedByMe ? t("remove_reaction") : t("add_reaction")}
+                          >
+                            <span>{reaction.emoji}</span>
+                            <span>{reaction.user_ids.length}</span>
+                          </button>
+                        );
+                      })}
                       <button
                         type="button"
-                        className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
-                        onClick={() => onDeleteMessage(message.id!)}
-                        title="Supprimer ce message"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-xs text-slate-300 transition hover:border-slate-400"
+                        onClick={() =>
+                          setReactionPickerMessageId((prev) =>
+                            prev === message.id ? null : message.id!
+                          )
+                        }
+                        title={t("add_reaction")}
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
+                        +
                       </button>
-                    )}
+                      {reactionPickerMessageId === message.id && (
+                        <div className={`absolute bottom-8 z-50 ${isMe ? "right-0" : "left-0"}`}>
+                          <EmojiPicker
+                            theme={Theme.DARK}
+                            onEmojiClick={(emojiData) => {
+                              onAddReaction(message.id!, emojiData.emoji);
+                              setReactionPickerMessageId(null);
+                            }}
+                            width={300}
+                            height={360}
+                            searchPlaceHolder={t("emoji_search")}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-              {message.id && (
-                <div
-                  className={`flex ${isMe ? "justify-end" : "justify-start"} px-1`}
-                >
-                  <div className="relative flex flex-wrap items-center gap-1" ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}>
-                    {message.reactions.map((reaction) => {
-                      const reactedByMe = hasReacted(message, reaction.emoji);
-                      return (
-                        <button
-                          key={`${message.id}-${reaction.emoji}`}
-                          type="button"
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
-                            reactedByMe
-                              ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.2)] text-[var(--brand-1)]"
-                              : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-300 hover:border-slate-400"
-                          }`}
-                          onClick={() => {
-                            if (reactedByMe) {
-                              onRemoveReaction(message.id!, reaction.emoji);
-                            } else {
-                              onAddReaction(message.id!, reaction.emoji);
-                            }
-                          }}
-                          title={reactedByMe ? "Retirer ma reaction" : "Ajouter ma reaction"}
-                        >
-                          <span>{reaction.emoji}</span>
-                          <span>{reaction.user_ids.length}</span>
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-xs text-slate-300 transition hover:border-slate-400"
-                      onClick={() =>
-                        setReactionPickerMessageId((prev) =>
-                          prev === message.id ? null : message.id!
-                        )
-                      }
-                      title="Ajouter une reaction"
-                    >
-                      +
-                    </button>
-                    {reactionPickerMessageId === message.id && (
-                      <div className={`absolute bottom-8 z-50 ${isMe ? "right-0" : "left-0"}`}>
-                        <EmojiPicker
-                          theme={Theme.DARK}
-                          onEmojiClick={(emojiData) => {
-                            onAddReaction(message.id!, emojiData.emoji);
-                            setReactionPickerMessageId(null);
-                          }}
-                          width={300}
-                          height={360}
-                          searchPlaceHolder="Rechercher..."
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
->>>>>>> dev
               </div>
             );
           })

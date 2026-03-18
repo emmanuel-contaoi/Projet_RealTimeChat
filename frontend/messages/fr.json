@@ -112,7 +112,10 @@
     "typing_one": "{username} écrit...",
     "typing_many": "{usernames} écrivent...",
     "emoji_search": "Rechercher...",
-    "emoji_ok": "OK"
+    "emoji_ok": "OK",
+    "react": "Réagir avec un emoji",
+    "remove_reaction": "Retirer ma réaction",
+    "add_reaction": "Ajouter une réaction"
   },
   "members": {
     "title": "Membres",
@@ -137,6 +140,17 @@
     "empty": "Aucun membre."
   },
   "friends": {
+    "requests_title": "Demandes d'amis",
+    "requests_subtitle": "Gère tes demandes envoyées et reçues",
+    "incoming": "Reçues",
+    "outgoing": "Envoyées",
+    "no_incoming": "Aucune demande reçue.",
+    "no_outgoing": "Aucune demande envoyée.",
+    "friend_label": "Ami",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "pending": "En attente",
+    "search_users": "Rechercher des utilisateurs",
     "search_title": "Trouver des utilisateurs",
     "search_subtitle": "Recherche et ajoute de nouveaux amis",
     "search_button": "Rechercher",

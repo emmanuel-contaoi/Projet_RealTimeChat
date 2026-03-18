@@ -112,7 +112,10 @@
     "typing_one": "{username} is typing...",
     "typing_many": "{usernames} are typing...",
     "emoji_search": "Search...",
-    "emoji_ok": "OK"
+    "emoji_ok": "OK",
+    "react": "React with an emoji",
+    "remove_reaction": "Remove my reaction",
+    "add_reaction": "Add a reaction"
   },
   "members": {
     "title": "Members",
@@ -137,6 +140,17 @@
     "empty": "No members."
   },
   "friends": {
+    "requests_title": "Friend requests",
+    "requests_subtitle": "Manage your sent and received requests",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "no_incoming": "No incoming requests.",
+    "no_outgoing": "No outgoing requests.",
+    "friend_label": "Friend",
+    "accept": "Accept",
+    "reject": "Decline",
+    "pending": "Pending",
+    "search_users": "Search users",
     "search_title": "Find users",
     "search_subtitle": "Search and add new friends",
     "search_button": "Search",
