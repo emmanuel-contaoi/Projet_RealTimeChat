@@ -69,3 +69,36 @@ impl UserRepository {
             .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_pool() -> PgPool {
+        crate::utils::test_pg_pool()
+    }
+
+    #[tokio::test]
+    async fn user_repository_queries_fail_fast_without_a_database() {
+        let pool = build_pool();
+
+        assert!(UserRepository::find_by_email(&pool, "alice@example.com")
+            .await
+            .is_err());
+        assert!(UserRepository::find_by_id(&pool, Uuid::new_v4())
+            .await
+            .is_err());
+        assert!(UserRepository::create(
+            &pool,
+            "alice@example.com",
+            "hashed",
+            Some("Alice"),
+            Some("Martin"),
+            Some("alice"),
+        )
+        .await
+        .is_err());
+        assert!(UserRepository::search(&pool, "%alice%").await.is_err());
+        assert!(UserRepository::list(&pool).await.is_err());
+    }
+}

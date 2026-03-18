@@ -56,7 +56,6 @@ impl BanRepository {
     }
 
     // Supprime le ban d'un utilisateur (unban)
-    #[allow(dead_code)]
     pub async fn delete(pool: &PgPool, server_id: Uuid, user_id: Uuid) -> sqlx::Result<u64> {
         sqlx::query("DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2")
             .bind(server_id)
@@ -64,5 +63,33 @@ impl BanRepository {
             .execute(pool)
             .await
             .map(|r| r.rows_affected())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_pool() -> PgPool {
+        crate::utils::test_pg_pool()
+    }
+
+    #[tokio::test]
+    async fn ban_repository_queries_fail_fast_without_a_database() {
+        let pool = build_pool();
+        let server_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+
+        assert!(
+            BanRepository::insert(&pool, server_id, user_id, Uuid::new_v4(), None)
+                .await
+                .is_err()
+        );
+        assert!(BanRepository::get_active_ban(&pool, server_id, user_id)
+            .await
+            .is_err());
+        assert!(BanRepository::delete(&pool, server_id, user_id)
+            .await
+            .is_err());
     }
 }

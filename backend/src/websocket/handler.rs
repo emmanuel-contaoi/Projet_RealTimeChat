@@ -155,10 +155,28 @@ async fn handle_client_event(
                 Ok(id) => id,
                 Err(_) => return,
             };
-            let membership =
-                ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
-            if membership.map(|m| m.is_none()).unwrap_or(true) {
-                return; // Pas membre → on ignore le message silencieusement
+
+            // 1. On vérifie d'abord si l'utilisateur a un rôle dans ce salon (Serveur)
+            let membership = ChannelRepository::get_member_role(&state.pool, channel_uuid, user_uuid).await;
+            let mut is_authorized = membership.unwrap_or(None).is_some();
+
+            // 2. Si ce n'est pas un serveur, on vérifie si c'est un Message Privé (DM)
+            if !is_authorized {
+                let is_dm = sqlx::query_scalar::<_, bool>(
+                    "SELECT EXISTS(SELECT 1 FROM dm_channels WHERE id = $1 AND (user1_id = $2 OR user2_id = $2))"
+                )
+                .bind(channel_uuid)
+                .bind(user_uuid)
+                .fetch_one(&state.pool)
+                .await
+                .unwrap_or(false);
+
+                is_authorized = is_dm;
+            }
+
+            // 3. Si ce n'est ni un serveur ni un DM valide, on bloque le message silencieusement
+            if !is_authorized {
+                return; 
             }
 
             // On s'assure que l'envoyeur est bien dans la room
@@ -182,9 +200,10 @@ async fn handle_client_event(
                 content: content.clone(),
                 username: username.to_string(),
                 created_at: Some(created_at.clone()),
+                reactions: Vec::new(),
             };
 
-            let msg_id = match collection.insert_one(new_message).await {
+            let msg_id = match collection.insert_one(new_message, None).await {
                 Ok(result) => result
                     .inserted_id
                     .as_object_id()
@@ -200,6 +219,7 @@ async fn handle_client_event(
                 username: username.to_string(),
                 content: content.clone(),
                 created_at,
+                reactions: Vec::new(),
             };
 
             if let Ok(json) = response.to_json() {
@@ -241,18 +261,7 @@ async fn handle_client_event(
                 .get_room_connections(&channel_id)
                 .await;
             let user_info = state.user_info.read().await;
-            let mut seen = std::collections::HashSet::new();
-            let mut users = Vec::new();
-            for cid in &conn_ids {
-                if let Some((uid, uname)) = user_info.get(cid) {
-                    if seen.insert(uid.clone()) {
-                        users.push(ChannelUser {
-                            user_id: uid.clone(),
-                            username: uname.clone(),
-                        });
-                    }
-                }
-            }
+            let users = collect_channel_users(&conn_ids, &user_info);
             drop(user_info);
 
             let channel_users_event = ServerEvent::ChannelUsers {
@@ -274,5 +283,324 @@ async fn handle_client_event(
                 .leave_room(&channel_id, conn_id)
                 .await;
         }
+    }
+}
+
+fn collect_channel_users(
+    connection_ids: &[String],
+    user_info: &std::collections::HashMap<String, (String, String)>,
+) -> Vec<ChannelUser> {
+    let mut seen = std::collections::HashSet::new();
+    let mut users = Vec::new();
+
+    for connection_id in connection_ids {
+        if let Some((user_id, username)) = user_info.get(connection_id) {
+            if seen.insert(user_id.clone()) {
+                users.push(ChannelUser {
+                    user_id: user_id.clone(),
+                    username: username.clone(),
+                });
+            }
+        }
+    }
+
+    users
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+    use std::collections::HashMap;
+    use tokio::sync::mpsc::error::TryRecvError;
+
+    async fn build_state() -> AppState {
+        crate::utils::test_app_state().await
+    }
+
+    #[tokio::test]
+    async fn join_channel_registers_connection_and_sends_channel_users_event() {
+        let state = build_state().await;
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let channel_id = Uuid::new_v4().to_string();
+
+        state.add_connection("conn-1".to_string(), tx).await;
+        state.register_user("conn-1", "user-1", "alice").await;
+
+        handle_client_event(
+            ClientEvent::JoinChannel {
+                channel_id: channel_id.clone(),
+            },
+            "user-1",
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        let room_connections = state
+            .room_manager
+            .lock()
+            .await
+            .get_room_connections(&channel_id)
+            .await;
+        assert_eq!(room_connections, vec!["conn-1".to_string()]);
+
+        match rx.try_recv() {
+            Ok(Message::Text(text)) => {
+                let payload: Value =
+                    serde_json::from_str(text.as_str()).expect("channel users payload");
+                assert_eq!(payload["type"], "channel_users");
+                assert_eq!(payload["channel_id"], channel_id);
+                assert_eq!(payload["users"][0]["user_id"], "user-1");
+                assert_eq!(payload["users"][0]["username"], "alice");
+            }
+            other => panic!("unexpected websocket message: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn leave_channel_removes_connection_from_room() {
+        let state = build_state().await;
+        let channel_id = Uuid::new_v4().to_string();
+
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room(&channel_id, "conn-1")
+            .await;
+
+        handle_client_event(
+            ClientEvent::LeaveChannel {
+                channel_id: channel_id.clone(),
+            },
+            "user-1",
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        let room_connections = state
+            .room_manager
+            .lock()
+            .await
+            .get_room_connections(&channel_id)
+            .await;
+        assert!(room_connections.is_empty());
+    }
+
+    #[tokio::test]
+    async fn typing_start_broadcasts_to_other_channel_members_only() {
+        let state = build_state().await;
+        let channel_id = Uuid::new_v4().to_string();
+        let (tx1, mut rx1) = tokio::sync::mpsc::unbounded_channel();
+        let (tx2, mut rx2) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx1).await;
+        state.add_connection("conn-2".to_string(), tx2).await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room(&channel_id, "conn-1")
+            .await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room(&channel_id, "conn-2")
+            .await;
+
+        handle_client_event(
+            ClientEvent::TypingStart {
+                channel_id: channel_id.clone(),
+            },
+            "user-1",
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        assert!(matches!(rx1.try_recv(), Err(TryRecvError::Empty)));
+        match rx2.try_recv() {
+            Ok(Message::Text(text)) => {
+                let payload: Value = serde_json::from_str(text.as_str()).expect("typing payload");
+                assert_eq!(payload["type"], "user_typing");
+                assert_eq!(payload["channel_id"], channel_id);
+                assert_eq!(payload["user_id"], "user-1");
+                assert_eq!(payload["username"], "alice");
+            }
+            other => panic!("unexpected websocket message: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn typing_stop_does_not_emit_any_message() {
+        let state = build_state().await;
+        let channel_id = Uuid::new_v4().to_string();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx).await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room(&channel_id, "conn-1")
+            .await;
+
+        handle_client_event(
+            ClientEvent::TypingStop { channel_id },
+            "user-1",
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        assert!(matches!(rx.try_recv(), Err(TryRecvError::Empty)));
+    }
+
+    #[tokio::test]
+    async fn message_send_with_invalid_channel_id_returns_early() {
+        let state = build_state().await;
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx).await;
+
+        handle_client_event(
+            ClientEvent::MessageSend {
+                channel_id: "invalid-channel-id".to_string(),
+                content: "hello".to_string(),
+            },
+            &Uuid::new_v4().to_string(),
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        assert!(matches!(rx.try_recv(), Err(TryRecvError::Empty)));
+        assert!(state
+            .room_manager
+            .lock()
+            .await
+            .get_room_connections("invalid-channel-id")
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn message_send_with_invalid_user_id_returns_early() {
+        let state = build_state().await;
+        let channel_id = Uuid::new_v4().to_string();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx).await;
+
+        handle_client_event(
+            ClientEvent::MessageSend {
+                channel_id: channel_id.clone(),
+                content: "hello".to_string(),
+            },
+            "not-a-uuid",
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        assert!(matches!(rx.try_recv(), Err(TryRecvError::Empty)));
+        assert!(state
+            .room_manager
+            .lock()
+            .await
+            .get_room_connections(&channel_id)
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn join_channel_deduplicates_users_with_multiple_connections() {
+        let state = build_state().await;
+        let channel_id = Uuid::new_v4().to_string();
+        let (tx1, _rx1) = tokio::sync::mpsc::unbounded_channel();
+        let (tx2, _rx2) = tokio::sync::mpsc::unbounded_channel();
+        let (tx3, mut rx3) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx1).await;
+        state.add_connection("conn-2".to_string(), tx2).await;
+        state.add_connection("conn-3".to_string(), tx3).await;
+        state.register_user("conn-1", "user-1", "alice").await;
+        state.register_user("conn-2", "user-1", "alice").await;
+        state.register_user("conn-3", "user-2", "bob").await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room(&channel_id, "conn-1")
+            .await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room(&channel_id, "conn-2")
+            .await;
+
+        handle_client_event(
+            ClientEvent::JoinChannel {
+                channel_id: channel_id.clone(),
+            },
+            "user-2",
+            "conn-3",
+            "bob",
+            &state,
+        )
+        .await;
+
+        match rx3.try_recv() {
+            Ok(Message::Text(text)) => {
+                let payload: Value =
+                    serde_json::from_str(text.as_str()).expect("channel users payload");
+                assert_eq!(payload["type"], "channel_users");
+                assert_eq!(payload["users"].as_array().map(Vec::len), Some(2));
+            }
+            other => panic!("unexpected websocket message: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn collect_channel_users_deduplicates_users_and_ignores_unknown_connections() {
+        let mut user_info = HashMap::new();
+        user_info.insert(
+            "conn-1".to_string(),
+            ("user-1".to_string(), "alice".to_string()),
+        );
+        user_info.insert(
+            "conn-2".to_string(),
+            ("user-1".to_string(), "alice".to_string()),
+        );
+        user_info.insert(
+            "conn-3".to_string(),
+            ("user-2".to_string(), "bob".to_string()),
+        );
+
+        let users = collect_channel_users(
+            &[
+                "conn-1".to_string(),
+                "missing".to_string(),
+                "conn-2".to_string(),
+                "conn-3".to_string(),
+            ],
+            &user_info,
+        );
+
+        assert_eq!(users.len(), 2);
+        assert_eq!(users[0].user_id, "user-1");
+        assert_eq!(users[0].username, "alice");
+        assert_eq!(users[1].user_id, "user-2");
+        assert_eq!(users[1].username, "bob");
     }
 }

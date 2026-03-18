@@ -169,3 +169,56 @@ impl ServerRepository {
         tx.commit().await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_pool() -> PgPool {
+        crate::utils::test_pg_pool()
+    }
+
+    #[tokio::test]
+    async fn server_repository_queries_fail_fast_without_a_database() {
+        let pool = build_pool();
+        let server_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+
+        assert!(ServerRepository::create(&pool, "backend", "invite123")
+            .await
+            .is_err());
+        assert!(ServerRepository::find_by_id(&pool, server_id).await.is_err());
+        assert!(ServerRepository::find_by_invite_code(&pool, "invite123")
+            .await
+            .is_err());
+        assert!(ServerRepository::list_for_user(&pool, user_id).await.is_err());
+        assert!(ServerRepository::update(&pool, server_id, "renamed")
+            .await
+            .is_err());
+        assert!(ServerRepository::delete(&pool, server_id).await.is_err());
+        assert!(ServerRepository::get_member_role(&pool, server_id, user_id)
+            .await
+            .is_err());
+        assert!(ServerRepository::add_member(&pool, server_id, user_id, "member")
+            .await
+            .is_err());
+        assert!(ServerRepository::remove_member(&pool, server_id, user_id)
+            .await
+            .is_err());
+        assert!(ServerRepository::update_member_role(&pool, server_id, user_id, "admin")
+            .await
+            .is_err());
+        assert!(ServerRepository::get_member_user_ids_by_invite(&pool, "invite123")
+            .await
+            .is_err());
+        assert!(ServerRepository::get_member_user_ids(&pool, server_id)
+            .await
+            .is_err());
+        assert!(ServerRepository::list_members(&pool, server_id).await.is_err());
+        assert!(
+            ServerRepository::transfer_ownership(&pool, server_id, user_id, Uuid::new_v4())
+                .await
+                .is_err()
+        );
+    }
+}

@@ -109,3 +109,173 @@ impl AppState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::extract::ws::Message;
+    use tokio::sync::mpsc::error::TryRecvError;
+
+    async fn build_state() -> AppState {
+        crate::utils::test_app_state().await
+    }
+
+    #[tokio::test]
+    async fn register_and_unregister_user_updates_online_status() {
+        let state = build_state().await;
+
+        state.register_user("conn-1", "user-1", "alice").await;
+
+        assert!(state.is_user_online("user-1").await);
+        assert_eq!(
+            state.unregister_user("conn-1").await,
+            Some(("user-1".to_string(), "alice".to_string()))
+        );
+        assert!(!state.is_user_online("user-1").await);
+    }
+
+    #[tokio::test]
+    async fn broadcast_all_respects_excluded_connection() {
+        let state = build_state().await;
+        let (tx1, mut rx1) = tokio::sync::mpsc::unbounded_channel();
+        let (tx2, mut rx2) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx1).await;
+        state.add_connection("conn-2".to_string(), tx2).await;
+        state
+            .broadcast_all(Message::Text("hello".into()), Some("conn-1"))
+            .await;
+
+        assert!(matches!(rx1.try_recv(), Err(TryRecvError::Empty)));
+        match rx2.try_recv() {
+            Ok(Message::Text(text)) => assert_eq!(text.as_str(), "hello"),
+            other => panic!("unexpected message: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn broadcast_helpers_target_expected_connections() {
+        let state = build_state().await;
+        let (tx1, mut rx1) = tokio::sync::mpsc::unbounded_channel();
+        let (tx2, mut rx2) = tokio::sync::mpsc::unbounded_channel();
+        let (tx3, mut rx3) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx1).await;
+        state.add_connection("conn-2".to_string(), tx2).await;
+        state.add_connection("conn-3".to_string(), tx3).await;
+        state.register_user("conn-1", "user-1", "alice").await;
+        state.register_user("conn-2", "user-2", "bob").await;
+        state.register_user("conn-3", "user-3", "charlie").await;
+
+        state
+            .broadcast_to_users(
+                &["user-1".to_string(), "user-3".to_string()],
+                Message::Text("users".into()),
+            )
+            .await;
+
+        match rx1.try_recv() {
+            Ok(Message::Text(text)) => assert_eq!(text.as_str(), "users"),
+            other => panic!("unexpected message for conn-1: {:?}", other),
+        }
+        assert!(matches!(rx2.try_recv(), Err(TryRecvError::Empty)));
+        match rx3.try_recv() {
+            Ok(Message::Text(text)) => assert_eq!(text.as_str(), "users"),
+            other => panic!("unexpected message for conn-3: {:?}", other),
+        }
+
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room("channel-1", "conn-1")
+            .await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room("channel-1", "conn-2")
+            .await;
+
+        state
+            .broadcast_to_channel("channel-1", Message::Text("room".into()), Some("conn-1"))
+            .await;
+
+        assert!(matches!(rx1.try_recv(), Err(TryRecvError::Empty)));
+        match rx2.try_recv() {
+            Ok(Message::Text(text)) => assert_eq!(text.as_str(), "room"),
+            other => panic!("unexpected room message for conn-2: {:?}", other),
+        }
+        assert!(matches!(rx3.try_recv(), Err(TryRecvError::Empty)));
+    }
+
+    #[tokio::test]
+    async fn remove_connection_cleans_up_room_membership() {
+        let state = build_state().await;
+        let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx).await;
+        state
+            .room_manager
+            .lock()
+            .await
+            .join_room("channel-1", "conn-1")
+            .await;
+
+        state.remove_connection("conn-1").await;
+
+        assert!(!state.connections.read().await.contains_key("conn-1"));
+        assert!(state
+            .room_manager
+            .lock()
+            .await
+            .get_room_connections("channel-1")
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn unregister_user_returns_none_when_connection_is_unknown() {
+        let state = build_state().await;
+
+        assert_eq!(state.unregister_user("missing-conn").await, None);
+    }
+
+    #[tokio::test]
+    async fn user_stays_online_while_another_connection_is_registered() {
+        let state = build_state().await;
+
+        state.register_user("conn-1", "user-1", "alice").await;
+        state.register_user("conn-2", "user-1", "alice").await;
+
+        assert!(state.is_user_online("user-1").await);
+        assert_eq!(
+            state.unregister_user("conn-1").await,
+            Some(("user-1".to_string(), "alice".to_string()))
+        );
+        assert!(state.is_user_online("user-1").await);
+    }
+
+    #[tokio::test]
+    async fn broadcast_all_without_exclusion_reaches_every_connection() {
+        let state = build_state().await;
+        let (tx1, mut rx1) = tokio::sync::mpsc::unbounded_channel();
+        let (tx2, mut rx2) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx1).await;
+        state.add_connection("conn-2".to_string(), tx2).await;
+
+        state
+            .broadcast_all(Message::Text("hello-all".into()), None)
+            .await;
+
+        match rx1.try_recv() {
+            Ok(Message::Text(text)) => assert_eq!(text.as_str(), "hello-all"),
+            other => panic!("unexpected message for conn-1: {:?}", other),
+        }
+        match rx2.try_recv() {
+            Ok(Message::Text(text)) => assert_eq!(text.as_str(), "hello-all"),
+            other => panic!("unexpected message for conn-2: {:?}", other),
+        }
+    }
+}

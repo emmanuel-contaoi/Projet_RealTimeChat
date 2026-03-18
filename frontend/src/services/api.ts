@@ -103,6 +103,10 @@ export const messagesService = {
   history: (channelId: string) => api.get(`/channels/${channelId}/messages`).then(r => r.data),
   update: (messageId: string, content: string) => api.put(`/messages/${messageId}`, { content }),
   delete: (messageId: string) => api.delete(`/messages/${messageId}`),
+  addReaction: (messageId: string, emoji: string) =>
+    api.put(`/messages/${messageId}/reactions`, { emoji }).then(r => r.data),
+  removeReaction: (messageId: string, emoji: string) =>
+    api.delete(`/messages/${messageId}/reactions`, { data: { emoji } }).then(r => r.data),
 };
 
 type GiphyGifApiItem = {
@@ -129,7 +133,7 @@ export type GifItem = {
 const GIPHY_API_URL = 'https://api.giphy.com/v1/gifs';
 const GIPHY_API_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || '';
 
-const mapGiphyGif = (gif: GiphyGifApiItem): GifItem | null => {
+export const mapGiphyGif = (gif: GiphyGifApiItem): GifItem | null => {
   const animated = gif.images?.fixed_width ?? gif.images?.fixed_height ?? gif.images?.original;
   const still = gif.images?.fixed_width_small_still ?? gif.images?.fixed_height_small_still;
 
