@@ -1,9 +1,11 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import type { Friend } from "../types";
 
 type FriendListProps = {
   friendList: Friend[];
   selectedFriend: string;
-  // 🔴 NOUVEAU : On récupère la liste des salons non lus
   unreadChannels: Set<string>;
   onSelectFriend: (friend: Friend) => void;
   onRemoveFriend: (friendId: string) => void;
@@ -12,18 +14,19 @@ type FriendListProps = {
 export default function FriendList({
   friendList,
   selectedFriend,
-  unreadChannels, // <-- Récupéré ici
+  unreadChannels,
   onSelectFriend,
   onRemoveFriend,
 }: FriendListProps) {
+  const t = useTranslations("friends");
+
   return (
     <div className="mt-4 flex flex-col gap-3">
       {friendList.map((friend) => {
-        // On vérifie si c'est l'ami actuellement sélectionné (sur l'ID, c'est plus sûr !)
+        // On vérifie si c'est l'ami actuellement sélectionné
         const isSelected = selectedFriend === friend.id;
         
-        // 🔴 NOUVEAU : On vérifie s'il y a un message non lu pour cet ami
-        // (En général dans les DMs, l'ID du channel privé ou l'ID de l'ami se retrouvent ici)
+        // On vérifie s'il y a un message non lu pour cet ami
         const isUnread = unreadChannels.has(friend.id) && !isSelected;
 
         return (
@@ -33,7 +36,7 @@ export default function FriendList({
               isSelected
                 ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.12)]"
                 : isUnread
-                ? "border-[rgba(255,255,255,0.2)] bg-[var(--surface-strong)]" // Plus visible si non lu
+                ? "border-[rgba(255,255,255,0.2)] bg-[var(--surface-strong)]"
                 : "border-[var(--stroke)] bg-[var(--surface-strong)] hover:bg-[var(--surface)]"
             }`}
             onClick={() => onSelectFriend(friend)}
@@ -45,7 +48,7 @@ export default function FriendList({
             role="button"
             tabIndex={0}
           >
-            {/* 🔴 LA PASTILLE DE NOTIFICATION */}
+            {/* LA PASTILLE DE NOTIFICATION */}
             {isUnread && (
               <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
             )}
@@ -63,7 +66,7 @@ export default function FriendList({
                       : "bg-[rgba(100,116,139,0.2)] text-slate-400"
                   }`}
                 >
-                  {friend.status}
+                  {friend.status === "En ligne" ? t("online") : t("offline")}
                 </span>
                 
                 <button
@@ -73,8 +76,8 @@ export default function FriendList({
                     onRemoveFriend(friend.id);
                   }}
                   type="button"
-                  aria-label={`Supprimer ${friend.name}`}
-                  title="Supprimer l'ami"
+                  aria-label={`${t("remove")} ${friend.name}`}
+                  title={t("remove")}
                 >
                   <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M3 6h18" strokeLinecap="round" strokeLinejoin="round" />

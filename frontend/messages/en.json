@@ -1,0 +1,170 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "add": "Add",
+    "delete": "Delete",
+    "save": "Save",
+    "loading": "Loading..."
+  },
+  "home": {
+    "title": "Nexus - Epitech Project 2026",
+    "tagline": "Your gaming hub, simple and instant.",
+    "description": "Create servers, organize channels, manage roles. Everything is synced in real time and persisted.",
+    "login": "Login",
+    "register": "Sign up",
+    "feature_realtime_title": "Real time",
+    "feature_realtime_desc": "Instant messages, presence and typing indicators. Everything updates live via WebSocket.",
+    "feature_channels_title": "Channels",
+    "feature_channels_desc": "Organize discussions by topic with dedicated channels. Each server can have its own channels.",
+    "feature_roles_title": "Roles",
+    "feature_roles_desc": "Manage permissions with a role system: Owner, Admin and Member. Transfer ownership when needed."
+  },
+  "login": {
+    "title": "Login",
+    "subtitle": "Welcome back",
+    "email": "Email",
+    "email_placeholder": "you@email.com",
+    "password": "Password",
+    "password_placeholder": "••••••••",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "error_invalid": "Invalid credentials"
+  },
+  "register": {
+    "title": "Create account",
+    "subtitle": "Join the community",
+    "last_name": "Last name",
+    "last_name_placeholder": "Smith",
+    "first_name": "First name",
+    "first_name_placeholder": "Alex",
+    "email": "Email *",
+    "email_placeholder": "alex@mail.com",
+    "username": "Username",
+    "username_placeholder": "ShadowFox",
+    "password": "Password *",
+    "password_placeholder": "••••••••",
+    "submit": "Create account",
+    "submitting": "Creating...",
+    "error": "Registration error"
+  },
+  "header": {
+    "app_name": "Nexus",
+    "profile": "Profile",
+    "edit_account": "Edit account",
+    "switch_account": "Switch account",
+    "logout": "Logout"
+  },
+  "sidebar": {
+    "servers": "Servers",
+    "friends": "Friends",
+    "servers_count": "{count} active",
+    "friends_count": "{count} friends"
+  },
+  "server_list": {
+    "create": "+ Create",
+    "join": "Join",
+    "copy_invite": "Copy invite code",
+    "copied": "Copied!",
+    "leave": "Leave server",
+    "rename": "Rename server",
+    "delete": "Delete server",
+    "rename_prompt": "New server name (20 chars max):"
+  },
+  "channels": {
+    "title": "Channels",
+    "add": "+ Add",
+    "rename": "Rename channel",
+    "delete": "Delete channel",
+    "rename_prompt": "New channel name (20 chars max):",
+    "empty": "No channels for this server."
+  },
+  "add_channel_modal": {
+    "title": "Add a channel",
+    "name_label": "Channel name",
+    "name_placeholder": "Ex: announcements",
+    "submit": "Add"
+  },
+  "create_server_modal": {
+    "title": "Create a server",
+    "name_label": "Server name",
+    "name_placeholder": "Ex: Studio",
+    "channels_label": "Channels",
+    "add_channel": "+ Add channels",
+    "submit": "Create and open"
+  },
+  "join_server_modal": {
+    "title": "Join a server",
+    "code_label": "Invite code",
+    "code_placeholder": "Ex: a1b2c3d4",
+    "submit": "Join",
+    "submitting": "Joining..."
+  },
+  "chat": {
+    "no_messages": "No messages yet.",
+    "select_channel": "Select a channel.",
+    "placeholder": "Write a message...",
+    "send": "Send",
+    "edit": "Edit message",
+    "delete": "Delete message",
+    "typing_one": "{username} is typing...",
+    "typing_many": "{usernames} are typing...",
+    "emoji_search": "Search...",
+    "emoji_ok": "OK",
+    "react": "React with an emoji",
+    "remove_reaction": "Remove my reaction",
+    "add_reaction": "Add a reaction"
+  },
+  "members": {
+    "title": "Members",
+    "online_count": "{count} online",
+    "you": "(you)",
+    "role_owner": "Owner",
+    "role_admin": "Admin",
+    "role_member": "Member",
+    "demote": "Demote",
+    "promote": "Promote",
+    "promote_title": "Promote to admin",
+    "demote_title": "Demote to member",
+    "transfer": "Transfer",
+    "transfer_title": "Transfer ownership",
+    "kick": "Kick",
+    "kick_title": "Kick member",
+    "ban": "Ban",
+    "ban_title": "Permanently ban",
+    "ban_temp": "Temp ban",
+    "ban_temp_title": "Temporarily ban",
+    "ban_duration_placeholder": "Duration (minutes)",
+    "empty": "No members."
+  },
+  "friends": {
+    "requests_title": "Friend requests",
+    "requests_subtitle": "Manage your sent and received requests",
+    "incoming": "Incoming",
+    "outgoing": "Outgoing",
+    "no_incoming": "No incoming requests.",
+    "no_outgoing": "No outgoing requests.",
+    "friend_label": "Friend",
+    "accept": "Accept",
+    "reject": "Decline",
+    "pending": "Pending",
+    "search_users": "Search users",
+    "search_title": "Find users",
+    "search_subtitle": "Search and add new friends",
+    "search_button": "Search",
+    "search_placeholder": "Username, email, first name...",
+    "no_results": "No users found.",
+    "searching": "Searching...",
+    "loading": "Loading users...",
+    "no_users": "No users available.",
+    "add": "+",
+    "online": "Online",
+    "offline": "Offline",
+    "remove": "Remove"
+  },
+  "loading": {
+    "message": "Loading..."
+  }
+}

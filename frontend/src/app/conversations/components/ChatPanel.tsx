@@ -1,4 +1,7 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import type { ChannelMessage } from "../types";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { gifService } from "@/services/api";
@@ -61,6 +64,9 @@ export default function ChatPanel({
   onAddReaction,
   onRemoveReaction,
 }: ChatPanelProps) {
+  const t = useTranslations("chat");
+  const tc = useTranslations("common");
+
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -69,8 +75,8 @@ export default function ChatPanel({
   const [gifLoading, setGifLoading] = useState(false);
   const [gifError, setGifError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const gifPickerRef = useRef<HTMLDivElement | null>(null);
   const reactionPickerRef = useRef<HTMLDivElement | null>(null);
@@ -159,11 +165,9 @@ export default function ChatPanel({
       <div className="flex items-center justify-between border-b border-[var(--stroke)] px-6 py-4">
         <div>
           <p className="text-sm font-semibold text-white">
-            {channelName ? `# ${channelName}` : "Conversation"}
+            {channelName ? `# ${channelName}` : t("select_channel")}
           </p>
-          <p className="text-xs text-slate-400">
-            {selectedServer || "Aucun serveur"}
-          </p>
+          <p className="text-xs text-slate-400">{selectedServer}</p>
         </div>
         {selectedChannel && (
           <span className="rounded-full bg-[rgba(0,212,255,0.15)] px-3 py-1 text-[10px] font-semibold tracking-wide text-[var(--brand-1)]">
@@ -179,7 +183,6 @@ export default function ChatPanel({
             const canDelete = isMe || currentUserRole === "owner" || currentUserRole === "admin";
             const prevMessage = index > 0 ? messages[index - 1] : null;
 
-            // Logique de séparation de Date
             let showDateSeparator = false;
             if (message.created_at) {
               const msgDate = new Date(message.created_at).toDateString();
@@ -219,13 +222,13 @@ export default function ChatPanel({
                   {/* BOUTONS ACTIONS POUR MOI (À GAUCHE DE LA BULLE) */}
                   {isMe && message.id && editingId !== message.id && (
                     <div className="hidden items-center gap-1 pb-1 group-hover:flex">
-                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-amber-300" onClick={() => setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!)} title="Réagir avec un emoji">
+                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-amber-300" onClick={() => setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!)} title={t("react")}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
                       </button>
-                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-blue-400" onClick={() => { setEditingId(message.id!); setEditContent(message.content); }} title="Modifier ce message">
+                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-blue-400" onClick={() => { setEditingId(message.id!); setEditContent(message.content); }} title={t("edit")}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>
-                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-red-400" onClick={() => onDeleteMessage(message.id!)} title="Supprimer ce message">
+                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-red-400" onClick={() => onDeleteMessage(message.id!)} title={t("delete")}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                       </button>
                     </div>
@@ -256,8 +259,8 @@ export default function ChatPanel({
                       {editingId === message.id ? (
                         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (editContent.trim() && message.id) { onEditMessage(message.id, editContent.trim()); setEditingId(null); } }}>
                           <input className="flex-1 rounded-lg bg-[rgba(0,0,0,0.2)] px-2 py-1 text-sm text-white outline-none" value={editContent} onChange={(e) => setEditContent(e.target.value)} autoFocus onKeyDown={(e) => { if (e.key === "Escape") setEditingId(null); }} />
-                          <button type="submit" className="text-[10px] text-green-400 hover:text-green-300">OK</button>
-                          <button type="button" className="text-[10px] text-slate-400 hover:text-slate-300" onClick={() => setEditingId(null)}>Annuler</button>
+                          <button type="submit" className="text-[10px] text-green-400 hover:text-green-300">{t("emoji_ok")}</button>
+                          <button type="button" className="text-[10px] text-slate-400 hover:text-slate-300" onClick={() => setEditingId(null)}>{tc("cancel")}</button>
                         </form>
                       ) : (
                         isGifUrl(message.content) ? (
@@ -295,6 +298,7 @@ export default function ChatPanel({
                                   onAddReaction(message.id!, reaction.emoji);
                                 }
                               }}
+                              title={reactedByMe ? t("remove_reaction") : t("add_reaction")}
                             >
                               <span>{reaction.emoji}</span>
                               <span className="font-semibold">{reaction.user_ids?.length || 0}</span>
@@ -307,6 +311,7 @@ export default function ChatPanel({
                             type="button"
                             className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-[10px] text-slate-400 transition hover:border-slate-400"
                             onClick={() => setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!)}
+                            title={t("add_reaction")}
                           >
                             +
                           </button>
@@ -322,7 +327,7 @@ export default function ChatPanel({
                               }}
                               width={280}
                               height={350}
-                              searchPlaceHolder="Rechercher..."
+                              searchPlaceHolder={t("emoji_search")}
                             />
                           </div>
                         )}
@@ -344,11 +349,11 @@ export default function ChatPanel({
                   {/* BOUTONS ACTIONS POUR LES AUTRES (À DROITE DE LA BULLE) */}
                   {!isMe && message.id && editingId !== message.id && (
                     <div className="hidden items-center gap-1 pb-1 group-hover:flex">
-                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-amber-300" onClick={() => setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!)} title="Réagir avec un emoji">
+                      <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-amber-300" onClick={() => setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!)} title={t("react")}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" /><line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" /></svg>
                       </button>
                       {canDelete && (
-                        <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-red-400" onClick={() => onDeleteMessage(message.id!)} title="Supprimer">
+                        <button type="button" className="rounded-full p-1 text-slate-500 transition hover:text-red-400" onClick={() => onDeleteMessage(message.id!)} title={t("delete")}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                         </button>
                       )}
@@ -362,7 +367,7 @@ export default function ChatPanel({
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <p className="text-sm text-slate-500">
-              {selectedChannel ? "C'est bien calme par ici..." : "Sélectionnez un channel."}
+              {selectedChannel ? t("no_messages") : t("select_channel")}
             </p>
           </div>
         )}
@@ -377,7 +382,9 @@ export default function ChatPanel({
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:150ms]" />
               <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:300ms]" />
             </span>
-            {typingUsers.length === 1 ? `${typingUsers[0]} écrit...` : `${typingUsers.join(", ")} écrivent...`}
+            {typingUsers.length === 1
+              ? t("typing_one", { username: typingUsers[0] })
+              : t("typing_many", { usernames: typingUsers.join(", ") })}
           </span>
         </div>
       )}
@@ -386,7 +393,7 @@ export default function ChatPanel({
       <form className="flex items-center gap-3 border-t border-[var(--stroke)] px-6 py-4" onSubmit={handleSubmit}>
         <input
           className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] px-5 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-[var(--brand-1)]"
-          placeholder="Écris un message..."
+          placeholder={t("placeholder")}
           value={input}
           onChange={handleInputChange}
           disabled={!selectedChannel}
@@ -397,7 +404,16 @@ export default function ChatPanel({
           </button>
           {showEmojiPicker && (
             <div className="absolute bottom-12 right-0 z-50">
-              <EmojiPicker theme={Theme.DARK} onEmojiClick={(emojiData) => { setInput((prev) => prev + emojiData.emoji); setShowEmojiPicker(false); }} width={320} height={400} />
+              <EmojiPicker
+                theme={Theme.DARK}
+                onEmojiClick={(emojiData) => {
+                  setInput((prev) => prev + emojiData.emoji);
+                  setShowEmojiPicker(false);
+                }}
+                width={320}
+                height={400}
+                searchPlaceHolder={t("emoji_search")}
+              />
             </div>
           )}
         </div>
@@ -420,8 +436,12 @@ export default function ChatPanel({
             </div>
           )}
         </div>
-        <button type="submit" className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0" disabled={!selectedChannel || !input.trim()}>
-          Envoyer
+        <button
+          type="submit"
+          className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+          disabled={!selectedChannel || !input.trim()}
+        >
+          {t("send")}
         </button>
       </form>
     </section>
