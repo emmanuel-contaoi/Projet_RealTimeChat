@@ -103,6 +103,78 @@ export const messagesService = {
   history: (channelId: string) => api.get(`/channels/${channelId}/messages`).then(r => r.data),
   update: (messageId: string, content: string) => api.put(`/messages/${messageId}`, { content }),
   delete: (messageId: string) => api.delete(`/messages/${messageId}`),
+  addReaction: (messageId: string, emoji: string) =>
+    api.put(`/messages/${messageId}/reactions`, { emoji }).then(r => r.data),
+  removeReaction: (messageId: string, emoji: string) =>
+    api.delete(`/messages/${messageId}/reactions`, { data: { emoji } }).then(r => r.data),
+};
+
+type GiphyGifApiItem = {
+  id: string;
+  title: string;
+  images?: {
+    fixed_width_small_still?: { url?: string };
+    fixed_height_small_still?: { url?: string };
+    fixed_width?: { url?: string; width?: string; height?: string };
+    fixed_height?: { url?: string; width?: string; height?: string };
+    original?: { url?: string; width?: string; height?: string };
+  };
+};
+
+export type GifItem = {
+  id: string;
+  title: string;
+  previewUrl: string;
+  url: string;
+  width: number;
+  height: number;
+};
+
+const GIPHY_API_URL = 'https://api.giphy.com/v1/gifs';
+const GIPHY_API_KEY = process.env.NEXT_PUBLIC_GIPHY_API_KEY || '';
+
+export const mapGiphyGif = (gif: GiphyGifApiItem): GifItem | null => {
+  const animated = gif.images?.fixed_width ?? gif.images?.fixed_height ?? gif.images?.original;
+  const still = gif.images?.fixed_width_small_still ?? gif.images?.fixed_height_small_still;
+
+  const url = animated?.url;
+  if (!url) return null;
+
+  const width = Number.parseInt(animated?.width ?? '0', 10) || 0;
+  const height = Number.parseInt(animated?.height ?? '0', 10) || 0;
+
+  return {
+    id: gif.id,
+    title: gif.title || 'GIF',
+    previewUrl: still?.url ?? url,
+    url,
+    width,
+    height,
+  };
+};
+
+const fetchGiphy = async (endpoint: 'trending' | 'search', params: Record<string, string | number>) => {
+  if (!GIPHY_API_KEY) {
+    throw new Error('NEXT_PUBLIC_GIPHY_API_KEY is missing');
+  }
+
+  const response = await axios.get<{ data: GiphyGifApiItem[] }>(`${GIPHY_API_URL}/${endpoint}`, {
+    params: {
+      api_key: GIPHY_API_KEY,
+      rating: 'pg-13',
+      ...params,
+    },
+  });
+
+  return response.data.data
+    .map(mapGiphyGif)
+    .filter((gif): gif is GifItem => gif !== null);
+};
+
+export const gifService = {
+  isConfigured: () => Boolean(GIPHY_API_KEY),
+  trending: (limit = 24) => fetchGiphy('trending', { limit }),
+  search: (query: string, limit = 24) => fetchGiphy('search', { q: query, limit }),
 };
 
 export const friendsService = {
@@ -111,9 +183,30 @@ export const friendsService = {
     return response.data;
   },
 
-  add: async (friendId: string) => {
-    const response = await api.post('/friends', { friend_id: friendId });
+  sendRequest: async (friendId: string) => {
+    await api.post('/friends', { friend_id: friendId });
+  },
+
+  incomingRequests: async () => {
+    const response = await api.get('/friends/requests/incoming');
     return response.data;
+  },
+
+  outgoingRequests: async () => {
+    const response = await api.get('/friends/requests/outgoing');
+    return response.data;
+  },
+
+  acceptRequest: async (requestId: string) => {
+    await api.post(`/friends/requests/${requestId}/accept`);
+  },
+
+  rejectRequest: async (requestId: string) => {
+    await api.post(`/friends/requests/${requestId}/reject`);
+  },
+
+  cancelRequest: async (requestId: string) => {
+    await api.delete(`/friends/requests/${requestId}`);
   },
 
   remove: async (friendId: string) => {

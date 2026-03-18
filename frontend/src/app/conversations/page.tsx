@@ -162,6 +162,8 @@ export default function ConversationsPage() {
             onTyping={chat.handleTyping}
             onEditMessage={chat.handleEditMessage}
             onDeleteMessage={chat.handleDeleteMessage}
+            onAddReaction={chat.handleAddReaction}
+            onRemoveReaction={chat.handleRemoveReaction}
           />
         ) : (
           <FriendsPanel
@@ -172,7 +174,13 @@ export default function ConversationsPage() {
             friendResults={friends.friendResults}
             allUsersLoading={friends.allUsersLoading}
             allUsers={friends.allUsers}
-            onAddFriend={friends.handleAddFriend}
+            friendList={friends.friendList}
+            incomingRequests={friends.incomingRequests}
+            outgoingRequests={friends.outgoingRequests}
+            onSendFriendRequest={friends.handleSendFriendRequest}
+            onAcceptRequest={friends.handleAcceptFriendRequest}
+            onRejectRequest={friends.handleRejectFriendRequest}
+            onCancelRequest={friends.handleCancelFriendRequest}
           />
         )}
 

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import useWebSocket from "@/hooks/useWebSocket";
 import { authService, messagesService } from "@/services/api";
-import type { ChannelMessage } from "../types";
+import type { ChannelMessage, MessageReaction } from "../types";
 
 type UseChatOptions = {
   onExtraWsEvent?: (event: { type: string; [key: string]: unknown }) => void;
@@ -21,6 +21,22 @@ export default function useChat(options?: UseChatOptions) {
     activeChannelRef.current = channelId;
   }, []);
 
+  const normalizeReactions = useCallback((reactions: unknown): MessageReaction[] => {
+    if (!Array.isArray(reactions)) return [];
+    return reactions
+      .filter((reaction): reaction is { emoji: string; user_ids?: string[] } => (
+        typeof reaction === "object" &&
+        reaction !== null &&
+        typeof (reaction as { emoji?: unknown }).emoji === "string"
+      ))
+      .map((reaction) => ({
+        emoji: reaction.emoji,
+        user_ids: Array.isArray(reaction.user_ids)
+          ? reaction.user_ids.filter((id): id is string => typeof id === "string")
+          : [],
+      }));
+  }, []);
+
   // Gere les messages recus par le WebSocket
   const handleWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
@@ -32,6 +48,7 @@ export default function useChat(options?: UseChatOptions) {
           username: event.username as string,
           content: event.content as string,
           created_at: event.created_at as string | undefined,
+          reactions: normalizeReactions(event.reactions),
         };
         setMessages((prev) => {
           if (prev.some((m) => m.id && m.id === msg.id)) return prev;
@@ -88,6 +105,14 @@ export default function useChat(options?: UseChatOptions) {
         setMessages((prev) => prev.filter((m) => m.id !== mid));
       }
 
+      if (event.type === "message_reaction_updated") {
+        const mid = event.message_id as string;
+        const reactions = normalizeReactions(event.reactions);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === mid ? { ...m, reactions } : m))
+        );
+      }
+
       if (event.type === "error") {
         console.warn("[WS] Server error:", event.message);
       }
@@ -106,7 +131,7 @@ export default function useChat(options?: UseChatOptions) {
         });
       }
     },
-    []
+    [normalizeReactions]
   );
 
   const { sendMessage, joinChannel, leaveChannel, startTyping, stopTyping, isConnected } =
@@ -121,12 +146,20 @@ export default function useChat(options?: UseChatOptions) {
     setTypingUsers({});
     try {
       const data = await messagesService.history(channelId);
-      setMessages(data);
+      const nextMessages = Array.isArray(data)
+        ? data.map((msg) => ({
+            ...msg,
+            reactions: normalizeReactions(
+              (msg as { reactions?: unknown }).reactions
+            ),
+          }))
+        : [];
+      setMessages(nextMessages);
     } catch (err) {
       console.error("[API] Failed to load messages:", err);
       setMessages([]);
     }
-  }, []);
+  }, [normalizeReactions]);
 
   // Rejoint ou quitte un channel via WebSocket
   const syncChannel = useCallback(
@@ -176,6 +209,24 @@ export default function useChat(options?: UseChatOptions) {
     }
   }, []);
 
+  const handleAddReaction = useCallback(async (messageId: string, emoji: string) => {
+    try {
+      const reactions = normalizeReactions(await messagesService.addReaction(messageId, emoji));
+      setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, reactions } : m));
+    } catch (err) {
+      console.error("[API] Add reaction error:", err);
+    }
+  }, [normalizeReactions]);
+
+  const handleRemoveReaction = useCallback(async (messageId: string, emoji: string) => {
+    try {
+      const reactions = normalizeReactions(await messagesService.removeReaction(messageId, emoji));
+      setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, reactions } : m));
+    } catch (err) {
+      console.error("[API] Remove reaction error:", err);
+    }
+  }, [normalizeReactions]);
+
   const handleTyping = useCallback(() => {
     if (!activeChannelRef.current) return;
     if (typingThrottleRef.current) return;
@@ -203,6 +254,8 @@ export default function useChat(options?: UseChatOptions) {
     handleSendMessage,
     handleEditMessage,
     handleDeleteMessage,
+    handleAddReaction,
+    handleRemoveReaction,
     handleTyping,
   };
 }

@@ -12,8 +12,11 @@ pub async fn run_migrations(pool: &PgPool) {
             last_name TEXT,
             username TEXT,
             created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-        )"
-    ).execute(pool).await.expect("Migration users echouee");
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration users echouee");
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS servers (
@@ -21,8 +24,11 @@ pub async fn run_migrations(pool: &PgPool) {
             name TEXT NOT NULL,
             invite_code TEXT UNIQUE NOT NULL,
             created_at TIMESTAMP DEFAULT now()
-        )"
-    ).execute(pool).await.expect("Migration servers echouee");
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration servers echouee");
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS channels (
@@ -30,8 +36,11 @@ pub async fn run_migrations(pool: &PgPool) {
             server_id UUID NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             type TEXT NOT NULL DEFAULT 'text'
-        )"
-    ).execute(pool).await.expect("Migration channels echouee");
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration channels echouee");
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS members (
@@ -40,16 +49,54 @@ pub async fn run_migrations(pool: &PgPool) {
             user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             role TEXT NOT NULL DEFAULT 'member',
             UNIQUE(server_id, user_id)
-        )"
-    ).execute(pool).await.expect("Migration members echouee");
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration members echouee");
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS user_friends (
             user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             friend_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             PRIMARY KEY (user_id, friend_id)
-        )"
-    ).execute(pool).await.expect("Migration user_friends echouee");
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration user_friends echouee");
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS friend_requests (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            receiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            responded_at TIMESTAMPTZ,
+            CHECK (sender_id <> receiver_id),
+            CHECK (status IN ('pending', 'accepted', 'rejected'))
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration friend_requests echouee");
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_friend_requests_receiver_status
+         ON friend_requests(receiver_id, status, created_at DESC)",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration idx_friend_requests_receiver_status echouee");
+
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_friend_requests_sender_status
+         ON friend_requests(sender_id, status, created_at DESC)",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration idx_friend_requests_sender_status echouee");
 
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS server_bans (
@@ -60,8 +107,11 @@ pub async fn run_migrations(pool: &PgPool) {
             expires_at  TIMESTAMP,
             created_at  TIMESTAMP DEFAULT now(),
             UNIQUE(server_id, user_id)
-        )"
-    ).execute(pool).await.expect("Migration server_bans echouee");
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration server_bans echouee");
 
     // Fix les doublons de owner (garde un seul owner par serveur)
     sqlx::query(
@@ -72,6 +122,9 @@ pub async fn run_migrations(pool: &PgPool) {
                FROM members
                WHERE role = 'owner'
                ORDER BY server_id, id
-           )"
-    ).execute(pool).await.ok();
+           )",
+    )
+    .execute(pool)
+    .await
+    .ok();
 }

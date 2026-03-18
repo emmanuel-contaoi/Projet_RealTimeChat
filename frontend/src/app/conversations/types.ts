@@ -12,6 +12,11 @@ export type Channel = {
   type: string;
 };
 
+export type MessageReaction = {
+  emoji: string;
+  user_ids: string[];
+};
+
 export type ChannelMessage = {
   id?: string;
   channel_id: string;
@@ -19,12 +24,21 @@ export type ChannelMessage = {
   username: string;
   content: string;
   created_at?: string;
+  reactions: MessageReaction[];
 };
 
 export type Friend = {
   id: string;
   name: string;
   status: string;
+};
+
+export type FriendRequest = {
+  id: string;
+  status: string;
+  created_at: string;
+  responded_at?: string | null;
+  user: UserSearchResult;
 };
 
 export type Member = {

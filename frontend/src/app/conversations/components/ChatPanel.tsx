@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { ChannelMessage } from "../types";
 import EmojiPicker, { Theme } from "emoji-picker-react";
+import { gifService } from "@/services/api";
+import type { GifItem } from "@/services/api";
+import { isGifUrl } from "../utils";
 
 type ChatPanelProps = {
   channelName: string;
@@ -17,6 +20,8 @@ type ChatPanelProps = {
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
   onDeleteMessage: (messageId: string) => void;
+  onAddReaction: (messageId: string, emoji: string) => void;
+  onRemoveReaction: (messageId: string, emoji: string) => void;
 };
 
 export default function ChatPanel({
@@ -31,15 +36,25 @@ export default function ChatPanel({
   onTyping,
   onEditMessage,
   onDeleteMessage,
+  onAddReaction,
+  onRemoveReaction,
 }: ChatPanelProps) {
   const t = useTranslations("chat");
   const tc = useTranslations("common");
 
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+  const [gifSearch, setGifSearch] = useState("");
+  const [gifResults, setGifResults] = useState<GifItem[]>([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
+  const gifPickerRef = useRef<HTMLDivElement | null>(null);
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -55,16 +70,84 @@ export default function ChatPanel({
     if (e.target.value.trim()) onTyping();
   };
 
+<<<<<<< features/internationalization
+=======
+  const hasReacted = (message: ChannelMessage, emoji: string) =>
+    message.reactions.some(
+      (reaction) =>
+        reaction.emoji === emoji && reaction.user_ids.includes(currentUserId)
+    );
+
+  // Ferme les pickers si on clique en dehors
+>>>>>>> dev
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
         setShowEmojiPicker(false);
+      }
+      if (gifPickerRef.current && !gifPickerRef.current.contains(e.target as Node)) {
+        setShowGifPicker(false);
+      }
+      if (
+        reactionPickerRef.current &&
+        !reactionPickerRef.current.contains(e.target as Node)
+      ) {
+        setReactionPickerMessageId(null);
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+<<<<<<< features/internationalization
+=======
+  useEffect(() => {
+    setReactionPickerMessageId(null);
+  }, [selectedChannel]);
+
+  // Charge les GIFs trending/recherche quand le panel est ouvert
+  useEffect(() => {
+    if (!showGifPicker) return;
+
+    if (!gifService.isConfigured()) {
+      setGifResults([]);
+      setGifLoading(false);
+      setGifError("Ajoute NEXT_PUBLIC_GIPHY_API_KEY dans frontend/.env.local");
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setGifLoading(true);
+      setGifError("");
+      try {
+        const query = gifSearch.trim();
+        const data = query
+          ? await gifService.search(query, 24)
+          : await gifService.trending(24);
+        if (!cancelled) {
+          setGifResults(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setGifResults([]);
+          setGifError("Impossible de charger les GIFs pour le moment.");
+        }
+      } finally {
+        if (!cancelled) {
+          setGifLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [showGifPicker, gifSearch]);
+
+  // Scroll automatique vers le dernier message
+>>>>>>> dev
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -113,6 +196,7 @@ export default function ChatPanel({
                     <div className="h-px flex-1 bg-[var(--stroke)]" />
                   </div>
                 )}
+<<<<<<< features/internationalization
                 <div className={`group flex items-end gap-1.5 ${isMe ? "justify-end" : "justify-start"}`}>
                   {isMe && message.id && editingId !== message.id && (
                     <div className="hidden items-center gap-1 pb-1 group-hover:flex">
@@ -138,6 +222,98 @@ export default function ChatPanel({
                         </svg>
                       </button>
                     </div>
+=======
+              <div
+                className={`group flex items-end gap-1.5 ${isMe ? "justify-end" : "justify-start"}`}
+              >
+                {isMe && message.id && editingId !== message.id && (
+                  <div className="hidden items-center gap-1 pb-1 group-hover:flex">
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
+                      onClick={() =>
+                        setReactionPickerMessageId((prev) =>
+                          prev === message.id ? null : message.id!
+                        )
+                      }
+                      title="Reagir avec un emoji"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-blue-400"
+                      onClick={() => { setEditingId(message.id!); setEditContent(message.content); }}
+                      title="Modifier ce message"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
+                      onClick={() => onDeleteMessage(message.id!)}
+                      title="Supprimer ce message"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+                <div
+                  className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                    isMe
+                      ? "bg-[var(--brand-1)] text-slate-900"
+                      : "bg-[var(--surface-strong)] text-slate-200"
+                  }`}
+                >
+                  {!isMe && (
+                    <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--brand-1)]">
+                      {message.username}
+                    </p>
+                  )}
+                  {editingId === message.id ? (
+                    <form
+                      className="flex gap-2"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (editContent.trim() && message.id) {
+                          onEditMessage(message.id, editContent.trim());
+                          setEditingId(null);
+                        }
+                      }}
+                    >
+                      <input
+                        className="flex-1 rounded-lg bg-[rgba(0,0,0,0.2)] px-2 py-1 text-sm text-white outline-none"
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => { if (e.key === "Escape") setEditingId(null); }}
+                      />
+                      <button type="submit" className="text-[10px] text-green-400 hover:text-green-300">OK</button>
+                      <button type="button" className="text-[10px] text-slate-400 hover:text-slate-300" onClick={() => setEditingId(null)}>Annuler</button>
+                    </form>
+                  ) : (
+                    isGifUrl(message.content) ? (
+                      <img
+                        src={message.content}
+                        alt="GIF"
+                        loading="lazy"
+                        className="max-h-64 w-auto rounded-xl object-contain"
+                      />
+                    ) : (
+                      <p className="break-all">{message.content}</p>
+                    )
+>>>>>>> dev
                   )}
                   <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isMe ? "bg-[var(--brand-1)] text-slate-900" : "bg-[var(--surface-strong)] text-slate-200"}`}>
                     {!isMe && (
@@ -190,6 +366,103 @@ export default function ChatPanel({
                     </div>
                   )}
                 </div>
+<<<<<<< features/internationalization
+=======
+                {!isMe && message.id && editingId !== message.id && (
+                  <div className="hidden items-center gap-1 pb-1 group-hover:flex">
+                    <button
+                      type="button"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
+                      onClick={() =>
+                        setReactionPickerMessageId((prev) =>
+                          prev === message.id ? null : message.id!
+                        )
+                      }
+                      title="Reagir avec un emoji"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                      </svg>
+                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
+                        onClick={() => onDeleteMessage(message.id!)}
+                        title="Supprimer ce message"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              {message.id && (
+                <div
+                  className={`flex ${isMe ? "justify-end" : "justify-start"} px-1`}
+                >
+                  <div className="relative flex flex-wrap items-center gap-1" ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}>
+                    {message.reactions.map((reaction) => {
+                      const reactedByMe = hasReacted(message, reaction.emoji);
+                      return (
+                        <button
+                          key={`${message.id}-${reaction.emoji}`}
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
+                            reactedByMe
+                              ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.2)] text-[var(--brand-1)]"
+                              : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-300 hover:border-slate-400"
+                          }`}
+                          onClick={() => {
+                            if (reactedByMe) {
+                              onRemoveReaction(message.id!, reaction.emoji);
+                            } else {
+                              onAddReaction(message.id!, reaction.emoji);
+                            }
+                          }}
+                          title={reactedByMe ? "Retirer ma reaction" : "Ajouter ma reaction"}
+                        >
+                          <span>{reaction.emoji}</span>
+                          <span>{reaction.user_ids.length}</span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-xs text-slate-300 transition hover:border-slate-400"
+                      onClick={() =>
+                        setReactionPickerMessageId((prev) =>
+                          prev === message.id ? null : message.id!
+                        )
+                      }
+                      title="Ajouter une reaction"
+                    >
+                      +
+                    </button>
+                    {reactionPickerMessageId === message.id && (
+                      <div className={`absolute bottom-8 z-50 ${isMe ? "right-0" : "left-0"}`}>
+                        <EmojiPicker
+                          theme={Theme.DARK}
+                          onEmojiClick={(emojiData) => {
+                            onAddReaction(message.id!, emojiData.emoji);
+                            setReactionPickerMessageId(null);
+                          }}
+                          width={300}
+                          height={360}
+                          searchPlaceHolder="Rechercher..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+>>>>>>> dev
               </div>
             );
           })
@@ -251,6 +524,60 @@ export default function ChatPanel({
                 height={400}
                 searchPlaceHolder={t("emoji_search")}
               />
+            </div>
+          )}
+        </div>
+        <div className="relative" ref={gifPickerRef}>
+          <button
+            type="button"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-[11px] font-semibold tracking-wide transition hover:bg-[var(--surface)] disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => {
+              setShowGifPicker((prev) => !prev);
+              setShowEmojiPicker(false);
+            }}
+            disabled={!selectedChannel}
+            title="GIF"
+          >
+            GIF
+          </button>
+          {showGifPicker && (
+            <div className="absolute bottom-12 right-0 z-50 w-[340px] rounded-2xl border border-[var(--stroke)] bg-[var(--surface)] p-3 shadow-[0_14px_30px_rgba(6,10,20,0.6)]">
+              <input
+                className="mb-3 w-full rounded-lg border border-[var(--stroke)] bg-[var(--surface-strong)] px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[var(--brand-1)]"
+                placeholder="Rechercher un GIF..."
+                value={gifSearch}
+                onChange={(e) => setGifSearch(e.target.value)}
+              />
+              {gifError ? (
+                <p className="py-4 text-center text-xs text-rose-300">{gifError}</p>
+              ) : gifLoading ? (
+                <p className="py-4 text-center text-xs text-slate-400">Chargement des GIFs...</p>
+              ) : gifResults.length === 0 ? (
+                <p className="py-4 text-center text-xs text-slate-400">Aucun GIF trouve.</p>
+              ) : (
+                <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto">
+                  {gifResults.map((gif) => (
+                    <button
+                      key={gif.id}
+                      type="button"
+                      className="overflow-hidden rounded-lg border border-[var(--stroke)] transition hover:border-[var(--brand-1)]"
+                      onClick={() => {
+                        onSendMessage(gif.url);
+                        setShowGifPicker(false);
+                        setGifSearch("");
+                      }}
+                      title={gif.title}
+                    >
+                      <img
+                        src={gif.previewUrl}
+                        alt={gif.title}
+                        loading="lazy"
+                        className="h-28 w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

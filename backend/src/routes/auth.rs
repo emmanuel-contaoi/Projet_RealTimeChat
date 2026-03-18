@@ -1,12 +1,12 @@
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
 };
 
-use crate::models::{RegisterRequest, LoginRequest, AuthResponse, UserResponse};
-use crate::state::AppState;
+use crate::models::{AuthResponse, LoginRequest, RegisterRequest, UserResponse};
 use crate::services::auth_service::AuthService;
 use crate::services::ServiceError;
+use crate::state::AppState;
 
 pub async fn register(
     State(state): State<AppState>,
@@ -26,11 +26,99 @@ pub async fn login(
 
 pub async fn me(
     State(_state): State<AppState>,
-    axum::extract::Extension(crate::utils::auth::AuthUser(user)): axum::extract::Extension<crate::utils::auth::AuthUser>,
+    axum::extract::Extension(crate::utils::auth::AuthUser(user)): axum::extract::Extension<
+        crate::utils::auth::AuthUser,
+    >,
 ) -> Result<Json<UserResponse>, ServiceError> {
     Ok(Json(user.into()))
 }
 
 pub async fn logout() -> StatusCode {
     StatusCode::OK
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{LoginRequest, RegisterRequest};
+    use crate::{models::User, utils::auth::AuthUser};
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    async fn build_state() -> AppState {
+        crate::utils::test_app_state().await
+    }
+
+    #[tokio::test]
+    async fn me_returns_the_authenticated_user_profile() {
+        let created_at = Utc::now();
+        let user = User {
+            id: Uuid::new_v4(),
+            email: "alice@example.com".to_string(),
+            password_hash: "hashed".to_string(),
+            first_name: Some("Alice".to_string()),
+            last_name: Some("Martin".to_string()),
+            username: Some("alice".to_string()),
+            created_at,
+        };
+
+        let Json(response) = me(
+            State(build_state().await),
+            axum::extract::Extension(AuthUser(user)),
+        )
+        .await
+        .expect("me should succeed");
+
+        assert_eq!(response.email, "alice@example.com");
+        assert_eq!(response.first_name.as_deref(), Some("Alice"));
+        assert_eq!(response.last_name.as_deref(), Some("Martin"));
+        assert_eq!(response.username.as_deref(), Some("alice"));
+        assert_eq!(response.created_at, created_at);
+    }
+
+    #[tokio::test]
+    async fn logout_returns_ok_status() {
+        assert_eq!(logout().await, StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn register_returns_internal_error_when_database_is_unavailable() {
+        let result = register(
+            State(build_state().await),
+            Json(RegisterRequest {
+                email: "alice@example.com".to_string(),
+                password: "secret".to_string(),
+                first_name: Some("Alice".to_string()),
+                last_name: Some("Martin".to_string()),
+                username: Some("alice".to_string()),
+            }),
+        )
+        .await;
+
+        match result {
+            Err(ServiceError::Internal(message)) => {
+                assert!(message.starts_with("Database error:"))
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn login_returns_internal_error_when_database_is_unavailable() {
+        let result = login(
+            State(build_state().await),
+            Json(LoginRequest {
+                email: "alice@example.com".to_string(),
+                password: "secret".to_string(),
+            }),
+        )
+        .await;
+
+        match result {
+            Err(ServiceError::Internal(message)) => {
+                assert!(message.starts_with("Database error:"))
+            }
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
 }
