@@ -99,7 +99,8 @@ pub async fn join_server(
     let username = auth_user
         .0
         .username
-        .or(auth_user.0.first_name)
+        .clone()
+        .or_else(|| auth_user.0.first_name.clone())
         .unwrap_or_else(|| auth_user.0.email.clone());
 
     // On notifie tous les membres que quelqu'un a rejoint le serveur

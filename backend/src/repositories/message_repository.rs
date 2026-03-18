@@ -69,7 +69,6 @@ impl MessageRepository {
             .update_one(
                 doc! { "_id": oid },
                 doc! { "$set": { "reactions": reactions_bson } },
-                None,
             )
             .await
             .map(|_| ())
