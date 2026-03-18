@@ -154,7 +154,10 @@ impl FriendRepository {
     }
 
     // Trouve une demande par son ID
-    pub async fn find_request_by_id(pool: &PgPool, request_id: Uuid) -> sqlx::Result<Option<FriendRequest>> {
+    pub async fn find_request_by_id(
+        pool: &PgPool,
+        request_id: Uuid,
+    ) -> sqlx::Result<Option<FriendRequest>> {
         sqlx::query_as::<_, FriendRequest>("SELECT * FROM friend_requests WHERE id = $1")
             .bind(request_id)
             .fetch_optional(pool)
@@ -196,5 +199,54 @@ impl FriendRepository {
         .execute(pool)
         .await
         .map(|res| res.rows_affected())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn build_pool() -> PgPool {
+        crate::utils::test_pg_pool()
+    }
+
+    #[tokio::test]
+    async fn friend_repository_queries_fail_fast_without_a_database() {
+        let pool = build_pool();
+        let user_id = Uuid::new_v4();
+        let friend_id = Uuid::new_v4();
+        let request_id = Uuid::new_v4();
+
+        assert!(FriendRepository::list(&pool, user_id).await.is_err());
+        assert!(FriendRepository::add(&pool, user_id, friend_id).await.is_err());
+        assert!(FriendRepository::remove(&pool, user_id, friend_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::are_friends(&pool, user_id, friend_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::find_pending_between(&pool, user_id, friend_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::create_request(&pool, user_id, friend_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::list_incoming_requests(&pool, user_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::list_outgoing_requests(&pool, user_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::find_request_by_id(&pool, request_id)
+            .await
+            .is_err());
+        assert!(FriendRepository::update_request_status(&pool, request_id, "accepted")
+            .await
+            .is_err());
+        assert!(
+            FriendRepository::delete_pending_request_by_sender(&pool, request_id, user_id)
+                .await
+                .is_err()
+        );
     }
 }

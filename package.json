@@ -1,0 +1,9 @@
+{
+  "name": "t-dev-600-par-22",
+  "private": true,
+  "scripts": {
+    "test:front": "npm --prefix frontend test -- --runInBand",
+    "test:back": "cargo test --manifest-path backend/Cargo.toml",
+    "test": "npm run test:front && npm run test:back"
+  }
+}

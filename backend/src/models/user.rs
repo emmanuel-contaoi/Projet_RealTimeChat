@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
 
 #[derive(Clone, sqlx::FromRow, serde::Serialize, serde::Deserialize)]
 pub struct User {
@@ -11,6 +11,24 @@ pub struct User {
     pub last_name: Option<String>,
     pub username: Option<String>,
     pub created_at: DateTime<Utc>,
+}
+
+impl User {
+    pub fn preferred_display_name(&self) -> String {
+        self.username
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                self.first_name
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(ToOwned::to_owned)
+            })
+            .unwrap_or_else(|| self.email.clone())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -107,5 +125,137 @@ impl FriendRequestResponse {
                 created_at: item.user_created_at,
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_response_from_user_copies_public_fields() {
+        let created_at = Utc::now();
+        let user_id = Uuid::new_v4();
+        let user = User {
+            id: user_id,
+            email: "alice@example.com".to_string(),
+            password_hash: "hashed-password".to_string(),
+            first_name: Some("Alice".to_string()),
+            last_name: Some("Martin".to_string()),
+            username: Some("alice".to_string()),
+            created_at,
+        };
+
+        let response = UserResponse::from(user);
+
+        assert_eq!(response.id, user_id);
+        assert_eq!(response.email, "alice@example.com");
+        assert_eq!(response.first_name.as_deref(), Some("Alice"));
+        assert_eq!(response.last_name.as_deref(), Some("Martin"));
+        assert_eq!(response.username.as_deref(), Some("alice"));
+        assert_eq!(response.created_at, created_at);
+    }
+
+    #[test]
+    fn friend_request_response_from_list_item_maps_nested_user() {
+        let request_id = Uuid::new_v4();
+        let user_id = Uuid::new_v4();
+        let created_at = Utc::now();
+        let responded_at = Some(Utc::now());
+        let item = FriendRequestListItem {
+            request_id,
+            status: "pending".to_string(),
+            created_at,
+            responded_at,
+            user_id,
+            user_email: "bob@example.com".to_string(),
+            user_first_name: Some("Bob".to_string()),
+            user_last_name: Some("Lee".to_string()),
+            user_username: Some("bobby".to_string()),
+            user_created_at: created_at,
+        };
+
+        let response = FriendRequestResponse::from_list_item(item);
+
+        assert_eq!(response.id, request_id);
+        assert_eq!(response.status, "pending");
+        assert_eq!(response.created_at, created_at);
+        assert_eq!(response.responded_at, responded_at);
+        assert_eq!(response.user.id, user_id);
+        assert_eq!(response.user.email, "bob@example.com");
+        assert_eq!(response.user.first_name.as_deref(), Some("Bob"));
+        assert_eq!(response.user.last_name.as_deref(), Some("Lee"));
+        assert_eq!(response.user.username.as_deref(), Some("bobby"));
+    }
+
+    #[test]
+    fn preferred_display_name_prioritizes_username_then_first_name_then_email() {
+        let created_at = Utc::now();
+        let base_user = User {
+            id: Uuid::new_v4(),
+            email: "fallback@example.com".to_string(),
+            password_hash: "hashed-password".to_string(),
+            first_name: Some("Alice".to_string()),
+            last_name: None,
+            username: Some("alice42".to_string()),
+            created_at,
+        };
+
+        assert_eq!(base_user.preferred_display_name(), "alice42");
+
+        let user_without_username = User {
+            username: None,
+            ..base_user.clone()
+        };
+        assert_eq!(user_without_username.preferred_display_name(), "Alice");
+
+        let user_without_names = User {
+            first_name: None,
+            username: None,
+            ..base_user
+        };
+        assert_eq!(
+            user_without_names.preferred_display_name(),
+            "fallback@example.com"
+        );
+    }
+
+    #[test]
+    fn preferred_display_name_ignores_blank_username_and_first_name() {
+        let user = User {
+            id: Uuid::new_v4(),
+            email: "fallback@example.com".to_string(),
+            password_hash: "hashed-password".to_string(),
+            first_name: Some("  ".to_string()),
+            last_name: None,
+            username: Some("   ".to_string()),
+            created_at: Utc::now(),
+        };
+
+        assert_eq!(user.preferred_display_name(), "fallback@example.com");
+    }
+
+    #[test]
+    fn friend_request_response_from_list_item_preserves_missing_optional_fields() {
+        let created_at = Utc::now();
+        let item = FriendRequestListItem {
+            request_id: Uuid::new_v4(),
+            status: "accepted".to_string(),
+            created_at,
+            responded_at: None,
+            user_id: Uuid::new_v4(),
+            user_email: "bob@example.com".to_string(),
+            user_first_name: None,
+            user_last_name: None,
+            user_username: None,
+            user_created_at: created_at,
+        };
+
+        let response = FriendRequestResponse::from_list_item(item);
+
+        assert_eq!(response.responded_at, None);
+        assert_eq!(response.user.first_name, None);
+        assert_eq!(response.user.last_name, None);
+        assert_eq!(response.user.username, None);
     }
 }

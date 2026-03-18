@@ -162,6 +162,8 @@ export default function ConversationsPage() {
             onTyping={chat.handleTyping}
             onEditMessage={chat.handleEditMessage}
             onDeleteMessage={chat.handleDeleteMessage}
+            onAddReaction={chat.handleAddReaction}
+            onRemoveReaction={chat.handleRemoveReaction}
           />
         ) : (
           <FriendsPanel

@@ -3,6 +3,7 @@ import type { ChannelMessage } from "../types";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { gifService } from "@/services/api";
 import type { GifItem } from "@/services/api";
+import { isGifUrl } from "../utils";
 
 type ChatPanelProps = {
   channelName: string;
@@ -16,17 +17,8 @@ type ChatPanelProps = {
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
   onDeleteMessage: (messageId: string) => void;
-};
-
-const isGifUrl = (value: string) => {
-  if (!/^https?:\/\//i.test(value)) return false;
-  const url = value.toLowerCase();
-  return (
-    url.includes(".gif") ||
-    url.includes("giphy.com/media/") ||
-    url.includes("media.giphy.com/") ||
-    url.includes("tenor.com/")
-  );
+  onAddReaction: (messageId: string, emoji: string) => void;
+  onRemoveReaction: (messageId: string, emoji: string) => void;
 };
 
 // Affiche les messages du channel et le formulaire pour envoyer
@@ -42,6 +34,8 @@ export default function ChatPanel({
   onTyping,
   onEditMessage,
   onDeleteMessage,
+  onAddReaction,
+  onRemoveReaction,
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -52,8 +46,10 @@ export default function ChatPanel({
   const [gifError, setGifError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const gifPickerRef = useRef<HTMLDivElement | null>(null);
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Envoie le message quand on appuie sur entree
@@ -73,6 +69,12 @@ export default function ChatPanel({
     }
   };
 
+  const hasReacted = (message: ChannelMessage, emoji: string) =>
+    message.reactions.some(
+      (reaction) =>
+        reaction.emoji === emoji && reaction.user_ids.includes(currentUserId)
+    );
+
   // Ferme les pickers si on clique en dehors
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -82,10 +84,20 @@ export default function ChatPanel({
       if (gifPickerRef.current && !gifPickerRef.current.contains(e.target as Node)) {
         setShowGifPicker(false);
       }
+      if (
+        reactionPickerRef.current &&
+        !reactionPickerRef.current.contains(e.target as Node)
+      ) {
+        setReactionPickerMessageId(null);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  useEffect(() => {
+    setReactionPickerMessageId(null);
+  }, [selectedChannel]);
 
   // Charge les GIFs trending/recherche quand le panel est ouvert
   useEffect(() => {
@@ -190,6 +202,23 @@ export default function ChatPanel({
                   <div className="hidden items-center gap-1 pb-1 group-hover:flex">
                     <button
                       type="button"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
+                      onClick={() =>
+                        setReactionPickerMessageId((prev) =>
+                          prev === message.id ? null : message.id!
+                        )
+                      }
+                      title="Reagir avec un emoji"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
                       className="rounded-full p-1 text-slate-500 transition hover:text-blue-400"
                       onClick={() => { setEditingId(message.id!); setEditContent(message.content); }}
                       title="Modifier ce message"
@@ -266,22 +295,100 @@ export default function ChatPanel({
                     </p>
                   )}
                 </div>
-                {!isMe && message.id && editingId !== message.id && canDelete && (
-                  <div className="hidden items-center pb-1 group-hover:flex">
+                {!isMe && message.id && editingId !== message.id && (
+                  <div className="hidden items-center gap-1 pb-1 group-hover:flex">
                     <button
                       type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
-                      onClick={() => onDeleteMessage(message.id!)}
-                      title="Supprimer ce message"
+                      className="rounded-full p-1 text-slate-500 transition hover:text-amber-300"
+                      onClick={() =>
+                        setReactionPickerMessageId((prev) =>
+                          prev === message.id ? null : message.id!
+                        )
+                      }
+                      title="Reagir avec un emoji"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
                       </svg>
                     </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
+                        onClick={() => onDeleteMessage(message.id!)}
+                        title="Supprimer ce message"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
+              {message.id && (
+                <div
+                  className={`flex ${isMe ? "justify-end" : "justify-start"} px-1`}
+                >
+                  <div className="relative flex flex-wrap items-center gap-1" ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}>
+                    {message.reactions.map((reaction) => {
+                      const reactedByMe = hasReacted(message, reaction.emoji);
+                      return (
+                        <button
+                          key={`${message.id}-${reaction.emoji}`}
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition ${
+                            reactedByMe
+                              ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.2)] text-[var(--brand-1)]"
+                              : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-300 hover:border-slate-400"
+                          }`}
+                          onClick={() => {
+                            if (reactedByMe) {
+                              onRemoveReaction(message.id!, reaction.emoji);
+                            } else {
+                              onAddReaction(message.id!, reaction.emoji);
+                            }
+                          }}
+                          title={reactedByMe ? "Retirer ma reaction" : "Ajouter ma reaction"}
+                        >
+                          <span>{reaction.emoji}</span>
+                          <span>{reaction.user_ids.length}</span>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] text-xs text-slate-300 transition hover:border-slate-400"
+                      onClick={() =>
+                        setReactionPickerMessageId((prev) =>
+                          prev === message.id ? null : message.id!
+                        )
+                      }
+                      title="Ajouter une reaction"
+                    >
+                      +
+                    </button>
+                    {reactionPickerMessageId === message.id && (
+                      <div className={`absolute bottom-8 z-50 ${isMe ? "right-0" : "left-0"}`}>
+                        <EmojiPicker
+                          theme={Theme.DARK}
+                          onEmojiClick={(emojiData) => {
+                            onAddReaction(message.id!, emojiData.emoji);
+                            setReactionPickerMessageId(null);
+                          }}
+                          width={300}
+                          height={360}
+                          searchPlaceHolder="Rechercher..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               </div>
             );
           })
