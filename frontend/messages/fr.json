@@ -1,0 +1,170 @@
+{
+  "common": {
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "close": "Fermer",
+    "back": "Retour",
+    "add": "Ajouter",
+    "delete": "Supprimer",
+    "save": "Enregistrer",
+    "loading": "Chargement..."
+  },
+  "home": {
+    "title": "Nexus - Projet Epitech 2026",
+    "tagline": "Ton hub de jeu, simple et instantané.",
+    "description": "Crée des serveurs, organise en canaux, gère les rôles. Tout est synchronisé en temps réel et persisté.",
+    "login": "Connexion",
+    "register": "Inscription",
+    "feature_realtime_title": "Temps réel",
+    "feature_realtime_desc": "Messages instantanés, indicateurs de présence et de saisie. Tout se met à jour en direct grâce au WebSocket.",
+    "feature_channels_title": "Canaux",
+    "feature_channels_desc": "Organise les discussions par sujet avec des channels dédiés. Chaque serveur peut avoir ses propres canaux.",
+    "feature_roles_title": "Rôles",
+    "feature_roles_desc": "Gère les permissions avec un système de rôles : Owner, Admin et Member. Transfère la propriété si besoin."
+  },
+  "login": {
+    "title": "Connexion",
+    "subtitle": "Heureux de te revoir",
+    "email": "Email",
+    "email_placeholder": "ton@email.com",
+    "password": "Mot de passe",
+    "password_placeholder": "••••••••",
+    "submit": "Se connecter",
+    "submitting": "Connexion...",
+    "error_invalid": "Identifiants invalides"
+  },
+  "register": {
+    "title": "Création de compte",
+    "subtitle": "Rejoins la communauté",
+    "last_name": "Nom",
+    "last_name_placeholder": "Dupont",
+    "first_name": "Prénom",
+    "first_name_placeholder": "Camille",
+    "email": "Mail *",
+    "email_placeholder": "camille@mail.com",
+    "username": "Pseudo",
+    "username_placeholder": "ShadowFox",
+    "password": "Mot de passe *",
+    "password_placeholder": "••••••••",
+    "submit": "Créer mon compte",
+    "submitting": "Création...",
+    "error": "Erreur lors de l'inscription"
+  },
+  "header": {
+    "app_name": "Nexus",
+    "profile": "Profil",
+    "edit_account": "Modifier le compte",
+    "switch_account": "Changer de compte",
+    "logout": "Déconnexion"
+  },
+  "sidebar": {
+    "servers": "Serveurs",
+    "friends": "Amis",
+    "servers_count": "{count} actifs",
+    "friends_count": "{count} amis"
+  },
+  "server_list": {
+    "create": "+ Créer",
+    "join": "Rejoindre",
+    "copy_invite": "Copier le code d'invitation",
+    "copied": "Copié !",
+    "leave": "Quitter le serveur",
+    "rename": "Renommer le serveur",
+    "delete": "Supprimer le serveur",
+    "rename_prompt": "Nouveau nom du serveur (20 caractères max) :"
+  },
+  "channels": {
+    "title": "Channels",
+    "add": "+ Ajouter",
+    "rename": "Renommer ce channel",
+    "delete": "Supprimer ce channel",
+    "rename_prompt": "Nouveau nom du channel (20 caractères max) :",
+    "empty": "Aucun channel pour ce serveur."
+  },
+  "add_channel_modal": {
+    "title": "Ajouter un channel",
+    "name_label": "Nom du channel",
+    "name_placeholder": "Ex: annonces",
+    "submit": "Ajouter"
+  },
+  "create_server_modal": {
+    "title": "Créer un serveur",
+    "name_label": "Nom du serveur",
+    "name_placeholder": "Ex: Studio",
+    "channels_label": "Channels",
+    "add_channel": "+ Ajouter des channels",
+    "submit": "Créer et ouvrir"
+  },
+  "join_server_modal": {
+    "title": "Rejoindre un serveur",
+    "code_label": "Code d'invitation",
+    "code_placeholder": "Ex: a1b2c3d4",
+    "submit": "Rejoindre",
+    "submitting": "Connexion..."
+  },
+  "chat": {
+    "no_messages": "Aucun message pour l'instant.",
+    "select_channel": "Sélectionnez un channel.",
+    "placeholder": "Écris un message...",
+    "send": "Envoyer",
+    "edit": "Modifier ce message",
+    "delete": "Supprimer ce message",
+    "typing_one": "{username} écrit...",
+    "typing_many": "{usernames} écrivent...",
+    "emoji_search": "Rechercher...",
+    "emoji_ok": "OK",
+    "react": "Réagir avec un emoji",
+    "remove_reaction": "Retirer ma réaction",
+    "add_reaction": "Ajouter une réaction"
+  },
+  "members": {
+    "title": "Membres",
+    "online_count": "{count} en ligne",
+    "you": "(vous)",
+    "role_owner": "Owner",
+    "role_admin": "Admin",
+    "role_member": "Membre",
+    "demote": "Retrograder",
+    "promote": "Promouvoir",
+    "promote_title": "Promouvoir admin",
+    "demote_title": "Retrograder en membre",
+    "transfer": "Transférer",
+    "transfer_title": "Transférer la propriété",
+    "kick": "Kick",
+    "kick_title": "Expulser ce membre",
+    "ban": "Ban",
+    "ban_title": "Bannir définitivement",
+    "ban_temp": "Ban tempo",
+    "ban_temp_title": "Bannir temporairement",
+    "ban_duration_placeholder": "Durée (minutes)",
+    "empty": "Aucun membre."
+  },
+  "friends": {
+    "requests_title": "Demandes d'amis",
+    "requests_subtitle": "Gère tes demandes envoyées et reçues",
+    "incoming": "Reçues",
+    "outgoing": "Envoyées",
+    "no_incoming": "Aucune demande reçue.",
+    "no_outgoing": "Aucune demande envoyée.",
+    "friend_label": "Ami",
+    "accept": "Accepter",
+    "reject": "Refuser",
+    "pending": "En attente",
+    "search_users": "Rechercher des utilisateurs",
+    "search_title": "Trouver des utilisateurs",
+    "search_subtitle": "Recherche et ajoute de nouveaux amis",
+    "search_button": "Rechercher",
+    "search_placeholder": "Pseudo, email, prénom...",
+    "no_results": "Aucun utilisateur trouvé.",
+    "searching": "Recherche en cours...",
+    "loading": "Chargement des utilisateurs...",
+    "no_users": "Aucun utilisateur disponible.",
+    "add": "+",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "remove": "Supprimer"
+  },
+  "loading": {
+    "message": "Chargement..."
+  }
+}
