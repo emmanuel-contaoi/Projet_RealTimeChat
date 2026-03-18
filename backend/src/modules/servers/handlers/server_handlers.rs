@@ -96,6 +96,12 @@ pub async fn join_server(
     let server =
         ServerService::join_server(&state.pool, auth_user.0.id, &payload.invite_code).await?;
 
+    let username = auth_user
+        .0
+        .username
+        .or(auth_user.0.first_name)
+        .unwrap_or_else(|| auth_user.0.email.clone());
+
     // On notifie tous les membres que quelqu'un a rejoint le serveur
     let event = build_member_joined_event(&auth_user.0, server.id);
     if let Ok(json) = event.to_json() {

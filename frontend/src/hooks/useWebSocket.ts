@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
 
 type ServerEvent = {
   type: string;
@@ -25,11 +25,8 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
   const onExtraWsEventRef = useRef(onExtraWsEvent);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const connectRef = useRef<(() => void) | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-
-  onMessageRef.current = onMessage;
-  onOpenRef.current = onOpen;
-  onExtraWsEventRef.current = onExtraWsEvent;
 
   const connect = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -75,7 +72,7 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
       wsRef.current = null;
       setIsConnected(false);
       if (mountedRef.current) {
-        reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
+        reconnectTimer.current = setTimeout(() => connectRef.current?.(), RECONNECT_DELAY);
       }
     };
 
@@ -85,6 +82,13 @@ export default function useWebSocket(options?: UseWebSocketOptions) {
 
     wsRef.current = ws;
   }, []);
+
+  useLayoutEffect(() => {
+    onMessageRef.current = onMessage;
+    onOpenRef.current = onOpen;
+    onExtraWsEventRef.current = onExtraWsEvent;
+    connectRef.current = connect;
+  });
 
   useEffect(() => {
     mountedRef.current = true;

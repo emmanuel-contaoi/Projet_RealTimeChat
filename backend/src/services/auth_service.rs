@@ -32,9 +32,15 @@ impl AuthService {
         let password_hash = hash(payload.password.as_bytes(), DEFAULT_COST)
             .map_err(|e| ServiceError::Internal(format!("Hash error: {}", e)))?;
 
-        let first_name = normalize_optional_field(payload.first_name.as_deref());
-        let last_name = normalize_optional_field(payload.last_name.as_deref());
-        let username = normalize_optional_field(payload.username.as_deref());
+        let first_name = payload
+            .first_name
+            .as_deref()
+            .filter(|s| !s.trim().is_empty());
+        let last_name = payload
+            .last_name
+            .as_deref()
+            .filter(|s| !s.trim().is_empty());
+        let username = payload.username.as_deref().filter(|s| !s.trim().is_empty());
 
         let user = UserRepository::create(
             pool,

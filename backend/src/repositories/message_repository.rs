@@ -20,7 +20,7 @@ impl MessageRepository {
         channel_id: &str,
     ) -> mongodb::error::Result<Vec<Message>> {
         let filter = doc! { "channel_id": channel_id };
-        let mut cursor = Self::collection(mongo).find(filter, None).await?;
+        let mut cursor = Self::collection(mongo).find(filter).await?;
         let mut messages = Vec::new();
         while let Some(msg) = cursor.try_next().await? {
             messages.push(msg);
@@ -33,15 +33,13 @@ impl MessageRepository {
         mongo: &Client,
         oid: ObjectId,
     ) -> mongodb::error::Result<Option<Message>> {
-        Self::collection(mongo)
-            .find_one(doc! { "_id": oid }, None)
-            .await
+        Self::collection(mongo).find_one(doc! { "_id": oid }).await
     }
 
     // Insere un nouveau message dans MongoDB
     pub async fn insert(mongo: &Client, message: Message) -> mongodb::error::Result<()> {
         Self::collection(mongo)
-            .insert_one(message, None)
+            .insert_one(message)
             .await
             .map(|_| ())
     }
@@ -53,11 +51,7 @@ impl MessageRepository {
         content: &str,
     ) -> mongodb::error::Result<()> {
         Self::collection(mongo)
-            .update_one(
-                doc! { "_id": oid },
-                doc! { "$set": { "content": content } },
-                None,
-            )
+            .update_one(doc! { "_id": oid }, doc! { "$set": { "content": content } })
             .await
             .map(|_| ())
     }
@@ -84,7 +78,7 @@ impl MessageRepository {
     // Supprime un message par son ObjectId
     pub async fn delete(mongo: &Client, oid: ObjectId) -> mongodb::error::Result<()> {
         Self::collection(mongo)
-            .delete_one(doc! { "_id": oid }, None)
+            .delete_one(doc! { "_id": oid })
             .await
             .map(|_| ())
     }

@@ -9,7 +9,8 @@ fn mongo_uri_from_env() -> String {
 pub async fn init_mongo() -> Client {
     dotenv().ok();
 
-    let client_uri = mongo_uri_from_env();
+    let client_uri =
+        env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
 
     let client_options = ClientOptions::parse(client_uri)
         .await

@@ -6,6 +6,7 @@ pub struct BanRepository;
 
 // Représente un ban actif en base
 pub struct BanRow {
+    #[allow(dead_code)]
     pub id: Uuid,
     pub expires_at: Option<NaiveDateTime>,
 }

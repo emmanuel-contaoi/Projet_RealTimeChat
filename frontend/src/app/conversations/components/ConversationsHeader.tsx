@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { RefObject } from "react";
+import Image from "next/image";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 type ConversationsHeaderProps = {
@@ -72,7 +73,7 @@ export default function ConversationsHeader({
 
       {/* Center: Logo */}
       <div className="flex items-center justify-center">
-        <img src="/logo.svg" alt={t("app_name")} className="h-12 w-auto" />
+        <Image src="/logo.svg" alt="Nexus" width={48} height={48} className="h-12 w-auto" />
       </div>
 
       {/* Right: language switcher */}

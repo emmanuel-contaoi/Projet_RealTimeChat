@@ -406,6 +406,15 @@ impl ServerService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
+        match caller_role.as_deref() {
+            Some("owner") | Some("admin") => {}
+            _ => {
+                return Err(ServiceError::Forbidden(
+                    "Seuls owner et admin peuvent bannir un membre.".to_string(),
+                ))
+            }
+        }
+
         // 2. Vérifie la cible
         let target_role = ServerRepository::get_member_role(pool, server_id, target_id)
             .await

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authService } from '@/services/api';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
@@ -33,9 +34,10 @@ export default function InscriptionPage() {
         formData.username || undefined
       );
       router.push("/conversations");
-    } catch (err: any) {
-      const message = err.response?.data;
-      setError(typeof message === 'string' ? message : t('error'));
+    } catch (err: unknown) {
+      console.error("[Register] Error:", err);
+      const message = (err as { response?: { data?: unknown } }).response?.data;
+      setError(typeof message === 'string' ? message : 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
     }

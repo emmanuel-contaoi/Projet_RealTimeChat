@@ -1,3 +1,5 @@
+// Page d'accueil avec presentation du projet et les features
+import Image from "next/image";
 "use client";
 
 import { useTranslations } from "next-intl";
@@ -46,7 +48,7 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
       <header className="relative z-10 mx-auto flex w-full max-w-none items-center justify-between px-8 py-6 md:px-12">
-        <img src="/logo.svg" alt="Logo Nexus" className="h-12 w-auto" />
+        <Image src="/logo.svg" alt="Logo Nexus" width={48} height={48} className="h-12 w-auto" />
         <div className="flex items-center gap-4 text-base font-semibold">
           <LanguageSwitcher />
           <a className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-slate-200 transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]" href="/login">

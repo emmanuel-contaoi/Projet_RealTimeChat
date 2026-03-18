@@ -126,8 +126,11 @@ pub async fn ban_member(
     Json(payload): Json<BanRequest>,
 ) -> Result<StatusCode, ServiceError> {
     // Calcule expires_at à partir de la durée en minutes (None = permanent)
-    let expires_at = compute_ban_expiration(payload.duration_minutes, Utc::now());
-    let expires_at_str = format_ban_expiration_for_event(expires_at);
+    let expires_at = payload
+        .duration_minutes
+        .map(|mins| (Utc::now() + Duration::minutes(mins)).naive_utc());
+
+    let expires_at_str = expires_at.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S").to_string());
 
     ServerService::ban_member(
         &state.pool,

@@ -142,7 +142,11 @@ async fn handle_client_event(
     state: &AppState,
 ) {
     match event {
-        ClientEvent::MessageSend { channel_id, content } => {
+        ClientEvent::MessageSend {
+            channel_id,
+            content,
+        } => {
+            // Vérifie que l'utilisateur est toujours membre du serveur (protège contre les kickés)
             let channel_uuid = match Uuid::parse_str(&channel_id) {
                 Ok(id) => id,
                 Err(_) => return,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type { ChannelMessage } from "../types";
 import EmojiPicker, { Theme } from "emoji-picker-react";
