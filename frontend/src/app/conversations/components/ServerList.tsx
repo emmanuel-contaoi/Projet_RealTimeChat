@@ -5,6 +5,7 @@ type ServerListProps = {
   serverList: Server[];
   selectedServer: string;
   currentUserRole: string;
+  unreadChannels: Set<string>;
   onSelectServer: (serverId: string) => void;
   onCreateServer: () => void;
   onJoinServer: () => void;
@@ -13,11 +14,11 @@ type ServerListProps = {
   onUpdateServer: (serverId: string, newName: string) => void;
 };
 
-// Liste des serveurs avec les boutons pour copier le code, quitter, renommer, supprimer
 export default function ServerList({
   serverList,
   selectedServer,
   currentUserRole,
+  unreadChannels,
   onSelectServer,
   onCreateServer,
   onJoinServer,
@@ -27,7 +28,6 @@ export default function ServerList({
 }: ServerListProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Copie le code d'invitation dans le presse-papier
   const handleCopyCode = (e: React.MouseEvent, server: Server) => {
     e.stopPropagation();
     navigator.clipboard.writeText(server.invite_code);
@@ -45,7 +45,6 @@ export default function ServerList({
     onDeleteServer(serverId);
   };
 
-  // Ouvre un prompt pour renommer le serveur (max 20 caracteres)
   const handleRename = (e: React.MouseEvent, server: Server) => {
     e.stopPropagation();
     const newName = prompt("Nouveau nom du serveur (20 caracteres max) :", server.name);

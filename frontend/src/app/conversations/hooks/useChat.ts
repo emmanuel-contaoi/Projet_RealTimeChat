@@ -9,16 +9,25 @@ type UseChatOptions = {
 
 export default function useChat(options?: UseChatOptions) {
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
+  const [unreadChannels, setUnreadChannels] = useState<Set<string>>(new Set());
+  
   const [typingUsers, setTypingUsers] = useState<
     Record<string, { username: string; timer: ReturnType<typeof setTimeout> }>
   >({});
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
+  
   const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevChannelRef = useRef("");
   const activeChannelRef = useRef("");
 
   const setActiveChannel = useCallback((channelId: string) => {
     activeChannelRef.current = channelId;
+    setUnreadChannels((prev) => {
+      if (!prev.has(channelId)) return prev;
+      const next = new Set(prev);
+      next.delete(channelId);
+      return next;
+    });
   }, []);
 
   const normalizeReactions = useCallback((reactions: unknown): MessageReaction[] => {
@@ -37,23 +46,32 @@ export default function useChat(options?: UseChatOptions) {
       }));
   }, []);
 
-  // Gere les messages recus par le WebSocket
   const handleWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
       if (event.type === "message_new") {
-        const msg: ChannelMessage = {
-          id: event.id as string | undefined,
-          channel_id: event.channel_id as string,
-          user_id: event.user_id as string,
-          username: event.username as string,
-          content: event.content as string,
-          created_at: event.created_at as string | undefined,
-          reactions: normalizeReactions(event.reactions),
-        };
-        setMessages((prev) => {
-          if (prev.some((m) => m.id && m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
+        const msgChannelId = event.channel_id as string;
+        
+        if (msgChannelId === activeChannelRef.current) {
+          const msg: ChannelMessage = {
+            id: event.id as string | undefined,
+            channel_id: msgChannelId,
+            user_id: event.user_id as string,
+            username: event.username as string,
+            content: event.content as string,
+            created_at: event.created_at as string | undefined,
+            reactions: normalizeReactions(event.reactions),
+          };
+          setMessages((prev) => {
+            if (prev.some((m) => m.id && m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
+        } else {
+          setUnreadChannels((prev) => {
+            const next = new Set(prev);
+            next.add(msgChannelId);
+            return next;
+          });
+        }
       }
 
       if (event.type === "user_connected") {
@@ -77,6 +95,9 @@ export default function useChat(options?: UseChatOptions) {
       if (event.type === "user_typing") {
         const uid = event.user_id as string;
         const uname = event.username as string;
+        
+        if (event.channel_id !== activeChannelRef.current) return;
+
         setTypingUsers((prev) => {
           if (prev[uid]) clearTimeout(prev[uid].timer);
           const timer = setTimeout(() => {
@@ -90,7 +111,6 @@ export default function useChat(options?: UseChatOptions) {
         });
       }
 
-      // Met a jour le contenu du message modifie dans la liste
       if (event.type === "message_edited") {
         const mid = event.message_id as string;
         const content = event.content as string;
@@ -99,7 +119,6 @@ export default function useChat(options?: UseChatOptions) {
         );
       }
 
-      // Retire le message supprime de la liste
       if (event.type === "message_deleted") {
         const mid = event.message_id as string;
         setMessages((prev) => prev.filter((m) => m.id !== mid));
@@ -137,7 +156,6 @@ export default function useChat(options?: UseChatOptions) {
   const { sendMessage, joinChannel, leaveChannel, startTyping, stopTyping, isConnected } =
     useWebSocket({ onMessage: handleWsMessage, onExtraWsEvent: options?.onExtraWsEvent });
 
-  // Charge l'historique des messages quand on change de channel
   const loadMessages = useCallback(async (channelId: string) => {
     if (!channelId) {
       setMessages([]);
@@ -161,7 +179,6 @@ export default function useChat(options?: UseChatOptions) {
     }
   }, [normalizeReactions]);
 
-  // Rejoint ou quitte un channel via WebSocket
   const syncChannel = useCallback(
     (channelId: string) => {
       if (!isConnected) return;
@@ -177,7 +194,6 @@ export default function useChat(options?: UseChatOptions) {
     [isConnected, joinChannel, leaveChannel]
   );
 
-  // Fonctions pour envoyer, supprimer et gerer le typing
   const handleSendMessage = useCallback(
     (content: string) => {
       if (!activeChannelRef.current) return;
@@ -236,7 +252,6 @@ export default function useChat(options?: UseChatOptions) {
     }, 2000);
   }, [startTyping]);
 
-  // Liste des noms des utilisateurs en train d'ecrire (sans nous)
   const typingUserNames = Object.values(typingUsers)
     .map((t) => t.username)
     .filter((name) => name !== authService.getCurrentUser()?.username);
@@ -246,6 +261,7 @@ export default function useChat(options?: UseChatOptions) {
     setMessages,
     typingUserNames,
     onlineUserIds,
+    unreadChannels, 
     isConnected,
     joinChannel,
     loadMessages,

@@ -18,14 +18,13 @@ import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
 
-// Page principale : affiche les serveurs, channels, chat et membres
 export default function ConversationsPage() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
+  const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // On verifie le token au chargement, sinon on redirige vers login
   const [auth, setAuth] = useState({ isReady: false, currentUserId: "" });
   const { isReady, currentUserId } = auth;
 
@@ -33,13 +32,12 @@ export default function ConversationsPage() {
     const token = localStorage.getItem("token");
     const user = token ? authService.getCurrentUser() : null;
     if (token && user?.id) {
-      setAuth({ isReady: true, currentUserId: user.id }); // eslint-disable-line react-hooks/set-state-in-effect
+      setAuth({ isReady: true, currentUserId: user.id });
     } else {
       router.replace("/login");
     }
   }, [router]);
 
-  // Ferme le menu si on clique en dehors
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       if (!menuRef.current) return;
@@ -51,11 +49,8 @@ export default function ConversationsPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Ref pour passer les evenements WS de useChat a useServerManager
-  // (useChat est initialise avant useServerManager, donc on passe par une ref pour eviter une dependance circulaire)
   const serverWsHandlerRef = useRef<((event: { type: string; [key: string]: unknown }) => void) | null>(null);
 
-  // On utilise des hooks pour separer la logique du chat et des serveurs
   const chat = useChat({
     onExtraWsEvent: useCallback((e: { type: string; [key: string]: unknown }) => serverWsHandlerRef.current?.(e), []),
   });
@@ -71,14 +66,12 @@ export default function ConversationsPage() {
     setMessages: chat.setMessages,
   });
 
-  // On garde la ref a jour avec la derniere version du handler
   useEffect(() => {
     serverWsHandlerRef.current = server.handleWsEvent;
   }, [server.handleWsEvent]);
 
   const friends = useFriendSearch({ isReady, activeTab, onlineUserIds: chat.onlineUserIds });
 
-  // Deconnexion, changement de compte, etc.
   const handleLogout = async () => {
     await authService.logout();
     router.push("/");
@@ -94,9 +87,45 @@ export default function ConversationsPage() {
     router.push("/register");
   };
 
+  const handleSelectFriend = async (friend: any) => {
+    friends.setSelectedFriend(friend.id); // On s'assure de passer l'ID
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:3001/dms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ target_user_id: friend.id })
+      });
+
+      if (!response.ok) {
+        throw new Error("Impossible de récupérer la conversation privée");
+      }
+
+      const dmChannel = await response.json();
+
+      setActiveDmChannel(dmChannel.id); 
+
+      chat.setMessages([]);
+      await chat.loadMessages(dmChannel.id);
+      
+      chat.syncChannel(dmChannel.id);
+      chat.setActiveChannel(dmChannel.id);
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   if (!isReady) {
     return <LoadingScreen />;
   }
+
+  // Permet de retrouver le nom de l'ami actif
+  const currentFriendName = friends.friendList.find((f: any) => f.id === friends.selectedFriend)?.username || "Messages Privés";
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -126,14 +155,31 @@ export default function ConversationsPage() {
           selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
           currentUserRole={server.currentUserRole}
-          onTabChange={setActiveTab}
-          onSelectServer={server.setSelectedServer}
+          // NOUVEAU : On envoie la liste des non lus au Sidebar pour l'onglet Serveur et DM
+          unreadChannels={chat.unreadChannels} 
+          onTabChange={async (tab) => {
+            setActiveTab(tab);
+            if (tab === "servers") {
+              setActiveDmChannel(null);
+              if (server.selectedChannel) {
+                chat.setMessages([]);
+                await chat.loadMessages(server.selectedChannel);
+                chat.syncChannel(server.selectedChannel);
+                chat.setActiveChannel(server.selectedChannel);
+              }
+            }
+          }}
+          onSelectServer={(serverId) => {
+            server.setSelectedServer(serverId);
+            setActiveTab("servers");
+            setActiveDmChannel(null);
+          }}
           onCreateServer={() => server.setIsCreateServerOpen(true)}
           onJoinServer={() => server.setIsJoinServerOpen(true)}
           onLeaveServer={server.handleLeaveServer}
           onDeleteServer={server.handleDeleteServer}
           onUpdateServer={server.handleUpdateServer}
-          onSelectFriend={friends.setSelectedFriend}
+          onSelectFriend={handleSelectFriend}
           onRemoveFriend={friends.handleRemoveFriend}
         />
 
@@ -142,6 +188,8 @@ export default function ConversationsPage() {
             channels={server.channels}
             selectedChannel={server.selectedChannel}
             canManageChannels={server.canManageChannels}
+            // NOUVEAU : On envoie les alertes aux channels !
+            unreadChannels={chat.unreadChannels}
             onSelectChannel={server.setSelectedChannel}
             onDeleteChannel={server.handleDeleteChannel}
             onUpdateChannel={server.handleUpdateChannel}
@@ -164,6 +212,20 @@ export default function ConversationsPage() {
             onDeleteMessage={chat.handleDeleteMessage}
             onAddReaction={chat.handleAddReaction}
             onRemoveReaction={chat.handleRemoveReaction}
+          />
+        ) : activeDmChannel && friends.selectedFriend ? (
+          <ChatPanel
+            channelName={currentFriendName}
+            selectedChannel={activeDmChannel}
+            selectedServer="Messages Privés"
+            messages={chat.messages}
+            currentUserId={currentUserId}
+            currentUserRole="member"
+            typingUsers={chat.typingUserNames}
+            onSendMessage={chat.handleSendMessage}
+            onTyping={chat.handleTyping}
+            onEditMessage={chat.handleEditMessage}
+            onDeleteMessage={chat.handleDeleteMessage}
           />
         ) : (
           <FriendsPanel
@@ -225,7 +287,6 @@ export default function ConversationsPage() {
         onChannelNameChange={server.setNewChannelName}
         onSubmit={server.handleAddChannel}
       />
-
     </div>
   );
 }

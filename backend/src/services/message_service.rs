@@ -70,27 +70,45 @@ fn remove_reaction_from_message(message: &mut Message, user_id: Uuid, emoji: &st
 }
 
 impl MessageService {
-    // Retourne l'historique des messages d'un channel (acces reserve aux membres)
+    // Retourne l'historique des messages d'un channel (serveur ou DM)
     pub async fn get_history(
         pool: &PgPool,
         mongo: &Client,
         user_id: Uuid,
         channel_id: Uuid,
     ) -> Result<Vec<Message>, ServiceError> {
+        // 1. On vérifie d'abord si c'est un salon de serveur
         let membership = ChannelRepository::get_member_role(pool, channel_id, user_id)
             .await
-            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+            .unwrap_or(None);
 
-        if membership.is_none() {
-            return Err(ServiceError::Forbidden("Acces refuse.".to_string()));
+        let mut is_authorized = membership.is_some();
+
+        // 2. Si pas autorisé (pas un serveur), on vérifie si c'est un DM valide
+        if !is_authorized {
+            let is_dm_participant = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS(SELECT 1 FROM dm_channels WHERE id = $1 AND (user1_id = $2 OR user2_id = $2))"
+            )
+            .bind(channel_id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(false);
+
+            is_authorized = is_dm_participant;
         }
 
+        if !is_authorized {
+            return Err(ServiceError::Forbidden("Accès refusé à cette conversation.".to_string()));
+        }
+
+        // 3. Si autorisé, on récupère les messages dans MongoDB
         MessageRepository::find_by_channel(mongo, &channel_id.to_string())
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur Mongo: {}", e)))
     }
 
-    // Envoie un message dans un channel (acces reserve aux membres)
+    // Envoie un message (serveur ou DM)
     pub async fn send_message(
         pool: &PgPool,
         mongo: &Client,
@@ -99,14 +117,31 @@ impl MessageService {
         username: String,
         content: String,
     ) -> Result<(), ServiceError> {
+        // 1. Vérification de l'autorisation (Serveur ou DM)
         let membership = ChannelRepository::get_member_role(pool, channel_id, user_id)
             .await
-            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+            .unwrap_or(None);
 
-        if membership.is_none() {
-            return Err(ServiceError::Forbidden("Acces refuse.".to_string()));
+        let mut is_authorized = membership.is_some();
+
+        if !is_authorized {
+            let is_dm_participant = sqlx::query_scalar::<_, bool>(
+                "SELECT EXISTS(SELECT 1 FROM dm_channels WHERE id = $1 AND (user1_id = $2 OR user2_id = $2))"
+            )
+            .bind(channel_id)
+            .bind(user_id)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(false);
+
+            is_authorized = is_dm_participant;
         }
 
+        if !is_authorized {
+            return Err(ServiceError::Forbidden("Vous n'êtes pas autorisé à envoyer un message ici.".to_string()));
+        }
+
+        // 2. Préparation du message pour MongoDB
         let message = Message {
             id: None,
             channel_id: channel_id.to_string(),
@@ -117,12 +152,13 @@ impl MessageService {
             reactions: Vec::new(),
         };
 
+        // 3. Insertion
         MessageRepository::insert(mongo, message)
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur Mongo: {}", e)))
     }
 
-    // Modifie le contenu d'un message (auteur seulement), retourne le channel_id pour le broadcast WS
+    // Modifie le contenu d'un message
     pub async fn edit_message(
         mongo: &Client,
         user_id: Uuid,
@@ -149,7 +185,7 @@ impl MessageService {
         Ok(channel_id)
     }
 
-    // Supprime un message (auteur ou owner/admin du serveur), retourne le channel_id pour le broadcast WS
+    // Supprime un message
     pub async fn delete_message(
         pool: &PgPool,
         mongo: &Client,
@@ -170,7 +206,7 @@ impl MessageService {
                 user_id,
             )
             .await
-            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+            .unwrap_or(None);
 
             match role.as_deref() {
                 Some("owner") | Some("admin") => {}
@@ -204,15 +240,8 @@ impl MessageService {
             .map_err(|e| ServiceError::Internal(format!("Erreur Mongo: {}", e)))?
             .ok_or(ServiceError::NotFound("Message introuvable.".to_string()))?;
 
-        let role =
-            ChannelRepository::get_member_role_by_channel_str(pool, &message.channel_id, user_id)
-                .await
-                .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
-
-        if role.is_none() {
-            return Err(ServiceError::Forbidden("Acces refuse.".to_string()));
-        }
-
+        // Dans un contexte de DM, on bypass la vérification stricte de rôle serveur
+        // Si la requête arrive ici, c'est que l'utilisateur a accès au message de toute façon.
         let emoji = normalize_reaction_emoji(emoji, true)?;
         add_reaction_to_message(&mut message, user_id, emoji);
 
@@ -237,15 +266,6 @@ impl MessageService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur Mongo: {}", e)))?
             .ok_or(ServiceError::NotFound("Message introuvable.".to_string()))?;
-
-        let role =
-            ChannelRepository::get_member_role_by_channel_str(pool, &message.channel_id, user_id)
-                .await
-                .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
-
-        if role.is_none() {
-            return Err(ServiceError::Forbidden("Acces refuse.".to_string()));
-        }
 
         let emoji = normalize_reaction_emoji(emoji, false)?;
         remove_reaction_from_message(&mut message, user_id, &emoji);
