@@ -126,7 +126,7 @@ export default function ConversationsPage() {
   }
 
   // Permet de retrouver le nom de l'ami actif
-  const currentFriendName = friends.friendList.find((f: Friend) => f.id === friends.selectedFriend)?.username || "Messages Privés";
+  const currentFriendName = friends.friendList.find((f: Friend) => f.id === friends.selectedFriend)?.name || "Messages Privés";
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">

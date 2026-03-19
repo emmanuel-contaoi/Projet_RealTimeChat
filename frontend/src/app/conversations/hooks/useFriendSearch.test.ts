@@ -41,7 +41,7 @@ const bob: MockUser = {
   created_at: "2026-03-16T10:00:00Z",
 };
 
-const fetchMock = jest.fn();
+const fetchMock = jest.fn<(url: string, options?: RequestInit) => Promise<unknown>>();
 
 describe("useFriendSearch", () => {
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe("useFriendSearch", () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => [currentUser, alice, bob],
-    } as Response);
+    });
   });
 
   afterEach(() => {
@@ -119,11 +119,11 @@ describe("useFriendSearch", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [currentUser, alice, bob],
-      } as Response)
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => [currentUser, alice],
-      } as Response);
+      });
 
     const { result } = renderHook(() =>
       useFriendSearch({
