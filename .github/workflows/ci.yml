@@ -117,7 +117,7 @@ jobs:
           key: cargo-audit-${{ runner.os }}-v0.21
 
       - name: Installer cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install cargo-audit --force
 
       - name: Audit de sécurité Rust
         working-directory: ./backend

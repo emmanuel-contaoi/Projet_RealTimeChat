@@ -76,6 +76,10 @@ describe("useChat", () => {
   it("normalizes websocket messages and ignores duplicate message ids", () => {
     const { result } = renderHook(() => useChat());
 
+    act(() => {
+      result.current.setActiveChannel("channel-1");
+    });
+
     emitWsEvent({
       type: "message_new",
       id: "msg-1",
@@ -260,11 +264,13 @@ describe("useChat", () => {
       type: "user_typing",
       user_id: "user-1",
       username: "alice",
+      channel_id: "",
     });
     emitWsEvent({
       type: "user_typing",
       user_id: "user-2",
       username: "me",
+      channel_id: "",
     });
 
     expect(result.current.typingUserNames).toEqual(["alice"]);
