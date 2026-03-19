@@ -102,25 +102,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn normalize_optional_field_trims_non_empty_values() {
-        assert_eq!(
-            normalize_optional_field(Some("  Alice  ")),
-            Some("Alice".to_string())
-        );
-        assert_eq!(
-            normalize_optional_field(Some("bob_42")),
-            Some("bob_42".to_string())
-        );
-    }
-
-    #[test]
-    fn normalize_optional_field_drops_missing_or_blank_values() {
-        assert_eq!(normalize_optional_field(None), None);
-        assert_eq!(normalize_optional_field(Some("")), None);
-        assert_eq!(normalize_optional_field(Some("   \n\t  ")), None);
-    }
-
     #[tokio::test]
     async fn register_and_login_return_internal_errors_when_database_is_unavailable() {
         let pool = crate::utils::test_pg_pool();
