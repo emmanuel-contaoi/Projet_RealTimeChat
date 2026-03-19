@@ -13,4 +13,14 @@ const customJestConfig = {
   },
 };
 
-export default createJestConfig(customJestConfig);
+const jestConfig = createJestConfig(customJestConfig);
+
+export default async () => {
+  const config = await jestConfig();
+  return {
+    ...config,
+    transformIgnorePatterns: [
+      "/node_modules/(?!(next-intl|use-intl)/)",
+    ],
+  };
+};

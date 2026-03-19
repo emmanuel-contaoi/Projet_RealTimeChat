@@ -1,6 +1,6 @@
+"use client";
 // Page d'accueil avec presentation du projet et les features
 import Image from "next/image";
-"use client";
 
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";

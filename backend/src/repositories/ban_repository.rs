@@ -56,6 +56,7 @@ impl BanRepository {
     }
 
     // Supprime le ban d'un utilisateur (unban)
+    #[allow(dead_code)]
     pub async fn delete(pool: &PgPool, server_id: Uuid, user_id: Uuid) -> sqlx::Result<u64> {
         sqlx::query("DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2")
             .bind(server_id)

@@ -2,6 +2,7 @@ use dotenv::dotenv;
 use mongodb::{options::ClientOptions, Client};
 use std::env;
 
+#[cfg(test)]
 fn mongo_uri_from_env() -> String {
     env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string())
 }

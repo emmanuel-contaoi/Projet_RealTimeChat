@@ -11,46 +11,11 @@ mod websocket;
 use crate::state::AppState;
 use axum::{
     middleware,
-    body::{to_bytes, Body},
-    middleware,
     routing::{delete, get, post, put},
     Router,
 };
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
-
-#[tokio::main]
-async fn main() {
-    dotenvy::dotenv().ok();
-
-    // 1. Connexion PostgreSQL
-    let database_url =
-        std::env::var("DATABASE_URL").expect("DATABASE_URL doit être défini dans .env");
-
-    let pool = sqlx::postgres::PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await
-        .expect("Impossible de se connecter à PostgreSQL");
-
-    // Migrations : creer les tables si elles n'existent pas
-    db::migrations::run_migrations(&pool).await;
-
-    // 2. Connexion MongoDB
-    let mongo_client = db::mongo::init_mongo().await;
-
-    let state = AppState {
-        pool: pool.clone(),
-        mongo: mongo_client,
-        connections: std::sync::Arc::new(
-            tokio::sync::RwLock::new(std::collections::HashMap::new()),
-        ),
-        room_manager: std::sync::Arc::new(tokio::sync::Mutex::new(
-            websocket::rooms::RoomManager::new(),
-        )),
-        user_info: std::sync::Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-    };
-
 
 fn build_app(state: AppState) -> Router {
     // 4. Routes publiques (sans authentification)
@@ -95,10 +60,7 @@ fn build_app(state: AppState) -> Router {
             "/friends/{friend_id}",
             delete(routes::friends::remove_friend),
         )
-        .route(
-            "/dms",
-            post(routes::dms::get_or_create_dm),
-        )
+        .route("/dms", post(routes::dms::get_or_create_dm))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             utils::auth::auth_middleware,
@@ -205,6 +167,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::{to_bytes, Body};
     use axum::http::{header, Request, StatusCode};
     use tower::util::ServiceExt;
     use uuid::Uuid;

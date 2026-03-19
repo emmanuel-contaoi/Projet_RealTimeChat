@@ -69,7 +69,6 @@ impl MessageRepository {
             .update_one(
                 doc! { "_id": oid },
                 doc! { "$set": { "reactions": reactions_bson } },
-                None,
             )
             .await
             .map(|_| ())
@@ -118,9 +117,11 @@ mod tests {
         )
         .await
         .is_err());
-        assert!(MessageRepository::update_content(&mongo, ObjectId::new(), "updated")
-            .await
-            .is_err());
+        assert!(
+            MessageRepository::update_content(&mongo, ObjectId::new(), "updated")
+                .await
+                .is_err()
+        );
         assert!(MessageRepository::update_reactions(
             &mongo,
             ObjectId::new(),
@@ -131,6 +132,8 @@ mod tests {
         )
         .await
         .is_err());
-        assert!(MessageRepository::delete(&mongo, ObjectId::new()).await.is_err());
+        assert!(MessageRepository::delete(&mongo, ObjectId::new())
+            .await
+            .is_err());
     }
 }

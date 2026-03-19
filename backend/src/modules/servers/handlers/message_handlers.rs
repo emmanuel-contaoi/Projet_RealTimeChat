@@ -172,8 +172,8 @@ pub async fn remove_reaction(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::modules::servers::models::MessageReaction;
     use crate::models::User;
+    use crate::modules::servers::models::MessageReaction;
     use chrono::Utc;
     use tokio::sync::mpsc::error::TryRecvError;
 
