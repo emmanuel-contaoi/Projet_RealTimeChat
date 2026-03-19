@@ -265,7 +265,7 @@ export default function ChatPanel({
                         </form>
                       ) : (
                         isGifUrl(message.content) ? (
-                          <img src={message.content} alt="GIF" loading="lazy" className="max-h-64 w-auto rounded-xl object-contain" />
+                          <Image src={message.content} alt="GIF" width={256} height={256} className="max-h-64 w-auto rounded-xl object-contain" unoptimized />
                         ) : (
                           <p className="whitespace-pre-wrap break-words">{message.content}</p>
                         )
@@ -429,7 +429,7 @@ export default function ChatPanel({
                 <div className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto">
                   {gifResults.map((gif) => (
                     <button key={gif.id} type="button" className="overflow-hidden rounded-lg border border-[var(--stroke)] transition hover:border-[var(--brand-1)]" onClick={() => { onSendMessage(gif.url); setShowGifPicker(false); setGifSearch(""); }} title={gif.title}>
-                      <img src={gif.previewUrl} alt={gif.title} loading="lazy" className="h-28 w-full object-cover" />
+                      <Image src={gif.previewUrl} alt={gif.title} width={112} height={112} className="h-28 w-full object-cover" unoptimized />
                     </button>
                   ))}
                 </div>

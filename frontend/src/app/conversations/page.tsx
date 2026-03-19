@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Friend } from "./types";
 
 import { authService } from "@/services/api";
 import useChat from "./hooks/useChat";
@@ -87,7 +88,7 @@ export default function ConversationsPage() {
     router.push("/register");
   };
 
-  const handleSelectFriend = async (friend: any) => {
+  const handleSelectFriend = async (friend: Friend) => {
     friends.setSelectedFriend(friend.id); // On s'assure de passer l'ID
 
     try {
@@ -125,7 +126,7 @@ export default function ConversationsPage() {
   }
 
   // Permet de retrouver le nom de l'ami actif
-  const currentFriendName = friends.friendList.find((f: any) => f.id === friends.selectedFriend)?.username || "Messages Privés";
+  const currentFriendName = friends.friendList.find((f: Friend) => f.id === friends.selectedFriend)?.username || "Messages Privés";
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
