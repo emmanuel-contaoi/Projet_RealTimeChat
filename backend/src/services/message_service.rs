@@ -80,7 +80,7 @@ impl MessageService {
         // 1. On vérifie d'abord si c'est un salon de serveur
         let membership = ChannelRepository::get_member_role(pool, channel_id, user_id)
             .await
-            .unwrap_or(None);
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
         let mut is_authorized = membership.is_some();
 
@@ -93,7 +93,7 @@ impl MessageService {
             .bind(user_id)
             .fetch_one(pool)
             .await
-            .unwrap_or(false);
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
             is_authorized = is_dm_participant;
         }
@@ -122,7 +122,7 @@ impl MessageService {
         // 1. Vérification de l'autorisation (Serveur ou DM)
         let membership = ChannelRepository::get_member_role(pool, channel_id, user_id)
             .await
-            .unwrap_or(None);
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
         let mut is_authorized = membership.is_some();
 
@@ -134,7 +134,7 @@ impl MessageService {
             .bind(user_id)
             .fetch_one(pool)
             .await
-            .unwrap_or(false);
+            .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
             is_authorized = is_dm_participant;
         }
