@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom";
 import "@testing-library/jest-dom/jest-globals";
+import { jest } from "@jest/globals";
 import fr from "./messages/fr.json";
 
 type Translations = Record<string, Record<string, string>>;
