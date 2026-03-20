@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use crate::repositories::user_repository::UserRepository;
 use crate::services::ServiceError;
-use crate::{models::UserResponse, state::AppState};
 use crate::utils::jwt::validate_token_claims;
+use crate::{models::UserResponse, state::AppState};
 
 #[derive(Debug, Deserialize)]
 pub struct SearchUsersQuery {
@@ -91,7 +91,7 @@ pub async fn update_profile(
             SET first_name = $1, last_name = $2, email = $3, username = $4, password_hash = $5
             WHERE id = $6
             RETURNING *
-            "#
+            "#,
         )
         .bind(&payload.first_name)
         .bind(&payload.last_name)
@@ -109,7 +109,7 @@ pub async fn update_profile(
             SET first_name = $1, last_name = $2, email = $3, username = $4
             WHERE id = $5
             RETURNING *
-            "#
+            "#,
         )
         .bind(&payload.first_name)
         .bind(&payload.last_name)
@@ -120,7 +120,8 @@ pub async fn update_profile(
         .await
     };
 
-    let user = updated_user.map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+    let user =
+        updated_user.map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
     // 3. Renvoyer les nouvelles données
     Ok(Json(UserResponse::from(user)))
