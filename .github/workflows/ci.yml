@@ -11,10 +11,14 @@ jobs:
   # Vérifie la qualité du code (format, lint, types)
   quality-checks:
     name: Quality Checks
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
+
+      # 🔴 NOUVEAU : Installation du compilateur C et OpenSSL pour les dépendances Rust
+      - name: Installer les dépendances système (C, OpenSSL)
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
       # Backend Rust
       - name: Installer Rust (avec rustfmt et clippy)
@@ -51,11 +55,15 @@ jobs:
   # Compile et teste le backend et le frontend (après quality-checks)
   build-and-test:
     name: Build and Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: quality-checks
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
+
+      # 🔴 NOUVEAU : Installation du compilateur C et OpenSSL ici aussi
+      - name: Installer les dépendances système (C, OpenSSL)
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
       # Backend Rust avec cache
       - name: Installer Rust
@@ -101,7 +109,7 @@ jobs:
   # Vérifie les failles de sécurité dans les dépendances (tourne en parallèle)
   security-audit:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
@@ -110,14 +118,9 @@ jobs:
       - name: Installer Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Mettre en cache cargo-audit
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/bin/cargo-audit
-          key: cargo-audit-${{ runner.os }}-v0.21
-
-      - name: Installer cargo-audit
-        run: cargo install cargo-audit --force
+      # Utilise la version précompilée en 1 seconde
+      - name: Installer cargo-audit (version rapide)
+        uses: taiki-e/install-action@cargo-audit
 
       - name: Audit de sécurité Rust
         working-directory: ./backend

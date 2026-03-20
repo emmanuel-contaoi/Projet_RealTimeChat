@@ -10,7 +10,7 @@ jobs:
   # Crée la release GitHub avec le changelog
   create-release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code (avec tout l'historique pour le changelog)
         uses: actions/checkout@v5
@@ -48,7 +48,7 @@ jobs:
   # Compile le backend en mode release et l'uploade sur la release (après create-release)
   build-binaries:
     name: Build Binaries
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: create-release
     steps:
       - name: Récupérer le code

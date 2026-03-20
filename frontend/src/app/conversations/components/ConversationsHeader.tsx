@@ -1,16 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import type { RefObject } from "react";
 import Image from "next/image";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { authService } from "@/services/api"; 
 
 type ConversationsHeaderProps = {
   isMenuOpen: boolean;
   menuRef: RefObject<HTMLDivElement | null>;
   onToggleMenu: () => void;
   onEditProfile: () => void;
-  onSwitchAccount: () => void;
   onLogout: () => void;
 };
 
@@ -19,10 +20,19 @@ export default function ConversationsHeader({
   menuRef,
   onToggleMenu,
   onEditProfile,
-  onSwitchAccount,
   onLogout,
 }: ConversationsHeaderProps) {
   const t = useTranslations("header");
+  
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (user && user.username) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUsername(user.username);
+    }
+  }, []);
 
   return (
     <header className="relative z-30 mx-auto grid w-full max-w-none shrink-0 grid-cols-3 items-center px-8 py-4 md:px-12">
@@ -40,7 +50,7 @@ export default function ConversationsHeader({
                 <circle cx="12" cy="7" r="4" />
               </svg>
             </span>
-            {t("profile")}
+            {username ? username : t("profile")}
           </button>
 
           {isMenuOpen ? (
@@ -52,13 +62,9 @@ export default function ConversationsHeader({
               >
                 {t("edit_account")}
               </button>
-              <button
-                className="w-full rounded-xl px-3 py-2 text-left text-slate-200 transition hover:bg-[var(--surface-strong)]"
-                onClick={onSwitchAccount}
-                type="button"
-              >
-                {t("switch_account")}
-              </button>
+              
+              {/* Le bouton "Changer de compte" a été supprimé ici ! */}
+
               <button
                 className="w-full rounded-xl px-3 py-2 text-left text-rose-200 transition hover:bg-[rgba(255,77,255,0.12)]"
                 onClick={onLogout}

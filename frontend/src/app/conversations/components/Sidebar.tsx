@@ -89,7 +89,7 @@ export default function Sidebar({
           <ServerList
             serverList={serverList}
             selectedServer={selectedServer}
-            unreadChannels={unreadChannels}
+            // 🔴 CORRECTION : la ligne unreadChannels a été supprimée !
             onSelectServer={onSelectServer}
             currentUserRole={currentUserRole}
             onCreateServer={onCreateServer}
