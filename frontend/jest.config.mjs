@@ -15,7 +15,8 @@ const customJestConfig = {
 
 const jestConfig = createJestConfig(customJestConfig);
 
-export default async () => {
+// On donne un nom à la fonction (makeConfig) avant de l'exporter
+const makeConfig = async () => {
   const config = await jestConfig();
   return {
     ...config,
@@ -24,3 +25,5 @@ export default async () => {
     ],
   };
 };
+
+export default makeConfig;

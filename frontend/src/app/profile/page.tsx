@@ -57,7 +57,8 @@ export default function ProfilePage() {
 
       await authService.login(hiddenEmail, passwordVerify);
       setIsUnlocked(true);
-    } catch (err) {
+    // 🔴 CORRECTION ÉTAPE 2 : On a enlevé le "err" inutile !
+    } catch {
       setAuthError("Mot de passe incorrect.");
     } finally {
       setLoading(false);

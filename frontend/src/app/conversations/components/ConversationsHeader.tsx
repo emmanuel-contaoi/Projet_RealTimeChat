@@ -29,6 +29,7 @@ export default function ConversationsHeader({
   useEffect(() => {
     const user = authService.getCurrentUser();
     if (user && user.username) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUsername(user.username);
     }
   }, []);
