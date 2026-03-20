@@ -8,7 +8,7 @@ type ServerListProps = {
   serverList: Server[];
   selectedServer: string;
   currentUserRole: string;
-  unreadChannels: Set<string>;
+  // CORRECTION : unreadChannels a été supprimé d'ici
   onSelectServer: (serverId: string) => void;
   onCreateServer: () => void;
   onJoinServer: () => void;

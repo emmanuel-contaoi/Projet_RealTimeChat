@@ -78,18 +78,13 @@ export default function ConversationsPage() {
     router.push("/");
   };
 
-  const handleSwitchAccount = async () => {
-    await authService.logout();
-    router.push("/login");
-  };
-
   const handleEditProfile = () => {
     setIsMenuOpen(false);
-    router.push("/register");
+    router.push("/profile");
   };
 
   const handleSelectFriend = async (friend: Friend) => {
-    friends.setSelectedFriend(friend.id); // On s'assure de passer l'ID
+    friends.setSelectedFriend(friend.id); 
 
     try {
       const token = localStorage.getItem("token");
@@ -125,7 +120,6 @@ export default function ConversationsPage() {
     return <LoadingScreen />;
   }
 
-  // Permet de retrouver le nom de l'ami actif
   const currentFriendName = friends.friendList.find((f: Friend) => f.id === friends.selectedFriend)?.name || "Messages Privés";
 
   return (
@@ -187,7 +181,6 @@ export default function ConversationsPage() {
             channels={server.channels}
             selectedChannel={server.selectedChannel}
             canManageChannels={server.canManageChannels}
-            // NOUVEAU : On envoie les alertes aux channels !
             unreadChannels={chat.unreadChannels}
             onSelectChannel={server.setSelectedChannel}
             onDeleteChannel={server.handleDeleteChannel}
