@@ -15,18 +15,8 @@ jobs:
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          clean: true
 
-      - name: Vérifier le commit checkout
-        run: |
-          echo "github.sha=${{ github.sha }}"
-          echo "HEAD=$(git rev-parse HEAD)"
-          git status --short
-
-      # NOUVEAU : Installation du compilateur C et OpenSSL pour les dépendances Rust
+      # 🔴 NOUVEAU : Installation du compilateur C et OpenSSL pour les dépendances Rust
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
@@ -70,18 +60,8 @@ jobs:
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          clean: true
 
-      - name: Vérifier le commit checkout
-        run: |
-          echo "github.sha=${{ github.sha }}"
-          echo "HEAD=$(git rev-parse HEAD)"
-          git status --short
-
-      # NOUVEAU : Installation du compilateur C et OpenSSL ici aussi
+      # 🔴 NOUVEAU : Installation du compilateur C et OpenSSL ici aussi
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
@@ -133,16 +113,6 @@ jobs:
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          clean: true
-
-      - name: Vérifier le commit checkout
-        run: |
-          echo "github.sha=${{ github.sha }}"
-          echo "HEAD=$(git rev-parse HEAD)"
-          git status --short
 
       # Backend
       - name: Installer Rust

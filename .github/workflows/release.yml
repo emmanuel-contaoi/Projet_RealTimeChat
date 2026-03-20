@@ -64,7 +64,7 @@ jobs:
             MINOR=$((MINOR + 1)); PATCH=0
           else
             PATCH=$((PATCH + 1))
-          fihttps://github.com/EpitechMscProPromo2028/T-DEV-600-PAR_22/pull/14/conflict?name=.github%252Fworkflows%252Frelease.yml&ancestor_oid=36221d315d97dd38d6b18c4adfdb7f64e51fd523&base_oid=b7429b16f85396cd6de541fef1d60c4495051d5d&head_oid=4e34ff219dff40edde853af73966c6ae98b4229e
+          fi
 
           NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
           echo "Bump: $BUMP → $NEW_TAG"
@@ -83,15 +83,7 @@ jobs:
       - name: Récupérer le code (avec tout l'historique pour le changelog)
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.sha }}
           fetch-depth: 0
-          clean: true
-
-      - name: Vérifier le commit checkout
-        run: |
-          echo "github.sha=${{ github.sha }}"
-          echo "HEAD=$(git rev-parse HEAD)"
-          git status --short
 
       - name: Générer le changelog depuis git log
         id: changelog
@@ -127,16 +119,6 @@ jobs:
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          clean: true
-
-      - name: Vérifier le commit checkout
-        run: |
-          echo "github.sha=${{ github.sha }}"
-          echo "HEAD=$(git rev-parse HEAD)"
-          git status --short
 
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
