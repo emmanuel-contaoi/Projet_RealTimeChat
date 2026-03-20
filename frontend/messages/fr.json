@@ -124,6 +124,7 @@
     "role_owner": "Owner",
     "role_admin": "Admin",
     "role_member": "Membre",
+    "actions": "Actions",
     "demote": "Retrograder",
     "promote": "Promouvoir",
     "promote_title": "Promouvoir admin",
