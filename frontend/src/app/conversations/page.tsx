@@ -80,9 +80,13 @@ export default function ConversationsPage() {
 
   const handleEditProfile = () => {
     setIsMenuOpen(false);
-    router.push("/profile");
+    router.push("/register");
   };
 
+  const handleSwitchAccount = async () => {
+    await authService.logout();
+    router.push("/login");
+  };
   const handleSelectFriend = async (friend: Friend) => {
     friends.setSelectedFriend(friend.id); 
 
@@ -107,7 +111,7 @@ export default function ConversationsPage() {
 
       chat.setMessages([]);
       await chat.loadMessages(dmChannel.id);
-      
+
       chat.syncChannel(dmChannel.id);
       chat.setActiveChannel(dmChannel.id);
 
@@ -286,3 +290,4 @@ export default function ConversationsPage() {
     </div>
   );
 }
+ 
