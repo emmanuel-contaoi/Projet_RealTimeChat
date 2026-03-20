@@ -11,7 +11,7 @@ jobs:
   # Vérifie la qualité du code (format, lint, types)
   quality-checks:
     name: Quality Checks
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
@@ -51,7 +51,7 @@ jobs:
   # Compile et teste le backend et le frontend (après quality-checks)
   build-and-test:
     name: Build and Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: quality-checks
     steps:
       - name: Récupérer le code
@@ -101,27 +101,17 @@ jobs:
   # Vérifie les failles de sécurité dans les dépendances (tourne en parallèle)
   security-audit:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
 
       # Backend
-      - name: Installer Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Mettre en cache cargo-audit
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/bin/cargo-audit
-          key: cargo-audit-${{ runner.os }}-v0.21
-
-      - name: Installer cargo-audit
-        run: cargo install cargo-audit --force
-
       - name: Audit de sécurité Rust
-        working-directory: ./backend
-        run: cargo audit --ignore RUSTSEC-2023-0071
+        uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ignore: RUSTSEC-2023-0071
 
       # Frontend
       - name: Installer Node.js
@@ -138,3 +128,4 @@ jobs:
       - name: Audit de sécurité npm
         working-directory: ./frontend
         run: npm audit --audit-level=high --omit=dev
+ 
