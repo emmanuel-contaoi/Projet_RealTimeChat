@@ -96,6 +96,13 @@ pub async fn join_server(
     let server =
         ServerService::join_server(&state.pool, auth_user.0.id, &payload.invite_code).await?;
 
+    let _username = auth_user
+        .0
+        .username
+        .clone()
+        .or_else(|| auth_user.0.first_name.clone())
+        .unwrap_or_else(|| auth_user.0.email.clone());
+
     // On notifie tous les membres que quelqu'un a rejoint le serveur
     let event = build_member_joined_event(&auth_user.0, server.id);
     if let Ok(json) = event.to_json() {
@@ -357,7 +364,9 @@ mod tests {
         }
 
         match list_servers(state.clone(), auth_user.clone()).await {
-            Err(ServiceError::Internal(message)) => assert!(message.contains("Erreur récupération")),
+            Err(ServiceError::Internal(message)) => {
+                assert!(message.contains("Erreur récupération"))
+            }
             _ => panic!("unexpected list_servers result"),
         }
 

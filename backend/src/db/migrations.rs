@@ -113,6 +113,28 @@ pub async fn run_migrations(pool: &PgPool) {
     .await
     .expect("Migration server_bans echouee");
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS dm_channels (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user1_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            user2_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration dm_channels echouee");
+
+    sqlx::query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS unique_dm_pair_idx ON dm_channels (
+            LEAST(user1_id, user2_id),
+            GREATEST(user1_id, user2_id)
+        )",
+    )
+    .execute(pool)
+    .await
+    .expect("Migration unique_dm_pair_idx echouee");
+
     // Fix les doublons de owner (garde un seul owner par serveur)
     sqlx::query(
         "UPDATE members SET role = 'admin'

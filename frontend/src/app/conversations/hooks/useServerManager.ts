@@ -122,8 +122,8 @@ export default function useServerManager({
         setMessages([]);
         setMembers([]);
       }
-    } catch (err: any) {
-      const msg = err.response?.data;
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de quitter ce serveur.");
     }
   };
@@ -140,9 +140,9 @@ export default function useServerManager({
         setMessages([]);
         setMembers([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Delete server error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de supprimer ce serveur.");
     }
   };
@@ -156,9 +156,9 @@ export default function useServerManager({
         setSelectedChannel("");
         setMessages([]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Delete channel error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de supprimer ce channel.");
     }
   };
@@ -170,9 +170,9 @@ export default function useServerManager({
       setMembers((prev) =>
         prev.map((m) => (m.user_id === userId ? { ...m, role } : m))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Update role error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de changer le role.");
     }
   };
@@ -193,9 +193,9 @@ export default function useServerManager({
       setSelectedServer(server.id);
       setIsJoinServerOpen(false);
       setJoinInviteCode("");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Join server error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       setJoinServerError(typeof msg === "string" ? msg : "Code d'invitation invalide.");
     } finally {
       setJoinServerLoading(false);
@@ -267,9 +267,9 @@ export default function useServerManager({
       setServerList((prev) =>
         prev.map((s) => (s.id === serverId ? { ...s, name: updated.name } : s))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Update server error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de renommer ce serveur.");
     }
   };
@@ -280,9 +280,9 @@ export default function useServerManager({
       setChannels((prev) =>
         prev.map((c) => (c.id === channelId ? { ...c, name: updated.name } : c))
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Update channel error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de renommer ce channel.");
     }
   };
@@ -295,9 +295,9 @@ export default function useServerManager({
       // On recharge les membres pour avoir les roles a jour
       const memberData = await serversService.members(selectedServer);
       setMembers(memberData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Transfer ownership error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de transferer la propriete.");
     }
   };
@@ -311,9 +311,9 @@ export default function useServerManager({
     try {
       await serversService.ban(selectedServer, userId, durationMinutes);
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Ban error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible de bannir ce membre.");
     }
   };
@@ -325,9 +325,9 @@ export default function useServerManager({
       await serversService.kick(selectedServer, userId);
       // Mise a jour locale immediate — le WS member_kicked fera pareil pour les autres
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[API] Kick error:", err);
-      const msg = err.response?.data;
+      const msg = (err as { response?: { data?: unknown } }).response?.data;
       alert(typeof msg === "string" ? msg : "Impossible d'expulser ce membre.");
     }
   };

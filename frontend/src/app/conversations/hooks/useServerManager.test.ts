@@ -58,12 +58,12 @@ describe("useServerManager", () => {
       invite_code: "qqq111",
       created_at: null,
     });
-    jest.spyOn(serversService, "updateRole").mockResolvedValue(undefined);
-    jest.spyOn(serversService, "transferOwnership").mockResolvedValue(undefined);
-    jest.spyOn(serversService, "ban").mockResolvedValue(undefined);
-    jest.spyOn(serversService, "kick").mockResolvedValue(undefined);
-    jest.spyOn(serversService, "delete").mockResolvedValue(undefined);
-    jest.spyOn(serversService, "leave").mockResolvedValue(undefined);
+    jest.spyOn(serversService, "updateRole").mockResolvedValue(undefined as never);
+    jest.spyOn(serversService, "transferOwnership").mockResolvedValue(undefined as never);
+    jest.spyOn(serversService, "ban").mockResolvedValue(undefined as never);
+    jest.spyOn(serversService, "kick").mockResolvedValue(undefined as never);
+    jest.spyOn(serversService, "delete").mockResolvedValue(undefined as never);
+    jest.spyOn(serversService, "leave").mockResolvedValue(undefined as never);
     jest.spyOn(channelsService, "list").mockImplementation(async (serverId: string) => {
       if (serverId === "server-3") {
         return [
@@ -110,7 +110,7 @@ describe("useServerManager", () => {
       name: "renamed",
       type: "text",
     });
-    jest.spyOn(channelsService, "delete").mockResolvedValue(undefined);
+    jest.spyOn(channelsService, "delete").mockResolvedValue(undefined as never);
   });
 
   const renderServerManager = () =>

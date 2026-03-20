@@ -95,8 +95,8 @@ impl ChannelRepository {
         )
         .bind(channel_id_str)
         .bind(user_id)
-            .fetch_optional(pool)
-            .await
+        .fetch_optional(pool)
+        .await
     }
 }
 
@@ -115,24 +115,34 @@ mod tests {
         let server_id = Uuid::new_v4();
         let user_id = Uuid::new_v4();
 
-        assert!(ChannelRepository::create(&pool, server_id, "general", "text")
-            .await
-            .is_err());
-        assert!(ChannelRepository::find_by_id(&pool, channel_id).await.is_err());
-        assert!(ChannelRepository::list_for_server(&pool, server_id)
-            .await
-            .is_err());
-        assert!(ChannelRepository::update(&pool, channel_id, "random", Some("voice"))
-            .await
-            .is_err());
-        assert!(ChannelRepository::delete(&pool, channel_id).await.is_err());
-        assert!(ChannelRepository::get_member_role(&pool, channel_id, user_id)
-            .await
-            .is_err());
         assert!(
-            ChannelRepository::get_member_role_by_channel_str(&pool, &channel_id.to_string(), user_id)
+            ChannelRepository::create(&pool, server_id, "general", "text")
                 .await
                 .is_err()
         );
+        assert!(ChannelRepository::find_by_id(&pool, channel_id)
+            .await
+            .is_err());
+        assert!(ChannelRepository::list_for_server(&pool, server_id)
+            .await
+            .is_err());
+        assert!(
+            ChannelRepository::update(&pool, channel_id, "random", Some("voice"))
+                .await
+                .is_err()
+        );
+        assert!(ChannelRepository::delete(&pool, channel_id).await.is_err());
+        assert!(
+            ChannelRepository::get_member_role(&pool, channel_id, user_id)
+                .await
+                .is_err()
+        );
+        assert!(ChannelRepository::get_member_role_by_channel_str(
+            &pool,
+            &channel_id.to_string(),
+            user_id
+        )
+        .await
+        .is_err());
     }
 }

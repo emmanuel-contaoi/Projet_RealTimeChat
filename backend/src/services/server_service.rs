@@ -334,7 +334,10 @@ impl ServerService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
 
-        ensure_server_membership(membership.as_deref(), "Vous n'etes pas membre de ce serveur.")?;
+        ensure_server_membership(
+            membership.as_deref(),
+            "Vous n'etes pas membre de ce serveur.",
+        )?;
 
         ServerRepository::list_members(pool, server_id)
             .await
@@ -405,6 +408,15 @@ impl ServerService {
         let caller_role = ServerRepository::get_member_role(pool, server_id, caller_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Erreur serveur: {}", e)))?;
+
+        match caller_role.as_deref() {
+            Some("owner") | Some("admin") => {}
+            _ => {
+                return Err(ServiceError::Forbidden(
+                    "Seuls owner et admin peuvent bannir un membre.".to_string(),
+                ))
+            }
+        }
 
         // 2. Vérifie la cible
         let target_role = ServerRepository::get_member_role(pool, server_id, target_id)
@@ -692,8 +704,7 @@ mod tests {
             .and_hms_opt(23, 0, 0)
             .expect("time should be valid");
         let ban_result =
-            ServerService::ban_member(&pool, user_id, server_id, target_id, Some(expires_at))
-                .await;
+            ServerService::ban_member(&pool, user_id, server_id, target_id, Some(expires_at)).await;
         assert_internal_error(ban_result, "Erreur serveur:");
     }
 }

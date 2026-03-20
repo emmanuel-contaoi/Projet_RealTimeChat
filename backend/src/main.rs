@@ -10,7 +10,6 @@ mod websocket;
 
 use crate::state::AppState;
 use axum::{
-    body::{to_bytes, Body},
     middleware,
     routing::{delete, get, post, put},
     Router,
@@ -33,6 +32,8 @@ fn build_app(state: AppState) -> Router {
         .route("/auth/logout", post(routes::auth::logout))
         .route("/users/search", get(routes::users::search_users))
         .route("/users", get(routes::users::list_users))
+        // 🔴 NOUVEAU : La fameuse route pour mettre à jour son profil !
+        .route("/users/me", put(routes::users::update_profile))
         .route(
             "/friends",
             get(routes::friends::list_friends).post(routes::friends::send_friend_request),
@@ -61,10 +62,7 @@ fn build_app(state: AppState) -> Router {
             "/friends/{friend_id}",
             delete(routes::friends::remove_friend),
         )
-        .route(
-            "/dms",
-            post(routes::dms::get_or_create_dm),
-        )
+        .route("/dms", post(routes::dms::get_or_create_dm))
         .layer(middleware::from_fn_with_state(
             state.clone(),
             utils::auth::auth_middleware,
@@ -171,6 +169,7 @@ async fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::body::{to_bytes, Body};
     use axum::http::{header, Request, StatusCode};
     use tower::util::ServiceExt;
     use uuid::Uuid;

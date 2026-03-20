@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+jobs:
+  # Calcule la prochaine version depuis les conventional commits et crée le tag
+  auto-tag:
+    name: Auto Tag
+    runs-on: self-hosted
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Calculer la prochaine version et créer le tag
+        run: |
+          # Récupère le dernier tag, ou 0.0.0 si aucun
+          LAST_TAG=$(git tag --sort=-version:refname | head -1)
+          if [ -z "$LAST_TAG" ]; then
+            MAJOR=0; MINOR=0; PATCH=0
+          else
+            VERSION=${LAST_TAG#v}
+            MAJOR=$(echo $VERSION | cut -d. -f1)
+            MINOR=$(echo $VERSION | cut -d. -f2)
+            PATCH=$(echo $VERSION | cut -d. -f3)
+          fi
+
+          # Lit les commits depuis le dernier tag (ou tous les commits si aucun tag)
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s")
+          else
+            COMMITS=$(git log --pretty=format:"%s" ${LAST_TAG}..HEAD)
+          fi
+
+          # Détermine le type de bump selon les conventional commits
+          BUMP=""
+          while IFS= read -r line; do
+            if echo "$line" | grep -qE "^(feat|fix|refactor|perf)(\(.+\))?!:|BREAKING CHANGE"; then
+              BUMP="major"; break
+            elif echo "$line" | grep -qE "^feat(\(.+\))?:"; then
+              [ "$BUMP" != "major" ] && BUMP="minor"
+            elif echo "$line" | grep -qE "^fix(\(.+\))?:"; then
+              [ -z "$BUMP" ] && BUMP="patch"
+            fi
+          done <<< "$COMMITS"
+
+          # Aucun conventional commit trouvé → pas de release
+          if [ -z "$BUMP" ]; then
+            echo "Aucun conventional commit trouvé, pas de tag créé."
+            exit 0
+          fi
+
+          # Calcule la nouvelle version
+          if [ "$BUMP" = "major" ]; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif [ "$BUMP" = "minor" ]; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Bump: $BUMP → $NEW_TAG"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+
+  # Crée la release GitHub avec le changelog (uniquement sur push tag)
+  create-release:
+    name: Create Release
+    runs-on: self-hosted
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Récupérer le code (avec tout l'historique pour le changelog)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Générer le changelog depuis git log
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | sed -n '2p')
+          if [ -z "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s" HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" ${PREVIOUS_TAG}..HEAD)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Créer la GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Nouveautés
+
+            ${{ steps.changelog.outputs.CHANGELOG }}
+          draft: false
+          prerelease: false
+
+  # Compile le backend en mode release et l'uploade sur la release (après create-release)
+  build-binaries:
+    name: Build Binaries
+    runs-on: self-hosted
+    needs: create-release
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Installer les dépendances système (C, OpenSSL)
+        run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
+
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Mettre en cache les dépendances Cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backend/target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('backend/Cargo.lock') }}
+
+      - name: Compiler le backend en mode release
+        working-directory: ./backend
+        run: cargo build --release
+
+      - name: Uploader le binaire sur la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: backend/target/release/backend

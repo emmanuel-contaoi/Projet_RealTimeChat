@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { authService } from '@/services/api';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
@@ -33,9 +34,10 @@ export default function InscriptionPage() {
         formData.username || undefined
       );
       router.push("/conversations");
-    } catch (err: any) {
-      const message = err.response?.data;
-      setError(typeof message === 'string' ? message : t('error'));
+    } catch (err: unknown) {
+      console.error("[Register] Error:", err);
+      const message = (err as { response?: { data?: unknown } }).response?.data;
+      setError(typeof message === 'string' ? message : 'Erreur lors de l\'inscription');
     } finally {
       setLoading(false);
     }
@@ -86,9 +88,9 @@ export default function InscriptionPage() {
           {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <a className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-center text-base font-semibold text-slate-200 transition hover:bg-[var(--surface-strong)]" href="/">
+            <Link className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-center text-base font-semibold text-slate-200 transition hover:bg-[var(--surface-strong)]" href="/">
               {tc('back')}
-            </a>
+            </Link>
             <button className="flex-1 rounded-full bg-[var(--brand-1)] px-6 py-3 text-base font-semibold text-white shadow-[0_12px_28px_rgba(0,212,255,0.35)] transition hover:-translate-y-0.5 disabled:opacity-50" type="submit" disabled={loading}>
               {loading ? t('submitting') : t('submit')}
             </button>

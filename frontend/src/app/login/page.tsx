@@ -23,6 +23,8 @@ export default function ConnexionPage() {
     setLoading(true);
     try {
       await authService.login(email, password);
+      // NOUVEAU: On sauvegarde l'email dans le cache du navigateur
+      localStorage.setItem("user_email", email); 
       router.push('/conversations');
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: string } };

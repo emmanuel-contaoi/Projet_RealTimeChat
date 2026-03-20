@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Friend } from "./types";
 
 import { authService } from "@/services/api";
 import useChat from "./hooks/useChat";
@@ -77,18 +78,13 @@ export default function ConversationsPage() {
     router.push("/");
   };
 
-  const handleSwitchAccount = async () => {
-    await authService.logout();
-    router.push("/login");
-  };
-
   const handleEditProfile = () => {
     setIsMenuOpen(false);
-    router.push("/register");
+    router.push("/profile");
   };
 
-  const handleSelectFriend = async (friend: any) => {
-    friends.setSelectedFriend(friend.id); // On s'assure de passer l'ID
+  const handleSelectFriend = async (friend: Friend) => {
+    friends.setSelectedFriend(friend.id); 
 
     try {
       const token = localStorage.getItem("token");
@@ -124,20 +120,19 @@ export default function ConversationsPage() {
     return <LoadingScreen />;
   }
 
-  // Permet de retrouver le nom de l'ami actif
-  const currentFriendName = friends.friendList.find((f: any) => f.id === friends.selectedFriend)?.username || "Messages Privés";
+  const currentFriendName = friends.friendList.find((f: Friend) => f.id === friends.selectedFriend)?.name || "Messages Privés";
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
+      {/* 🔴 MODIFIÉ : on ne passe plus la prop onSwitchAccount */}
       <ConversationsHeader
         isMenuOpen={isMenuOpen}
         menuRef={menuRef}
         onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
         onEditProfile={handleEditProfile}
-        onSwitchAccount={() => { setIsMenuOpen(false); handleSwitchAccount(); }}
         onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
       />
 
@@ -155,7 +150,6 @@ export default function ConversationsPage() {
           selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
           currentUserRole={server.currentUserRole}
-          // NOUVEAU : On envoie la liste des non lus au Sidebar pour l'onglet Serveur et DM
           unreadChannels={chat.unreadChannels} 
           onTabChange={async (tab) => {
             setActiveTab(tab);
@@ -188,7 +182,6 @@ export default function ConversationsPage() {
             channels={server.channels}
             selectedChannel={server.selectedChannel}
             canManageChannels={server.canManageChannels}
-            // NOUVEAU : On envoie les alertes aux channels !
             unreadChannels={chat.unreadChannels}
             onSelectChannel={server.setSelectedChannel}
             onDeleteChannel={server.handleDeleteChannel}
@@ -226,6 +219,8 @@ export default function ConversationsPage() {
             onTyping={chat.handleTyping}
             onEditMessage={chat.handleEditMessage}
             onDeleteMessage={chat.handleDeleteMessage}
+            onAddReaction={chat.handleAddReaction}
+            onRemoveReaction={chat.handleRemoveReaction}
           />
         ) : (
           <FriendsPanel

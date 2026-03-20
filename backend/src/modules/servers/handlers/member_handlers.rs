@@ -31,6 +31,7 @@ fn serialize_member_presence(
     })
 }
 
+#[allow(dead_code)]
 fn compute_ban_expiration(
     duration_minutes: Option<i64>,
     now: chrono::DateTime<Utc>,
@@ -38,6 +39,7 @@ fn compute_ban_expiration(
     duration_minutes.map(|mins| (now + Duration::minutes(mins)).naive_utc())
 }
 
+#[allow(dead_code)]
 fn format_ban_expiration_for_event(expires_at: Option<chrono::NaiveDateTime>) -> Option<String> {
     expires_at.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S").to_string())
 }
@@ -126,8 +128,11 @@ pub async fn ban_member(
     Json(payload): Json<BanRequest>,
 ) -> Result<StatusCode, ServiceError> {
     // Calcule expires_at à partir de la durée en minutes (None = permanent)
-    let expires_at = compute_ban_expiration(payload.duration_minutes, Utc::now());
-    let expires_at_str = format_ban_expiration_for_event(expires_at);
+    let expires_at = payload
+        .duration_minutes
+        .map(|mins| (Utc::now() + Duration::minutes(mins)).naive_utc());
+
+    let expires_at_str = expires_at.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S").to_string());
 
     ServerService::ban_member(
         &state.pool,
@@ -297,7 +302,13 @@ mod tests {
             _ => panic!("unexpected list_members result"),
         }
 
-        match kick_member(state.clone(), auth_user.clone(), Path((server_id, target_user_id))).await {
+        match kick_member(
+            state.clone(),
+            auth_user.clone(),
+            Path((server_id, target_user_id)),
+        )
+        .await
+        {
             Err(ServiceError::Internal(message)) => assert!(message.contains("Erreur serveur")),
             _ => panic!("unexpected kick_member result"),
         }

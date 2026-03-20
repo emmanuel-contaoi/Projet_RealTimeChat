@@ -1,5 +1,7 @@
 # Nexus - Messagerie temps réel
 
+![CI](https://github.com/EpitechMscProPromo2028/T-DEV-600-PAR_22/actions/workflows/ci.yml/badge.svg)
+
 Application de messagerie inspirée de Discord : serveurs, channels, messages en temps réel.
 
 ## Stack

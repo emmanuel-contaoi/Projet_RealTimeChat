@@ -68,6 +68,30 @@ export const authService = {
     }
     return null;
   },
+
+  // 🔴 MODIFIÉ : On ajoute "newPassword" en option
+  updateProfile: async (userData: { nom: string; prenom: string; email: string; username: string; newPassword?: string }) => {
+    const payload: Record<string, string> = {
+      first_name: userData.prenom, // On map le français à l'anglais du backend
+      last_name: userData.nom,
+      email: userData.email,
+      username: userData.username
+    };
+
+    // Si l'utilisateur a tapé un nouveau mot de passe, on l'ajoute au payload
+    if (userData.newPassword) {
+      payload.password = userData.newPassword;
+    }
+
+    const response = await api.put('/users/me', payload);
+
+    // Si le backend renvoie le nouvel utilisateur, on met à jour le cache local
+    if (typeof window !== 'undefined' && response.data) {
+      localStorage.setItem('user', JSON.stringify(response.data));
+    }
+
+    return response.data;
+  },
 };
 
 export const serversService = {

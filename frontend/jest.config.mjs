@@ -13,4 +13,17 @@ const customJestConfig = {
   },
 };
 
-export default createJestConfig(customJestConfig);
+const jestConfig = createJestConfig(customJestConfig);
+
+// On donne un nom à la fonction (makeConfig) avant de l'exporter
+const makeConfig = async () => {
+  const config = await jestConfig();
+  return {
+    ...config,
+    transformIgnorePatterns: [
+      "/node_modules/(?!(next-intl|use-intl)/)",
+    ],
+  };
+};
+
+export default makeConfig;

@@ -57,7 +57,11 @@ pub async fn send_message(
     Path(channel_id): Path<Uuid>,
     Json(payload): Json<CreateMessageRequest>,
 ) -> Result<StatusCode, ServiceError> {
-    let username = auth_user.0.preferred_display_name();
+    let username = auth_user
+        .0
+        .username
+        .or(auth_user.0.first_name)
+        .unwrap_or_else(|| auth_user.0.email.clone());
 
     MessageService::send_message(
         &state.pool,
@@ -168,8 +172,8 @@ pub async fn remove_reaction(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::modules::servers::models::MessageReaction;
     use crate::models::User;
+    use crate::modules::servers::models::MessageReaction;
     use chrono::Utc;
     use tokio::sync::mpsc::error::TryRecvError;
 
