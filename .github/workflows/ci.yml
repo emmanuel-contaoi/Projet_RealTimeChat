@@ -107,6 +107,9 @@ jobs:
         uses: actions/checkout@v5
 
       # Backend
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+        
       - name: Audit de sécurité Rust
         uses: rustsec/audit-check@v2
         with:
