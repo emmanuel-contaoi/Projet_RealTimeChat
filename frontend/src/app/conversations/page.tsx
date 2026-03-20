@@ -130,23 +130,15 @@ export default function ConversationsPage() {
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.35),_transparent_55%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(21,209,255,0.16),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(47,123,255,0.18),_transparent_34%)]" />
 
-      <ConversationsHeader
-        isMenuOpen={isMenuOpen}
-        menuRef={menuRef}
-        onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
-        onEditProfile={handleEditProfile}
-        onSwitchAccount={() => { setIsMenuOpen(false); handleSwitchAccount(); }}
-        onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
-      />
+      <ConversationsHeader />
 
       <main
-        className={`relative z-10 grid w-full max-w-none min-h-0 flex-1 gap-6 overflow-hidden px-8 pb-6 md:px-12 ${
+        className={`relative z-10 mx-2 mb-2 grid min-h-0 flex-1 overflow-hidden rounded-[26px] border border-[var(--stroke)] bg-[rgba(9,15,23,0.94)] shadow-[0_24px_64px_rgba(2,8,18,0.52)] ${
           activeTab === "friends"
-            ? "grid-cols-[320px_1fr]"
-            : "grid-cols-[260px_200px_1fr_240px]"
+            ? "grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]"
+            : "grid-cols-1 lg:grid-cols-[250px_190px_minmax(0,1fr)] xl:grid-cols-[250px_210px_minmax(0,1fr)_250px]"
         }`}
       >
         <Sidebar
@@ -156,8 +148,11 @@ export default function ConversationsPage() {
           selectedServer={server.selectedServer}
           selectedFriend={friends.selectedFriend}
           currentUserRole={server.currentUserRole}
+          isMenuOpen={isMenuOpen}
+          menuRef={menuRef}
           // NOUVEAU : On envoie la liste des non lus au Sidebar pour l'onglet Serveur et DM
-          unreadChannels={chat.unreadChannels} 
+          unreadChannels={chat.unreadChannels}
+          onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
           onTabChange={async (tab) => {
             setActiveTab(tab);
             if (tab === "servers") {
@@ -180,6 +175,9 @@ export default function ConversationsPage() {
           onLeaveServer={server.handleLeaveServer}
           onDeleteServer={server.handleDeleteServer}
           onUpdateServer={server.handleUpdateServer}
+          onEditProfile={() => { setIsMenuOpen(false); handleEditProfile(); }}
+          onSwitchAccount={() => { setIsMenuOpen(false); handleSwitchAccount(); }}
+          onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
           onSelectFriend={handleSelectFriend}
           onRemoveFriend={friends.handleRemoveFriend}
         />
@@ -250,16 +248,18 @@ export default function ConversationsPage() {
         )}
 
         {activeTab === "servers" ? (
-          <MembersPanel
-            members={server.members}
-            onlineUserIds={chat.onlineUserIds}
-            currentUserId={currentUserId}
-            currentUserRole={server.currentUserRole}
-            onUpdateRole={server.handleUpdateRole}
-            onTransferOwnership={server.handleTransferOwnership}
-            onKickMember={server.handleKickMember}
-            onBanMember={server.handleBanMember}
-          />
+          <div className="hidden min-h-0 xl:block">
+            <MembersPanel
+              members={server.members}
+              onlineUserIds={chat.onlineUserIds}
+              currentUserId={currentUserId}
+              currentUserRole={server.currentUserRole}
+              onUpdateRole={server.handleUpdateRole}
+              onTransferOwnership={server.handleTransferOwnership}
+              onKickMember={server.handleKickMember}
+              onBanMember={server.handleBanMember}
+            />
+          </div>
         ) : null}
       </main>
 
