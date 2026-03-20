@@ -124,6 +124,7 @@
     "role_owner": "Owner",
     "role_admin": "Admin",
     "role_member": "Member",
+    "actions": "Actions",
     "demote": "Demote",
     "promote": "Promote",
     "promote_title": "Promote to admin",

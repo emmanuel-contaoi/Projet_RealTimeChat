@@ -21,23 +21,24 @@ export default function FriendList({
   const t = useTranslations("friends");
 
   return (
-    <div className="mt-4 flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {friendList.map((friend) => {
         // On vérifie si c'est l'ami actuellement sélectionné
         const isSelected = selectedFriend === friend.id;
         
         // On vérifie s'il y a un message non lu pour cet ami
         const isUnread = unreadChannels.has(friend.id) && !isSelected;
+        const friendInitial = friend.name.charAt(0).toUpperCase();
 
         return (
           <div
             key={friend.id}
-            className={`group relative flex cursor-pointer flex-col gap-2 rounded-2xl border px-4 py-3 text-left transition ${
+            className={`group relative flex cursor-pointer items-center gap-3 rounded-[18px] border px-3.5 py-3 text-left transition ${
               isSelected
-                ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.12)]"
+                ? "border-[rgba(21,209,255,0.5)] bg-[rgba(20,33,49,0.98)]"
                 : isUnread
-                ? "border-[rgba(255,255,255,0.2)] bg-[var(--surface-strong)]"
-                : "border-[var(--stroke)] bg-[var(--surface-strong)] hover:bg-[var(--surface)]"
+                ? "border-[rgba(255,255,255,0.2)] bg-[rgba(19,28,41,0.94)]"
+                : "border-[var(--stroke)] bg-[rgba(19,28,41,0.92)] hover:border-[rgba(21,209,255,0.24)] hover:bg-[rgba(22,33,48,0.96)]"
             }`}
             onClick={() => onSelectFriend(friend)}
             onKeyDown={(event) => {
@@ -48,48 +49,62 @@ export default function FriendList({
             role="button"
             tabIndex={0}
           >
-            {/* LA PASTILLE DE NOTIFICATION */}
             {isUnread && (
               <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
             )}
 
-            <div className="flex items-center justify-between">
-              <p className={`text-sm transition-colors ${isUnread ? "text-white font-bold" : isSelected ? "text-white font-semibold" : "text-slate-200 font-semibold group-hover:text-white"}`}>
-                {friend.name}
-              </p>
-              
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                    friend.status === "En ligne"
-                      ? "bg-[rgba(74,222,128,0.2)] text-green-400"
-                      : "bg-[rgba(100,116,139,0.2)] text-slate-400"
-                  }`}
-                >
-                  {friend.status === "En ligne" ? t("online") : t("offline")}
-                </span>
-                
-                <button
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--stroke)] bg-[var(--surface)] text-slate-300 transition hover:bg-[rgba(255,77,255,0.12)] hover:text-rose-400 opacity-0 group-hover:opacity-100 focus:opacity-100"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemoveFriend(friend.id);
-                  }}
-                  type="button"
-                  aria-label={`${t("remove")} ${friend.name}`}
-                  title={t("remove")}
-                >
-                  <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M3 6h18" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M8 6V4h8v2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M6 6l1 14h10l1-14" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
+            <div className="relative">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-base font-semibold text-white">
+                {friendInitial}
               </div>
+              <span
+                className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[var(--sidebar)] ${
+                  friend.status === "En ligne" ? "bg-[var(--success)]" : "bg-slate-600"
+                }`}
+              />
             </div>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className={`truncate text-base font-semibold transition-colors ${isUnread ? "text-white" : isSelected ? "text-white" : "text-slate-200 group-hover:text-white"}`}>
+                  {friend.name}
+                </p>
+                {isSelected ? (
+                  <span className="rounded-full border border-[rgba(21,209,255,0.35)] bg-[rgba(21,209,255,0.08)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-1)]">
+                    Chat
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">
+                {friend.status === "En ligne" ? t("online") : t("offline")}
+              </p>
+            </div>
+
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--stroke)] bg-[rgba(14,21,31,0.92)] text-slate-300 opacity-0 transition hover:border-[rgba(255,84,109,0.25)] hover:text-rose-400 group-hover:opacity-100 focus:opacity-100"
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemoveFriend(friend.id);
+              }}
+              type="button"
+              aria-label={`${t("remove")} ${friend.name}`}
+              title={t("remove")}
+            >
+              <svg aria-hidden="true" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M3 6h18" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M8 6V4h8v2" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M6 6l1 14h10l1-14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
         );
       })}
+
+      {!friendList.length ? (
+        <p className="rounded-[20px] border border-[var(--stroke)] bg-[rgba(19,28,41,0.92)] px-4 py-4 text-sm text-slate-400">
+          Aucun ami pour le moment.
+        </p>
+      ) : null}
     </div>
   );
 }

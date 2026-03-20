@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Channel } from "../types";
 
@@ -26,96 +26,151 @@ export default function ChannelsPanel({
   onCreateChannel,
 }: ChannelsPanelProps) {
   const t = useTranslations("channels");
+  const [openMenuChannelId, setOpenMenuChannelId] = useState<string | null>(null);
+  const openMenuRef = useRef<HTMLDivElement | null>(null);
 
   const handleDelete = (e: React.MouseEvent, channelId: string) => {
     e.stopPropagation();
+    setOpenMenuChannelId(null);
     onDeleteChannel(channelId);
   };
 
   const handleRename = (e: React.MouseEvent, channelId: string, currentName: string) => {
     e.stopPropagation();
+    setOpenMenuChannelId(null);
     const newName = prompt(t("rename_prompt"), currentName);
     if (newName && newName.trim() && newName.trim() !== currentName) {
       onUpdateChannel(channelId, newName.trim().slice(0, 20));
     }
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!openMenuRef.current) return;
+      if (!openMenuRef.current.contains(event.target as Node)) {
+        setOpenMenuChannelId(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-3xl border border-[var(--stroke)] bg-[var(--surface)] p-5 shadow-[0_14px_30px_rgba(6,10,20,0.5)]">
-      <div className="flex shrink-0 items-center justify-between">
-        <p className="text-sm font-semibold text-white">{t("title")}</p>
+    <section className="flex h-full min-h-0 flex-col border-b border-[var(--stroke)] bg-[rgba(11,18,27,0.92)] p-3 lg:border-b-0 lg:border-r">
+      <div className="flex shrink-0 items-center justify-between border-b border-[rgba(74,97,127,0.22)] pb-3">
+        <div>
+          <p className="text-xl font-semibold text-white">Serveur</p>
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            {t("title")}
+          </p>
+        </div>
         {canManageChannels && (
           <button
             type="button"
-            className="rounded-full border border-[var(--stroke)] bg-[var(--surface-strong)] px-3 py-1 text-[11px] text-[var(--brand-1)] transition hover:bg-[var(--surface)]"
+            className="rounded-[12px] border border-[var(--stroke)] bg-[rgba(20,31,45,0.92)] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-[var(--brand-1)] transition hover:border-[rgba(21,209,255,0.34)] hover:bg-[rgba(24,38,55,0.98)]"
             onClick={onCreateChannel}
           >
             {t("add")}
           </button>
         )}
       </div>
-      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+
+      <div className="mt-4 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <span>Salons textuels</span>
+        <span>{channels.length}</span>
+      </div>
+
+      <div className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {channels.length ? (
           channels.map((channel) => {
             const isActive = selectedChannel === channel.id;
-            // On vérifie si ce channel a des messages non lus
             const isUnread = unreadChannels.has(channel.id) && !isActive;
 
             return (
               <div
                 key={channel.id}
-                className={`group relative flex items-center justify-between rounded-2xl border px-4 py-3 text-sm transition cursor-pointer ${
+                className={`group relative flex min-h-[52px] w-full items-center justify-between rounded-[16px] border px-3 py-2.5 text-[13px] leading-none transition cursor-pointer ${
                   isActive
-                    ? "border-[var(--brand-1)] bg-[rgba(0,212,255,0.10)] text-white font-semibold"
+                    ? "border-[rgba(21,209,255,0.5)] bg-[rgba(25,63,107,0.58)] text-white font-medium"
                     : isUnread
-                    ? "border-[rgba(255,255,255,0.2)] bg-[var(--surface-strong)] text-white font-bold"
-                    : "border-[var(--stroke)] bg-[var(--surface-strong)] text-slate-400 font-medium hover:border-[rgba(0,212,255,0.3)] hover:bg-[var(--surface)] hover:text-white"
+                    ? "border-[rgba(255,255,255,0.2)] bg-[rgba(19,28,41,0.94)] text-white font-medium"
+                    : "border-transparent bg-transparent text-slate-400 font-medium hover:border-[rgba(21,209,255,0.14)] hover:bg-[rgba(20,31,45,0.7)] hover:text-white"
                 }`}
-                onClick={() => onSelectChannel(channel.id)}
+                onClick={() => {
+                  setOpenMenuChannelId(null);
+                  onSelectChannel(channel.id);
+                }}
                 role="button"
                 tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") onSelectChannel(channel.id); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setOpenMenuChannelId(null);
+                    onSelectChannel(channel.id);
+                  }
+                }}
               >
-                {/* PASTILLE DE NOTIFICATION (Point rouge) */}
                 {isUnread && (
-                  <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
+                  <span className="absolute right-3 top-1/2 flex h-6 min-w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-semibold text-white">
+                    1
+                  </span>
                 )}
 
-                <span className="truncate flex items-center gap-2">
-                  <span className={isActive ? "text-[var(--brand-1)]" : "text-slate-500"}>#</span>
-                  {channel.name}
+                {isActive ? (
+                  <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-[var(--brand-1)]" />
+                ) : null}
+
+                <span className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className={`w-5 shrink-0 text-center text-[1.65rem] leading-none ${isActive ? "text-[var(--brand-1)]" : "text-slate-500"}`}>#</span>
+                  <span className="truncate">{channel.name}</span>
                 </span>
 
                 {canManageChannels && (
-                  <span className="ml-2 flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100">
+                  <div
+                    className={`relative ml-2 shrink-0 transition ${openMenuChannelId === channel.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                    ref={openMenuChannelId === channel.id ? openMenuRef : null}
+                  >
                     <button
                       type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-[var(--brand-1)]"
-                      onClick={(e) => handleRename(e, channel.id, channel.name)}
-                      title={t("rename")}
+                      className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-[var(--stroke)] bg-[rgba(35,49,71,0.96)] text-slate-300 transition hover:border-[rgba(21,209,255,0.28)] hover:text-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenuChannelId((prev) => (prev === channel.id ? null : channel.id));
+                      }}
+                      title="Options"
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <circle cx="12" cy="5" r="1.8" />
+                        <circle cx="12" cy="12" r="1.8" />
+                        <circle cx="12" cy="19" r="1.8" />
                       </svg>
                     </button>
-                    <button
-                      type="button"
-                      className="rounded-full p-1 text-slate-500 transition hover:text-red-400"
-                      onClick={(e) => handleDelete(e, channel.id)}
-                      title={t("delete")}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    </button>
-                  </span>
+
+                    {openMenuChannelId === channel.id ? (
+                      <div className="absolute right-0 top-11 z-50 min-w-[152px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)]">
+                        <button
+                          type="button"
+                          className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-[rgba(21,209,255,0.1)] hover:text-white"
+                          onClick={(e) => handleRename(e, channel.id, channel.name)}
+                        >
+                          {t("rename")}
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-rose-200 transition hover:bg-[rgba(255,84,109,0.12)] hover:text-white"
+                          onClick={(e) => handleDelete(e, channel.id)}
+                        >
+                          {t("delete")}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 )}
               </div>
             );
           })
         ) : (
-          <p className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3 text-xs text-slate-400">
+          <p className="rounded-[20px] border border-[var(--stroke)] bg-[rgba(19,28,41,0.92)] px-4 py-4 text-xs text-slate-400">
             {t("empty")}
           </p>
         )}

@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 // Bouton FR / EN
 // Au clic : écrit le cookie "locale" puis recharge la page
 // request.ts lira ce cookie et chargera le bon fichier JSON
-export default function LanguageSwitcher() {
+type LanguageSwitcherProps = {
+  compact?: boolean;
+};
+
+export default function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const locale = useLocale();
   const router = useRouter();
 
@@ -20,7 +24,11 @@ export default function LanguageSwitcher() {
     <button
       type="button"
       onClick={toggle}
-      className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--surface-strong)]"
+      className={`rounded-full border border-[var(--stroke)] bg-[var(--surface)] font-semibold text-white transition hover:bg-[var(--surface-strong)] ${
+        compact
+          ? "inline-flex h-10 shrink-0 items-center justify-center rounded-[14px] px-3 text-[13px] whitespace-nowrap"
+          : "px-3 py-1.5 text-xs"
+      }`}
       title="Changer de langue"
     >
       {locale === "fr" ? "EN" : "FR"}
