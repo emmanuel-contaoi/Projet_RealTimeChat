@@ -11,7 +11,7 @@ jobs:
   # Vérifie la qualité du code (format, lint, types)
   quality-checks:
     name: Quality Checks
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
@@ -51,7 +51,7 @@ jobs:
   # Compile et teste le backend et le frontend (après quality-checks)
   build-and-test:
     name: Build and Test
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: quality-checks
     steps:
       - name: Récupérer le code
@@ -101,7 +101,7 @@ jobs:
   # Vérifie les failles de sécurité dans les dépendances (tourne en parallèle)
   security-audit:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Récupérer le code
         uses: actions/checkout@v5
