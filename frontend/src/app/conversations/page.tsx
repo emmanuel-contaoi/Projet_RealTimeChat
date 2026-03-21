@@ -80,13 +80,11 @@ export default function ConversationsPage() {
 
   const handleEditProfile = () => {
     setIsMenuOpen(false);
-    router.push("/register");
+    router.push("/profile");
   };
 
-  const handleSwitchAccount = async () => {
-    await authService.logout();
-    router.push("/login");
-  };
+  // 🔴 La fonction handleSwitchAccount a été supprimée d'ici !
+  
   const handleSelectFriend = async (friend: Friend) => {
     friends.setSelectedFriend(friend.id); 
 
@@ -148,7 +146,6 @@ export default function ConversationsPage() {
           currentUserRole={server.currentUserRole}
           isMenuOpen={isMenuOpen}
           menuRef={menuRef}
-          // NOUVEAU : On envoie la liste des non lus au Sidebar pour l'onglet Serveur et DM
           unreadChannels={chat.unreadChannels}
           onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
           onTabChange={async (tab) => {
@@ -174,7 +171,7 @@ export default function ConversationsPage() {
           onDeleteServer={server.handleDeleteServer}
           onUpdateServer={server.handleUpdateServer}
           onEditProfile={() => { setIsMenuOpen(false); handleEditProfile(); }}
-          onSwitchAccount={() => { setIsMenuOpen(false); handleSwitchAccount(); }}
+          // 🔴 La ligne onSwitchAccount a été supprimée d'ici !
           onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
           onSelectFriend={handleSelectFriend}
           onRemoveFriend={friends.handleRemoveFriend}
@@ -290,4 +287,3 @@ export default function ConversationsPage() {
     </div>
   );
 }
- 

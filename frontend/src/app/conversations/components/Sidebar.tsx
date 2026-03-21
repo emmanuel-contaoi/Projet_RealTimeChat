@@ -27,7 +27,6 @@ type SidebarProps = {
   onDeleteServer: (serverId: string) => void;
   onUpdateServer: (serverId: string, newName: string) => void;
   onEditProfile: () => void;
-  onSwitchAccount: () => void;
   onLogout: () => void;
   onSelectFriend: (friend: Friend) => void;
   onRemoveFriend: (friendId: string) => void;
@@ -51,7 +50,6 @@ export default function Sidebar({
   onDeleteServer,
   onUpdateServer,
   onEditProfile,
-  onSwitchAccount,
   onLogout,
   currentUserRole,
   onSelectFriend,
@@ -65,6 +63,7 @@ export default function Sidebar({
     [currentAccount?.first_name, currentAccount?.last_name].filter(Boolean).join(" ").trim() ||
     currentAccount?.email ||
     "Nexus";
+  
   return (
     <aside className="flex h-full min-h-0 flex-col border-b border-[var(--stroke)] bg-[var(--sidebar)] p-3 lg:border-b-0 lg:border-r">
       <div className="mb-3 flex items-center justify-start gap-2">
@@ -77,7 +76,7 @@ export default function Sidebar({
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-[13px] font-bold text-white">
               N
             </span>
-            <span className="leading-none">{th("profile")}</span>
+            <span className="leading-none">{accountName}</span>
           </button>
 
           {isMenuOpen ? (
@@ -88,13 +87,6 @@ export default function Sidebar({
                 type="button"
               >
                 {th("edit_account")}
-              </button>
-              <button
-                className="w-full rounded-2xl px-3 py-2.5 text-left text-slate-200 transition hover:bg-[var(--surface-strong)]"
-                onClick={onSwitchAccount}
-                type="button"
-              >
-                {th("switch_account")}
               </button>
               <button
                 className="w-full rounded-2xl px-3 py-2.5 text-left text-rose-200 transition hover:bg-[rgba(255,84,109,0.12)]"
@@ -156,7 +148,6 @@ export default function Sidebar({
           <ServerList
             serverList={serverList}
             selectedServer={selectedServer}
-            // 🔴 CORRECTION : la ligne unreadChannels a été supprimée !
             onSelectServer={onSelectServer}
             currentUserRole={currentUserRole}
             onCreateServer={onCreateServer}
