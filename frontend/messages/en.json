@@ -167,5 +167,27 @@
   },
   "loading": {
     "message": "Loading..."
+  },
+  "profile": {
+    "settings": "Settings",
+    "security": "Security",
+    "edit_account": "Edit Account",
+    "unlock_title": "Unlock",
+    "unlock_description": "Please enter your current password to access sensitive information.",
+    "current_password": "Current Password",
+    "unlock_button": "Unlock",
+    "verifying": "Verifying...",
+    "last_name": "Last Name",
+    "first_name": "First Name",
+    "email": "Email",
+    "username": "Username",
+    "password_help": "Leave blank if you do not wish to change your password.",
+    "new_password": "New Password",
+    "confirm_password": "Confirm New Password",
+    "error_session": "Session error. Please log in again.",
+    "error_wrong_password": "Incorrect password.",
+    "error_password_mismatch": "New passwords do not match!",
+    "error_update": "Error updating profile.",
+    "success_update": "Profile successfully updated!"
   }
 }

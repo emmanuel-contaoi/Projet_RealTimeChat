@@ -167,5 +167,27 @@
   },
   "loading": {
     "message": "Chargement..."
+  },
+  "profile": {
+    "settings": "Paramètres",
+    "security": "Sécurité",
+    "edit_account": "Modifier le compte",
+    "unlock_title": "Déverrouillage",
+    "unlock_description": "Veuillez entrer votre mot de passe actuel pour accéder à vos informations sensibles.",
+    "current_password": "Mot de passe actuel",
+    "unlock_button": "Déverrouiller",
+    "verifying": "Vérification...",
+    "last_name": "Nom",
+    "first_name": "Prénom",
+    "email": "Mail",
+    "username": "Pseudo",
+    "password_help": "Laissez vide si vous ne souhaitez pas modifier votre mot de passe.",
+    "new_password": "Nouveau mot de passe",
+    "confirm_password": "Confirmer le nouveau mot de passe",
+    "error_session": "Erreur de session. Veuillez vous reconnecter.",
+    "error_wrong_password": "Mot de passe incorrect.",
+    "error_password_mismatch": "Les nouveaux mots de passe ne correspondent pas !",
+    "error_update": "Erreur lors de la mise à jour.",
+    "success_update": "Profil mis à jour avec succès !"
   }
 }
