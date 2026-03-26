@@ -3,7 +3,7 @@ use axum::{
     http::HeaderMap,
     Json,
 };
-use bcrypt::{hash, DEFAULT_COST}; // 🔴 NOUVEAU : on importe bcrypt pour hacher le mdp
+use bcrypt::{hash, DEFAULT_COST};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -23,7 +23,7 @@ pub struct UpdateProfileRequest {
     pub last_name: String,
     pub email: String,
     pub username: String,
-    pub password: Option<String>, // 🔴 NOUVEAU : le mot de passe optionnel
+    pub password: Option<String>,
 }
 
 fn normalize_search_query(query: Option<String>) -> Option<String> {
@@ -81,7 +81,7 @@ pub async fn update_profile(
 
     // 2. Mettre à jour l'utilisateur
     let updated_user = if let Some(new_password) = payload.password {
-        // 🔴 CAS 1 : L'utilisateur a tapé un nouveau mot de passe -> on le hache !
+        // CAS 1 : L'utilisateur a tapé un nouveau mot de passe -> on le hache !
         let password_hash = hash(new_password.as_bytes(), DEFAULT_COST)
             .map_err(|e| ServiceError::Internal(format!("Hash error: {}", e)))?;
 
@@ -102,7 +102,7 @@ pub async fn update_profile(
         .fetch_one(&state.pool)
         .await
     } else {
-        // 🔵 CAS 2 : Pas de mot de passe renseigné -> on ne touche pas à password_hash
+        // CAS 2 : Pas de mot de passe renseigné -> on ne touche pas à password_hash
         sqlx::query_as::<_, crate::models::User>(
             r#"
             UPDATE users

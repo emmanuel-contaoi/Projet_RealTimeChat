@@ -16,7 +16,7 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v5
 
-      # 🔴 NOUVEAU : Installation du compilateur C et OpenSSL pour les dépendances Rust
+      # Installation du compilateur C et OpenSSL pour les dépendances Rust
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
@@ -61,7 +61,7 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v5
 
-      # 🔴 NOUVEAU : Installation du compilateur C et OpenSSL ici aussi
+      # Installation du compilateur C et OpenSSL ici aussi
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
