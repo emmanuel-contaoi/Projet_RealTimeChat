@@ -10,7 +10,6 @@ use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        // Serveurs
         .route(
             "/",
             get(handlers::list_servers).post(handlers::create_server),
@@ -26,12 +25,13 @@ pub fn router() -> Router<AppState> {
         .route("/{id}/members", get(handlers::list_members))
         .route("/{id}/members/{user_id}", delete(handlers::kick_member))
         .route("/{id}/members/{user_id}/ban", post(handlers::ban_member))
+        .route("/{id}/bans", get(handlers::list_bans))
+        .route("/{id}/bans/{user_id}", delete(handlers::unban_member))
         .route(
             "/{id}/members/{user_id}/role",
             put(handlers::update_member_role),
         )
         .route("/{id}/transfer", post(handlers::transfer_ownership))
-        // Liste des salons d'un serveur
         .route(
             "/{id}/channels",
             get(handlers::list_channels).post(handlers::create_channel),

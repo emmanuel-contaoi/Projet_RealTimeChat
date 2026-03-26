@@ -112,6 +112,11 @@ export const serversService = {
   // duration_minutes = undefined → ban permanent, sinon ban temporaire
   ban: (serverId: string, userId: string, duration_minutes?: number) =>
     api.post(`/servers/${serverId}/members/${userId}/ban`, { duration_minutes }),
+  bans: (serverId: string) => 
+    api.get(`/servers/${serverId}/bans`).then(r => r.data),
+  /** Supprime le bannissement d'un utilisateur */
+  unban: (serverId: string, userId: string) => 
+    api.delete(`/servers/${serverId}/bans/${userId}`).then(r => r.data),
 };
 
 export const channelsService = {
