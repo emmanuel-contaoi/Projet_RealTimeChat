@@ -82,8 +82,6 @@ export default function ConversationsPage() {
     setIsMenuOpen(false);
     router.push("/profile");
   };
-
-  // 🔴 La fonction handleSwitchAccount a été supprimée d'ici !
   
   const handleSelectFriend = async (friend: Friend) => {
     friends.setSelectedFriend(friend.id); 
@@ -171,7 +169,6 @@ export default function ConversationsPage() {
           onDeleteServer={server.handleDeleteServer}
           onUpdateServer={server.handleUpdateServer}
           onEditProfile={() => { setIsMenuOpen(false); handleEditProfile(); }}
-          // 🔴 La ligne onSwitchAccount a été supprimée d'ici !
           onLogout={() => { setIsMenuOpen(false); handleLogout(); }}
           onSelectFriend={handleSelectFriend}
           onRemoveFriend={friends.handleRemoveFriend}
@@ -244,6 +241,7 @@ export default function ConversationsPage() {
         {activeTab === "servers" ? (
           <div className="hidden min-h-0 xl:block">
             <MembersPanel
+              serverId={server.selectedServer || ""} // 🔴 NOUVEAU: On passe l'ID du serveur
               members={server.members}
               onlineUserIds={chat.onlineUserIds}
               currentUserId={currentUserId}

@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Member } from "../types";
+import BannedList from "@/components/BannedList"; 
 
 type MembersPanelProps = {
+  serverId: string;
   members: Member[];
   onlineUserIds: Set<string>;
   currentUserId: string;
@@ -22,6 +24,7 @@ const ROLE_ORDER: Record<string, number> = {
 };
 
 export default function MembersPanel({
+  serverId,
   members,
   onlineUserIds,
   currentUserId,
@@ -39,6 +42,8 @@ export default function MembersPanel({
   const [banDuration, setBanDuration] = useState("");
   const [actionMenuTarget, setActionMenuTarget] = useState<string | null>(null);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  
+  const [showBans, setShowBans] = useState(false);
 
   useEffect(() => {
     if (!actionMenuTarget) return;
@@ -63,6 +68,7 @@ export default function MembersPanel({
 
   const onlineCount = filteredMembers.filter((m) => onlineUserIds.has(m.user_id)).length;
   const isOwner = currentUserRole === "owner";
+  const isAdmin = currentUserRole === "admin";
 
   const ROLE_LABELS: Record<string, string> = {
     owner: t("role_owner"),
@@ -77,7 +83,6 @@ export default function MembersPanel({
             const isMe = member.user_id === currentUserId;
             const canChangeRole = isOwner && !isMe && member.role !== "owner";
             const canTransfer = isOwner && !isMe && member.role !== "owner";
-            const isAdmin = currentUserRole === "admin";
             const canKick =
               !isMe &&
               member.role !== "owner" &&
@@ -281,7 +286,9 @@ export default function MembersPanel({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-[rgba(11,18,27,0.92)] p-3">
+    <section className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[rgba(11,18,27,0.92)] p-3">
+      
+      {/* 🟢 EN TÊTE (Remis à l'origine, propre) */}
       <div className="flex shrink-0 items-center justify-between">
         <div className="flex items-center gap-2">
           <svg aria-hidden="true" className="h-4.5 w-4.5 text-[var(--brand-1)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -297,6 +304,7 @@ export default function MembersPanel({
         </span>
       </div>
 
+      {/* BARRE DE RECHERCHE */}
       <div className="mt-4 rounded-[18px] border border-[var(--stroke)] bg-[rgba(19,28,41,0.92)] px-3.5 py-2.5">
         <div className="flex items-center gap-3">
           <svg aria-hidden="true" className="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -313,6 +321,27 @@ export default function MembersPanel({
         </div>
       </div>
 
+      {/* 🔴 NOUVEAU BOUTON BANS : Stylisé, couleur modération, sous la barre de recherche */}
+      {(isOwner || isAdmin) && (
+        <button
+          onClick={() => setShowBans(true)}
+          className="mt-3 flex w-full items-center justify-between rounded-[14px] border border-[rgba(248,113,113,0.15)] bg-[rgba(248,113,113,0.04)] px-3.5 py-2.5 transition hover:bg-[rgba(248,113,113,0.08)]"
+          title="Voir les membres bannis"
+        >
+          <div className="flex items-center gap-2.5">
+            {/* Icône de "blocage/interdiction" */}
+            <svg aria-hidden="true" className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <span className="text-[13px] font-semibold text-red-400">Membres bannis</span>
+          </div>
+          <svg aria-hidden="true" className="h-4 w-4 text-red-400/50" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
+      {/* LISTE DES MEMBRES */}
       <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto">
         <div>
           <div className="mb-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -342,6 +371,10 @@ export default function MembersPanel({
           </div>
         </div>
       </div>
+
+      {showBans && (
+        <BannedList serverId={serverId} onClose={() => setShowBans(false)} />
+      )}
     </section>
   );
 }
