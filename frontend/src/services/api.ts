@@ -69,7 +69,6 @@ export const authService = {
     return null;
   },
 
-  // 🔴 MODIFIÉ : On ajoute "newPassword" en option
   updateProfile: async (userData: { nom: string; prenom: string; email: string; username: string; newPassword?: string }) => {
     const payload: Record<string, string> = {
       first_name: userData.prenom, // On map le français à l'anglais du backend

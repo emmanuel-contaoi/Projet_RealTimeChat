@@ -32,7 +32,6 @@ fn build_app(state: AppState) -> Router {
         .route("/auth/logout", post(routes::auth::logout))
         .route("/users/search", get(routes::users::search_users))
         .route("/users", get(routes::users::list_users))
-        // 🔴 NOUVEAU : La fameuse route pour mettre à jour son profil !
         .route("/users/me", put(routes::users::update_profile))
         .route(
             "/friends",
