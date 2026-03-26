@@ -379,7 +379,6 @@ pub async fn list_bans(
     Extension(auth_user): Extension<AuthUser>,
     Path(server_id): Path<Uuid>,
 ) -> Result<Json<Vec<BannedUserResponse>>, ServiceError> {
-    
     // On demande à SQL de vérifier que la ligne existe ET que le rôle est admin ou owner
     let permission = sqlx::query!(
         "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
@@ -432,7 +431,6 @@ pub async fn unban_member(
     Extension(auth_user): Extension<AuthUser>,
     Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, ServiceError> {
-    
     // Même chose : on délègue le check à la BDD
     let permission = sqlx::query!(
         "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
