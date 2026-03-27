@@ -228,7 +228,7 @@ export default function ChatPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {selectedChannel && messages.length ? (
-          <div>
+          <div className="px-2">
             {messageGroups.map((group) => {
               const firstMessage = group.items[0];
               const isMe = firstMessage.user_id === currentUserId;
@@ -239,7 +239,7 @@ export default function ChatPanel({
               return (
                 <div key={group.id} className={group.showDateSeparator ? "space-y-3" : "pt-3"}>
                   {group.showDateSeparator && firstMessage.created_at ? (
-                    <div className="flex items-center gap-4 py-1">
+                    <div className="flex items-center gap-4 py-1 my-2">
                       <div className="h-px flex-1 bg-[rgba(74,97,127,0.25)]" />
                       <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500">
                         {new Date(firstMessage.created_at).toLocaleDateString("fr-FR", {
@@ -253,239 +253,237 @@ export default function ChatPanel({
                     </div>
                   ) : null}
 
-                  <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                  <article className="overflow-visible px-3 py-2.5 max-w-[75%]">
-                    <div className={`flex items-start gap-2.5 ${isMe ? "flex-row-reverse" : ""}`}>
-                      <div className="relative shrink-0">
-                        <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
-                          {avatarInitial}
-                        </div>
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className={`mb-1.5 flex flex-wrap items-center gap-2 ${isMe ? "justify-end" : ""}`}>
-                          {isMe && firstMessage.created_at ? (
-                            <span className="text-[11px] text-slate-500">
-                              {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          ) : null}
-                          {isMe ? (
-                            <span className="rounded-lg border border-[rgba(21,209,255,0.3)] bg-[rgba(21,209,255,0.14)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--brand-1)]">
-                              Vous
-                            </span>
-                          ) : null}
-                          <p className="text-[0.94rem] font-semibold leading-none text-white">{displayName}</p>
-                          {!isMe && firstMessage.created_at ? (
-                            <span className="text-[11px] text-slate-500">
-                              {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </span>
-                          ) : null}
+                  <div className={`group relative flex w-full ${isMe ? "justify-end" : "justify-start"} mx-2 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-white/[0.04] mb-1`}>
+                    <article className="overflow-visible max-w-[75%] relative z-10">
+                      <div className={`flex items-start gap-2.5 ${isMe ? "flex-row-reverse" : ""}`}>
+                        <div className="relative shrink-0">
+                          <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
+                            {avatarInitial}
+                          </div>
                         </div>
 
-                        <div className="space-y-2">
-                          {group.items.map((message, messageIndex) => {
-                            const canDelete =
-                              message.user_id === currentUserId ||
-                              currentUserRole === "owner" ||
-                              currentUserRole === "admin";
+                        <div className="min-w-0 flex-1">
+                          <div className={`mb-1.5 flex flex-wrap items-center gap-2 ${isMe ? "justify-end" : ""}`}>
+                            {isMe && firstMessage.created_at ? (
+                              <span className="text-[11px] text-slate-500">
+                                {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            ) : null}
+                            {isMe ? (
+                              <span className="rounded-lg border border-[rgba(21,209,255,0.3)] bg-[rgba(21,209,255,0.14)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--brand-1)]">
+                                Vous
+                              </span>
+                            ) : null}
+                            <p className="text-[0.94rem] font-semibold leading-none text-white">{displayName}</p>
+                            {!isMe && firstMessage.created_at ? (
+                              <span className="text-[11px] text-slate-500">
+                                {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </span>
+                            ) : null}
+                          </div>
 
-                            return (
-                              <div
-                                key={message.id ?? `${message.user_id}-${messageIndex}`}
-                                className={`group/message flex items-center gap-2 ${isMe ? "flex-row-reverse" : ""} ${messageIndex > 0 ? "pt-1" : ""}`}
-                              >
-                                {/* Contenu du message */}
-                                <div className="min-w-0 flex-1">
-                                {editingId === message.id ? (
-                                  <form
-                                    className="flex flex-col gap-3"
-                                    onSubmit={(event) => {
-                                      event.preventDefault();
-                                      if (editContent.trim() && message.id) {
-                                        onEditMessage(message.id, editContent.trim());
-                                        setEditingId(null);
-                                        setOpenMessageMenuId(null);
-                                      }
-                                    }}
-                                  >
-                                    <input
-                                      className="w-full rounded-[12px] border border-[var(--stroke)] bg-[rgba(10,16,24,0.9)] px-3 py-2 text-sm text-white outline-none"
-                                      value={editContent}
-                                      onChange={(event) => setEditContent(event.target.value)}
-                                      autoFocus
-                                      onKeyDown={(event) => {
-                                        if (event.key === "Escape") setEditingId(null);
+                          <div className="space-y-2">
+                            {group.items.map((message, messageIndex) => {
+                              const canDelete =
+                                message.user_id === currentUserId ||
+                                currentUserRole === "owner" ||
+                                currentUserRole === "admin";
+
+                              return (
+                                <div
+                                  key={message.id ?? `${message.user_id}-${messageIndex}`}
+                                  className={`group/message flex items-center gap-2 ${isMe ? "flex-row-reverse" : ""} ${messageIndex > 0 ? "pt-1" : ""}`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                  {editingId === message.id ? (
+                                    <form
+                                      className="flex flex-col gap-3"
+                                      onSubmit={(event) => {
+                                        event.preventDefault();
+                                        if (editContent.trim() && message.id) {
+                                          onEditMessage(message.id, editContent.trim());
+                                          setEditingId(null);
+                                          setOpenMessageMenuId(null);
+                                        }
                                       }}
+                                    >
+                                      <input
+                                        className="w-full rounded-[12px] border border-[var(--stroke)] bg-[rgba(10,16,24,0.9)] px-3 py-2 text-sm text-white outline-none"
+                                        value={editContent}
+                                        onChange={(event) => setEditContent(event.target.value)}
+                                        autoFocus
+                                        onKeyDown={(event) => {
+                                          if (event.key === "Escape") setEditingId(null);
+                                        }}
+                                      />
+                                      <div className="flex items-center gap-3 text-[11px]">
+                                        <button type="submit" className="font-semibold text-emerald-400 transition hover:text-emerald-300">
+                                          {t("emoji_ok")}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="text-slate-400 transition hover:text-slate-300"
+                                          onClick={() => setEditingId(null)}
+                                        >
+                                          {tc("cancel")}
+                                        </button>
+                                      </div>
+                                    </form>
+                                  ) : isGifUrl(message.content) ? (
+                                    <Image
+                                      src={message.content}
+                                      alt="GIF"
+                                      width={256}
+                                      height={256}
+                                      className="max-h-44 w-auto rounded-[16px] object-contain"
+                                      unoptimized
                                     />
-                                    <div className="flex items-center gap-3 text-[11px]">
-                                      <button type="submit" className="font-semibold text-emerald-400 transition hover:text-emerald-300">
-                                        {t("emoji_ok")}
-                                      </button>
+                                  ) : (
+                                    <p className="whitespace-pre-wrap break-words text-[0.86rem] leading-relaxed text-slate-100">
+                                      {message.content}
+                                    </p>
+                                  )}
+
+                                  {message.id && message.reactions?.length ? (
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                      {message.reactions?.map((reaction) => {
+                                        const reactedByMe = hasReacted(message, reaction.emoji);
+                                        return (
+                                          <button
+                                            key={`${message.id}-${reaction.emoji}`}
+                                            type="button"
+                                            className={`inline-flex h-7.5 items-center gap-1.5 rounded-full border px-2.5 text-[10px] transition ${
+                                              reactedByMe
+                                                ? "border-[rgba(21,209,255,0.32)] bg-[rgba(21,209,255,0.12)] text-white"
+                                                : "border-[rgba(80,102,133,0.72)] bg-[rgba(37,49,69,0.92)] text-slate-200 hover:border-[rgba(120,146,184,0.9)]"
+                                            }`}
+                                            onClick={() => {
+                                              if (reactedByMe) {
+                                                onRemoveReaction(message.id!, reaction.emoji);
+                                              } else {
+                                                onAddReaction(message.id!, reaction.emoji);
+                                              }
+                                            }}
+                                            title={reactedByMe ? t("remove_reaction") : t("add_reaction")}
+                                          >
+                                            <span className="text-[13px] leading-none">{reaction.emoji}</span>
+                                            <span className="font-semibold">
+                                              {reaction.user_ids?.length || 0}
+                                            </span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : null}
+                                  </div>
+
+                                  {message.id && editingId !== message.id ? (
+                                    <div
+                                      className={`relative shrink-0 transition ${reactionPickerMessageId === message.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100"}`}
+                                      ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}
+                                    >
                                       <button
                                         type="button"
-                                        className="text-slate-400 transition hover:text-slate-300"
-                                        onClick={() => setEditingId(null)}
+                                        className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[10px] transition ${
+                                          reactionPickerMessageId === message.id
+                                            ? "border-[rgba(21,209,255,0.32)] bg-[rgba(21,209,255,0.12)] text-white"
+                                            : "border-[rgba(80,102,133,0.72)] bg-[rgba(37,49,69,0.92)] text-slate-300 hover:border-[rgba(120,146,184,0.9)] hover:text-white"
+                                        }`}
+                                        onClick={(e) => {
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          setReactionPickerDirection(rect.bottom > window.innerHeight / 2 ? "up" : "down");
+                                          setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!);
+                                        }}
+                                        title={t("add_reaction")}
                                       >
-                                        {tc("cancel")}
+                                        <span className="text-[13px] leading-none">+</span>
+                                        <span>Reaction</span>
                                       </button>
-                                    </div>
-                                  </form>
-                                ) : isGifUrl(message.content) ? (
-                                  <Image
-                                    src={message.content}
-                                    alt="GIF"
-                                    width={256}
-                                    height={256}
-                                    className="max-h-44 w-auto rounded-[16px] object-contain"
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <p className="whitespace-pre-wrap break-words text-[0.86rem] leading-relaxed text-slate-100">
-                                    {message.content}
-                                  </p>
-                                )}
-
-                                {message.id && message.reactions?.length ? (
-                                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                    {message.reactions?.map((reaction) => {
-                                      const reactedByMe = hasReacted(message, reaction.emoji);
-                                      return (
-                                        <button
-                                          key={`${message.id}-${reaction.emoji}`}
-                                          type="button"
-                                          className={`inline-flex h-7.5 items-center gap-1.5 rounded-full border px-2.5 text-[10px] transition ${
-                                            reactedByMe
-                                              ? "border-[rgba(21,209,255,0.32)] bg-[rgba(21,209,255,0.12)] text-white"
-                                              : "border-[rgba(80,102,133,0.72)] bg-[rgba(37,49,69,0.92)] text-slate-200 hover:border-[rgba(120,146,184,0.9)]"
-                                          }`}
-                                          onClick={() => {
-                                            if (reactedByMe) {
-                                              onRemoveReaction(message.id!, reaction.emoji);
-                                            } else {
-                                              onAddReaction(message.id!, reaction.emoji);
-                                            }
-                                          }}
-                                          title={reactedByMe ? t("remove_reaction") : t("add_reaction")}
-                                        >
-                                          <span className="text-[13px] leading-none">{reaction.emoji}</span>
-                                          <span className="font-semibold">
-                                            {reaction.user_ids?.length || 0}
-                                          </span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                ) : null}
-                                </div>
-
-                                {/* Bouton réaction — à gauche pour mes messages, à droite pour les autres */}
-                                {message.id && editingId !== message.id ? (
-                                  <div
-                                    className={`relative shrink-0 transition ${reactionPickerMessageId === message.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100"}`}
-                                    ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}
-                                  >
-                                    <button
-                                      type="button"
-                                      className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[10px] transition ${
-                                        reactionPickerMessageId === message.id
-                                          ? "border-[rgba(21,209,255,0.32)] bg-[rgba(21,209,255,0.12)] text-white"
-                                          : "border-[rgba(80,102,133,0.72)] bg-[rgba(37,49,69,0.92)] text-slate-300 hover:border-[rgba(120,146,184,0.9)] hover:text-white"
-                                      }`}
-                                      onClick={(e) => {
-                                        const rect = e.currentTarget.getBoundingClientRect();
-                                        setReactionPickerDirection(rect.bottom > window.innerHeight / 2 ? "up" : "down");
-                                        setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!);
-                                      }}
-                                      title={t("add_reaction")}
-                                    >
-                                      <span className="text-[13px] leading-none">+</span>
-                                      <span>Reaction</span>
-                                    </button>
-                                    {reactionPickerMessageId === message.id ? (
-                                      <div className={`absolute z-50 ${reactionPickerDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} ${isMe ? "right-0" : "left-0"}`}>
-                                        <div className="w-[300px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[18px] border border-[rgba(80,102,133,0.78)] bg-[rgba(25,31,41,0.98)] shadow-[0_18px_40px_rgba(2,8,18,0.45)]">
-                                          <EmojiPicker
-                                            theme={Theme.DARK}
-                                            onEmojiClick={(emojiData) => {
-                                              onAddReaction(message.id!, emojiData.emoji);
-                                              setReactionPickerMessageId(null);
-                                            }}
-                                            width={300}
-                                            height={360}
-                                            searchPlaceHolder={t("emoji_search")}
-                                          />
+                                      {reactionPickerMessageId === message.id ? (
+                                        <div className={`absolute z-50 ${reactionPickerDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} ${isMe ? "right-0" : "left-0"}`}>
+                                          <div className="w-[300px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[18px] border border-[rgba(80,102,133,0.78)] bg-[rgba(25,31,41,0.98)] shadow-[0_18px_40px_rgba(2,8,18,0.45)]">
+                                            <EmojiPicker
+                                              theme={Theme.DARK}
+                                              onEmojiClick={(emojiData) => {
+                                                onAddReaction(message.id!, emojiData.emoji);
+                                                setReactionPickerMessageId(null);
+                                              }}
+                                              width={300}
+                                              height={360}
+                                              searchPlaceHolder={t("emoji_search")}
+                                            />
+                                          </div>
                                         </div>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
+                                      ) : null}
+                                    </div>
+                                  ) : null}
 
-                                {message.id && editingId !== message.id && canDelete ? (
-                                  <div
-                                    className={`relative shrink-0 transition ${
-                                      openMessageMenuId === message.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100"
-                                    }`}
-                                    ref={openMessageMenuId === message.id ? messageMenuRef : null}
-                                  >
-                                    <button
-                                      type="button"
-                                      className="flex h-7.5 w-7.5 items-center justify-center rounded-[10px] bg-[rgba(47,61,84,0.96)] text-slate-300 transition hover:bg-[rgba(60,77,104,0.96)] hover:text-white"
-                                      onClick={() => {
-                                        setOpenMessageMenuId((prev) => (prev === message.id ? null : message.id!));
-                                      }}
-                                      title="Options"
+                                  {message.id && editingId !== message.id && canDelete ? (
+                                    <div
+                                      className={`relative shrink-0 transition ${
+                                        openMessageMenuId === message.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100"
+                                      }`}
+                                      ref={openMessageMenuId === message.id ? messageMenuRef : null}
                                     >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                        <circle cx="12" cy="5" r="1.7" />
-                                        <circle cx="12" cy="12" r="1.7" />
-                                        <circle cx="12" cy="19" r="1.7" />
-                                      </svg>
-                                    </button>
+                                      <button
+                                        type="button"
+                                        className="flex h-7.5 w-7.5 items-center justify-center rounded-[10px] bg-[rgba(47,61,84,0.96)] text-slate-300 transition hover:bg-[rgba(60,77,104,0.96)] hover:text-white"
+                                        onClick={() => {
+                                          setOpenMessageMenuId((prev) => (prev === message.id ? null : message.id!));
+                                        }}
+                                        title="Options"
+                                      >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                          <circle cx="12" cy="5" r="1.7" />
+                                          <circle cx="12" cy="12" r="1.7" />
+                                          <circle cx="12" cy="19" r="1.7" />
+                                        </svg>
+                                      </button>
 
-                                    {openMessageMenuId === message.id ? (
-                                      <div className={`absolute top-10 z-50 min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] ${isMe ? "right-0" : "left-0"}`}>
-                                        {message.user_id === currentUserId ? (
+                                      {openMessageMenuId === message.id ? (
+                                        <div className={`absolute top-10 z-50 min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] ${isMe ? "right-0" : "left-0"}`}>
+                                          {message.user_id === currentUserId ? (
+                                            <button
+                                              type="button"
+                                              className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-[rgba(21,209,255,0.1)] hover:text-white"
+                                              onClick={() => {
+                                                setEditingId(message.id!);
+                                                setEditContent(message.content);
+                                                setOpenMessageMenuId(null);
+                                              }}
+                                            >
+                                              {t("edit")}
+                                            </button>
+                                          ) : null}
+
                                           <button
                                             type="button"
-                                            className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-[rgba(21,209,255,0.1)] hover:text-white"
+                                            className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-rose-200 transition hover:bg-[rgba(255,84,109,0.12)] hover:text-white"
                                             onClick={() => {
-                                              setEditingId(message.id!);
-                                              setEditContent(message.content);
+                                              onDeleteMessage(message.id!);
                                               setOpenMessageMenuId(null);
                                             }}
                                           >
-                                            {t("edit")}
+                                            {t("delete")}
                                           </button>
-                                        ) : null}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
 
-                                        <button
-                                          type="button"
-                                          className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-rose-200 transition hover:bg-[rgba(255,84,109,0.12)] hover:text-white"
-                                          onClick={() => {
-                                            onDeleteMessage(message.id!);
-                                            setOpenMessageMenuId(null);
-                                          }}
-                                        >
-                                          {t("delete")}
-                                        </button>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })}
                         </div>
-
                       </div>
-                    </div>
-                  </article>
+                    </article>
                   </div>
                 </div>
               );
