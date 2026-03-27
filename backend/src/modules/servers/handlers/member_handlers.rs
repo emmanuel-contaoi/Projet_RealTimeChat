@@ -417,7 +417,7 @@ pub async fn list_bans(
         .into_iter()
         .map(|b| BannedUserResponse {
             id: b.id,
-            username: b.username,
+            username: b.username.unwrap_or_default(),
             expires_at: b.expires_at,
             created_at: b.created_at,
         })
