@@ -75,6 +75,7 @@ export default function ChatPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const [reactionPickerDirection, setReactionPickerDirection] = useState<"up" | "down">("up");
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null);
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const gifPickerRef = useRef<HTMLDivElement | null>(null);
@@ -230,7 +231,6 @@ export default function ChatPanel({
           <div>
             {messageGroups.map((group) => {
               const firstMessage = group.items[0];
-              const reactionTargetMessage = [...group.items].reverse().find((item) => item.id);
               const isMe = firstMessage.user_id === currentUserId;
               const displayName = isMe ? "Moi" : firstMessage.username || "Utilisateur";
               const avatarInitial = displayName.charAt(0).toUpperCase();
@@ -253,8 +253,9 @@ export default function ChatPanel({
                     </div>
                   ) : null}
 
-                  <article className="overflow-visible rounded-[16px] bg-[rgba(23,32,45,0.98)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-                    <div className="flex gap-2.5">
+                  <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                  <article className="overflow-visible px-3 py-2.5 max-w-[75%]">
+                    <div className={`flex items-start gap-2.5 ${isMe ? "flex-row-reverse" : ""}`}>
                       <div className="relative shrink-0">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
                           {avatarInitial}
@@ -262,14 +263,22 @@ export default function ChatPanel({
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                          <p className="text-[0.94rem] font-semibold leading-none text-white">{displayName}</p>
+                        <div className={`mb-1.5 flex flex-wrap items-center gap-2 ${isMe ? "justify-end" : ""}`}>
+                          {isMe && firstMessage.created_at ? (
+                            <span className="text-[11px] text-slate-500">
+                              {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          ) : null}
                           {isMe ? (
                             <span className="rounded-lg border border-[rgba(21,209,255,0.3)] bg-[rgba(21,209,255,0.14)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--brand-1)]">
                               Vous
                             </span>
                           ) : null}
-                          {firstMessage.created_at ? (
+                          <p className="text-[0.94rem] font-semibold leading-none text-white">{displayName}</p>
+                          {!isMe && firstMessage.created_at ? (
                             <span className="text-[11px] text-slate-500">
                               {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
                                 hour: "2-digit",
@@ -289,8 +298,10 @@ export default function ChatPanel({
                             return (
                               <div
                                 key={message.id ?? `${message.user_id}-${messageIndex}`}
-                                className={`group/message relative ${messageIndex > 0 ? "pt-1" : ""}`}
+                                className={`group/message flex items-center gap-2 ${isMe ? "flex-row-reverse" : ""} ${messageIndex > 0 ? "pt-1" : ""}`}
                               >
+                                {/* Contenu du message */}
+                                <div className="min-w-0 flex-1">
                                 {editingId === message.id ? (
                                   <form
                                     className="flex flex-col gap-3"
@@ -341,9 +352,7 @@ export default function ChatPanel({
                                 )}
 
                                 {message.id && message.reactions?.length ? (
-                                  <div
-                                    className="mt-2 flex flex-wrap items-center gap-1.5"
-                                  >
+                                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                     {message.reactions?.map((reaction) => {
                                       const reactedByMe = hasReacted(message, reaction.emoji);
                                       return (
@@ -373,10 +382,53 @@ export default function ChatPanel({
                                     })}
                                   </div>
                                 ) : null}
+                                </div>
+
+                                {/* Bouton réaction — à gauche pour mes messages, à droite pour les autres */}
+                                {message.id && editingId !== message.id ? (
+                                  <div
+                                    className={`relative shrink-0 transition ${reactionPickerMessageId === message.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100"}`}
+                                    ref={reactionPickerMessageId === message.id ? reactionPickerRef : null}
+                                  >
+                                    <button
+                                      type="button"
+                                      className={`inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[10px] transition ${
+                                        reactionPickerMessageId === message.id
+                                          ? "border-[rgba(21,209,255,0.32)] bg-[rgba(21,209,255,0.12)] text-white"
+                                          : "border-[rgba(80,102,133,0.72)] bg-[rgba(37,49,69,0.92)] text-slate-300 hover:border-[rgba(120,146,184,0.9)] hover:text-white"
+                                      }`}
+                                      onClick={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setReactionPickerDirection(rect.bottom > window.innerHeight / 2 ? "up" : "down");
+                                        setReactionPickerMessageId((prev) => prev === message.id ? null : message.id!);
+                                      }}
+                                      title={t("add_reaction")}
+                                    >
+                                      <span className="text-[13px] leading-none">+</span>
+                                      <span>Reaction</span>
+                                    </button>
+                                    {reactionPickerMessageId === message.id ? (
+                                      <div className={`absolute z-50 ${reactionPickerDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} ${isMe ? "right-0" : "left-0"}`}>
+                                        <div className="w-[300px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[18px] border border-[rgba(80,102,133,0.78)] bg-[rgba(25,31,41,0.98)] shadow-[0_18px_40px_rgba(2,8,18,0.45)]">
+                                          <EmojiPicker
+                                            theme={Theme.DARK}
+                                            onEmojiClick={(emojiData) => {
+                                              onAddReaction(message.id!, emojiData.emoji);
+                                              setReactionPickerMessageId(null);
+                                            }}
+                                            width={300}
+                                            height={360}
+                                            searchPlaceHolder={t("emoji_search")}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : null}
 
                                 {message.id && editingId !== message.id && canDelete ? (
                                   <div
-                                    className={`absolute right-0 top-0 transition ${
+                                    className={`relative shrink-0 transition ${
                                       openMessageMenuId === message.id ? "opacity-100" : "opacity-0 group-hover/message:opacity-100"
                                     }`}
                                     ref={openMessageMenuId === message.id ? messageMenuRef : null}
@@ -397,7 +449,7 @@ export default function ChatPanel({
                                     </button>
 
                                     {openMessageMenuId === message.id ? (
-                                      <div className="absolute right-0 top-10 z-50 min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)]">
+                                      <div className={`absolute top-10 z-50 min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] ${isMe ? "right-0" : "left-0"}`}>
                                         {message.user_id === currentUserId ? (
                                           <button
                                             type="button"
@@ -431,50 +483,10 @@ export default function ChatPanel({
                           })}
                         </div>
 
-                        {reactionTargetMessage ? (
-                          <div
-                            className="relative mt-2 flex flex-wrap items-center gap-1.5"
-                            ref={reactionPickerMessageId === reactionTargetMessage.id ? reactionPickerRef : null}
-                          >
-                            <button
-                              type="button"
-                              className={`inline-flex h-7.5 items-center gap-1 rounded-full border px-2.5 text-[10px] transition ${
-                                reactionPickerMessageId === reactionTargetMessage.id
-                                  ? "border-[rgba(21,209,255,0.32)] bg-[rgba(21,209,255,0.12)] text-white"
-                                  : "border-[rgba(80,102,133,0.72)] bg-[rgba(37,49,69,0.92)] text-slate-300 hover:border-[rgba(120,146,184,0.9)] hover:text-white"
-                              }`}
-                              onClick={() =>
-                                setReactionPickerMessageId((prev) =>
-                                  prev === reactionTargetMessage.id ? null : reactionTargetMessage.id!,
-                                )
-                              }
-                              title={t("add_reaction")}
-                            >
-                              <span className="text-sm leading-none">+</span>
-                              <span>Reaction</span>
-                            </button>
-
-                            {reactionPickerMessageId === reactionTargetMessage.id ? (
-                              <div className="absolute left-0 top-full z-50 mt-2">
-                                <div className="w-[300px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[18px] border border-[rgba(80,102,133,0.78)] bg-[rgba(25,31,41,0.98)] shadow-[0_18px_40px_rgba(2,8,18,0.45)]">
-                                  <EmojiPicker
-                                    theme={Theme.DARK}
-                                    onEmojiClick={(emojiData) => {
-                                      onAddReaction(reactionTargetMessage.id!, emojiData.emoji);
-                                      setReactionPickerMessageId(null);
-                                    }}
-                                    width={300}
-                                    height={360}
-                                    searchPlaceHolder={t("emoji_search")}
-                                  />
-                                </div>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
                       </div>
                     </div>
                   </article>
+                  </div>
                 </div>
               );
             })}
