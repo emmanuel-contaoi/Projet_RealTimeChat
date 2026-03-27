@@ -6,7 +6,7 @@
       {
         "ordinal": 0,
         "name": "role",
-        "type_info": "Varchar"
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -16,7 +16,7 @@
       ]
     },
     "nullable": [
-      true
+      false
     ]
   },
   "hash": "e803d30d61328990565604aeba98a3e644a2c68bd348ba315abb4b8ed1f09e31"
