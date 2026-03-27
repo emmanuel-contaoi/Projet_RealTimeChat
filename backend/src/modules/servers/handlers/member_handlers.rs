@@ -156,6 +156,131 @@ pub async fn ban_member(
     Ok(StatusCode::OK)
 }
 
+pub async fn update_member_role(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<UpdateRoleRequest>,
+) -> Result<StatusCode, ServiceError> {
+    let role = payload.role.clone();
+    ServerService::update_member_role(
+        &state.pool,
+        auth_user.0.id,
+        server_id,
+        target_user_id,
+        payload.role,
+    )
+    .await?;
+
+    let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
+        .await
+        .unwrap_or_default();
+    let event = build_member_role_updated_event(server_id, target_user_id, role);
+    if let Ok(json) = event.to_json() {
+        state
+            .broadcast_to_users(&member_ids, Message::Text(json.into()))
+            .await;
+    }
+
+    Ok(StatusCode::OK)
+}
+
+#[derive(Serialize)]
+pub struct BannedUserResponse {
+    pub id: Uuid,
+    pub username: String,
+    pub expires_at: Option<NaiveDateTime>,
+    pub created_at: Option<NaiveDateTime>,
+}
+
+pub async fn list_bans(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path(server_id): Path<Uuid>,
+) -> Result<Json<Vec<BannedUserResponse>>, ServiceError> {
+    // AJOUT: Cast explicite ::uuid pour aider le compilateur SQLx
+    let permission = sqlx::query!(
+        "SELECT role FROM members WHERE server_id = $1::uuid AND user_id = $2::uuid AND role IN ('admin', 'owner')",
+        server_id,
+        auth_user.0.id
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+
+    if permission.is_none() {
+        return Err(ServiceError::Forbidden(
+            "Permissions insuffisantes pour voir les bans".to_string(),
+        ));
+    }
+
+    // AJOUT: Cast explicite ::uuid
+    let bans = sqlx::query!(
+        r#"
+        SELECT 
+            b.user_id as id, 
+            u.username as "username!",
+            b.expires_at, 
+            b.created_at
+        FROM server_bans b
+        JOIN users u ON b.user_id = u.id
+        WHERE b.server_id = $1::uuid
+        ORDER BY b.created_at DESC
+        "#,
+        server_id
+    )
+    .fetch_all(&state.pool)
+    .await
+    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+
+    let response: Vec<BannedUserResponse> = bans
+        .into_iter()
+        .map(|b| BannedUserResponse {
+            id: b.id,
+            username: b.username,
+            expires_at: b.expires_at,
+            created_at: b.created_at,
+        })
+        .collect();
+
+    Ok(Json(response))
+}
+
+pub async fn unban_member(
+    State(state): State<AppState>,
+    Extension(auth_user): Extension<AuthUser>,
+    Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, ServiceError> {
+    // AJOUT: Cast explicite ::uuid
+    let permission = sqlx::query!(
+        "SELECT role FROM members WHERE server_id = $1::uuid AND user_id = $2::uuid AND role IN ('admin', 'owner')",
+        server_id,
+        auth_user.0.id
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+
+    if permission.is_none() {
+        return Err(ServiceError::Forbidden(
+            "Permissions insuffisantes pour débannir".to_string(),
+        ));
+    }
+
+    // AJOUT: Cast explicite ::uuid
+    sqlx::query!(
+        "DELETE FROM server_bans WHERE server_id = $1::uuid AND user_id = $2::uuid",
+        server_id,
+        target_user_id
+    )
+    .execute(&state.pool)
+    .await
+    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+
+    Ok(StatusCode::OK)
+}
+
+// Les tests sont maintenant à leur place : tout en bas du fichier !
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,126 +460,4 @@ mod tests {
             _ => panic!("unexpected update_member_role result"),
         }
     }
-}
-
-pub async fn update_member_role(
-    State(state): State<AppState>,
-    Extension(auth_user): Extension<AuthUser>,
-    Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
-    Json(payload): Json<UpdateRoleRequest>,
-) -> Result<StatusCode, ServiceError> {
-    let role = payload.role.clone();
-    ServerService::update_member_role(
-        &state.pool,
-        auth_user.0.id,
-        server_id,
-        target_user_id,
-        payload.role,
-    )
-    .await?;
-
-    let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
-        .await
-        .unwrap_or_default();
-    let event = build_member_role_updated_event(server_id, target_user_id, role);
-    if let Ok(json) = event.to_json() {
-        state
-            .broadcast_to_users(&member_ids, Message::Text(json.into()))
-            .await;
-    }
-
-    Ok(StatusCode::OK)
-}
-
-#[derive(Serialize)]
-pub struct BannedUserResponse {
-    pub id: Uuid,
-    pub username: String,
-    pub expires_at: Option<NaiveDateTime>,
-    pub created_at: Option<NaiveDateTime>,
-}
-
-pub async fn list_bans(
-    State(state): State<AppState>,
-    Extension(auth_user): Extension<AuthUser>,
-    Path(server_id): Path<Uuid>,
-) -> Result<Json<Vec<BannedUserResponse>>, ServiceError> {
-    // On demande à SQL de vérifier que la ligne existe ET que le rôle est admin ou owner
-    let permission = sqlx::query!(
-        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
-        server_id,
-        auth_user.0.id
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
-
-    if permission.is_none() {
-        return Err(ServiceError::Forbidden(
-            "Permissions insuffisantes pour voir les bans".to_string(),
-        ));
-    }
-
-    let bans = sqlx::query!(
-        r#"
-        SELECT 
-            b.user_id as id, 
-            u.username as "username!",
-            b.expires_at, 
-            b.created_at
-        FROM server_bans b
-        JOIN users u ON b.user_id = u.id
-        WHERE b.server_id = $1
-        ORDER BY b.created_at DESC
-        "#,
-        server_id
-    )
-    .fetch_all(&state.pool)
-    .await
-    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
-
-    let response: Vec<BannedUserResponse> = bans
-        .into_iter()
-        .map(|b| BannedUserResponse {
-            id: b.id,
-            username: b.username,
-            expires_at: b.expires_at,
-            created_at: b.created_at,
-        })
-        .collect();
-
-    Ok(Json(response))
-}
-
-pub async fn unban_member(
-    State(state): State<AppState>,
-    Extension(auth_user): Extension<AuthUser>,
-    Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
-) -> Result<StatusCode, ServiceError> {
-    // Même chose : on délègue le check à la BDD
-    let permission = sqlx::query!(
-        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
-        server_id,
-        auth_user.0.id
-    )
-    .fetch_optional(&state.pool)
-    .await
-    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
-
-    if permission.is_none() {
-        return Err(ServiceError::Forbidden(
-            "Permissions insuffisantes pour débannir".to_string(),
-        ));
-    }
-
-    sqlx::query!(
-        "DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2",
-        server_id,
-        target_user_id
-    )
-    .execute(&state.pool)
-    .await
-    .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
-
-    Ok(StatusCode::OK)
 }
