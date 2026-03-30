@@ -1,6 +1,6 @@
 // Hook pour gerer la liste d'amis, les demandes et la recherche d'utilisateurs
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authService, friendsService } from "@/services/api";
 import { formatUserLabel } from "../utils";
 import type { Friend, FriendRequest, UserSearchResult } from "../types";
