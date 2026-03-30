@@ -194,7 +194,9 @@ impl FriendService {
         let request = FriendRepository::find_request_by_id(pool, request_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?
-            .ok_or(ServiceError::NotFound("Demande introuvable ou deja traitee.".to_string()))?;
+            .ok_or(ServiceError::NotFound(
+                "Demande introuvable ou deja traitee.".to_string(),
+            ))?;
 
         let deleted = FriendRepository::delete_pending_request_by_sender(pool, request_id, user_id)
             .await

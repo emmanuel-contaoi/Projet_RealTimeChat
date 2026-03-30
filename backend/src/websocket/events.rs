@@ -239,7 +239,9 @@ mod tests {
             from_user_id: "user-1".to_string(),
         };
 
-        let json = event.to_json().expect("friend request event should serialize");
+        let json = event
+            .to_json()
+            .expect("friend request event should serialize");
         let payload: Value = serde_json::from_str(&json).expect("serialized json should parse");
 
         assert_eq!(payload["type"], "friend_request_received");
