@@ -17,6 +17,14 @@ type ApiErrorShape = {
   };
 };
 
+const FRIEND_WS_EVENTS = new Set([
+  "friend_request_received",
+  "friend_request_cancelled",
+  "friend_request_accepted",
+  "friend_request_rejected",
+  "friend_removed",
+]);
+
 const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as ApiErrorShape;
   const payload = apiError.response?.data;
@@ -212,16 +220,9 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     }
   };
 
-  const FRIEND_WS_EVENTS = new Set([
-    "friend_request_received",
-    "friend_request_cancelled",
-    "friend_request_accepted",
-    "friend_request_rejected",
-    "friend_removed",
-  ]);
-
   const handleWsEvent = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
+      console.log("[WS] friend event received:", event.type);
       if (FRIEND_WS_EVENTS.has(event.type)) {
         refreshFriendsDataRef.current().catch(console.error);
       }
