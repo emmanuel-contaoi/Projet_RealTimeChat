@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{ws::Message, Path, State},
     http::StatusCode,
     Json,
 };
@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::services::friend_service::FriendService;
 use crate::services::ServiceError;
+use crate::websocket::events::ServerEvent;
 use crate::{
     models::{FriendRequestResponse, UserResponse},
     state::AppState,
@@ -33,6 +34,17 @@ pub async fn send_friend_request(
     Json(payload): Json<AddFriendRequest>,
 ) -> Result<StatusCode, ServiceError> {
     FriendService::send_friend_request(&state.pool, user.id, payload.friend_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestReceived {
+        from_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[payload.friend_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::CREATED)
 }
 

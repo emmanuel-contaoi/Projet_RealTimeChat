@@ -133,12 +133,12 @@ impl FriendService {
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))
     }
 
-    // Accepte une demande d'ami recue
+    // Accepte une demande d'ami recue — retourne l'ID de l'expediteur pour la notification WS
     pub async fn accept_request(
         pool: &PgPool,
         user_id: Uuid,
         request_id: Uuid,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<Uuid, ServiceError> {
         let request = FriendRepository::find_request_by_id(pool, request_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?
@@ -162,15 +162,15 @@ impl FriendService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
-        Ok(())
+        Ok(request.sender_id)
     }
 
-    // Refuse une demande d'ami recue
+    // Refuse une demande d'ami recue — retourne l'ID de l'expediteur pour la notification WS
     pub async fn reject_request(
         pool: &PgPool,
         user_id: Uuid,
         request_id: Uuid,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<Uuid, ServiceError> {
         let request = FriendRepository::find_request_by_id(pool, request_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?
@@ -182,22 +182,27 @@ impl FriendService {
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
-        Ok(())
+        Ok(request.sender_id)
     }
 
-    // Annule une demande envoyee
+    // Annule une demande envoyee — retourne l'ID du destinataire pour la notification WS
     pub async fn cancel_request(
         pool: &PgPool,
         user_id: Uuid,
         request_id: Uuid,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<Uuid, ServiceError> {
+        let request = FriendRepository::find_request_by_id(pool, request_id)
+            .await
+            .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?
+            .ok_or(ServiceError::NotFound("Demande introuvable ou deja traitee.".to_string()))?;
+
         let deleted = FriendRepository::delete_pending_request_by_sender(pool, request_id, user_id)
             .await
             .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
         ensure_pending_request_deleted(deleted)?;
 
-        Ok(())
+        Ok(request.receiver_id)
     }
 
     // Supprime un ami de la liste

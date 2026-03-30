@@ -120,6 +120,21 @@ pub enum ServerEvent {
         server_id: String,
         name: String,
     },
+    FriendRequestReceived {
+        from_user_id: String,
+    },
+    FriendRequestCancelled {
+        from_user_id: String,
+    },
+    FriendRequestAccepted {
+        by_user_id: String,
+    },
+    FriendRequestRejected {
+        by_user_id: String,
+    },
+    FriendRemoved {
+        by_user_id: String,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -216,6 +231,19 @@ mod tests {
         assert_eq!(payload["channel_id"], "channel-1");
         assert_eq!(payload["users"][0]["user_id"], "user-1");
         assert_eq!(payload["users"][1]["username"], "bob");
+    }
+
+    #[test]
+    fn server_event_friend_request_received_serializes_correctly() {
+        let event = ServerEvent::FriendRequestReceived {
+            from_user_id: "user-1".to_string(),
+        };
+
+        let json = event.to_json().expect("friend request event should serialize");
+        let payload: Value = serde_json::from_str(&json).expect("serialized json should parse");
+
+        assert_eq!(payload["type"], "friend_request_received");
+        assert_eq!(payload["from_user_id"], "user-1");
     }
 
     #[test]
