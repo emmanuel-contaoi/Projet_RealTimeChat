@@ -15,7 +15,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release
-RUN rm -f target/release/deps/rtc_backend*
+RUN rm -f target/release/deps/backend*
 
 # On copie le vrai code et on compile
 COPY . .
@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # On recupere le binaire compile
-COPY --from=builder /app/target/release/rtc-backend .
+COPY --from=builder /app/target/release/backend .
 
 EXPOSE 3001
-CMD ["./rtc-backend"]
+CMD ["./backend"]
