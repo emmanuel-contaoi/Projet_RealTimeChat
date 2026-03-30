@@ -39,11 +39,6 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
   const currentUserId = authService.getCurrentUser()?.id ?? "";
 
-  const refreshFriendsDataRef = useRef(refreshFriendsData);
-  useEffect(() => {
-    refreshFriendsDataRef.current = refreshFriendsData;
-  }, [refreshFriendsData]);
-
   const mapFriends = useCallback(
     (users: UserSearchResult[]) =>
       users.map((user) => ({
@@ -64,6 +59,11 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     setIncomingRequests(incomingData);
     setOutgoingRequests(outgoingData);
   }, [mapFriends]);
+
+  const refreshFriendsDataRef = useRef(refreshFriendsData);
+  useEffect(() => {
+    refreshFriendsDataRef.current = refreshFriendsData;
+  }, [refreshFriendsData]);
 
   // Charger amis + demandes au demarrage
   useEffect(() => {
