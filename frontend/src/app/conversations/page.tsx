@@ -51,9 +51,13 @@ export default function ConversationsPage() {
   }, []);
 
   const serverWsHandlerRef = useRef<((event: { type: string; [key: string]: unknown }) => void) | null>(null);
+  const friendWsHandlerRef = useRef<((event: { type: string; [key: string]: unknown }) => void) | null>(null);
 
   const chat = useChat({
-    onExtraWsEvent: useCallback((e: { type: string; [key: string]: unknown }) => serverWsHandlerRef.current?.(e), []),
+    onExtraWsEvent: useCallback((e: { type: string; [key: string]: unknown }) => {
+      serverWsHandlerRef.current?.(e);
+      friendWsHandlerRef.current?.(e);
+    }, []),
   });
 
   const server = useServerManager({
@@ -72,6 +76,10 @@ export default function ConversationsPage() {
   }, [server.handleWsEvent]);
 
   const friends = useFriendSearch({ isReady, activeTab, onlineUserIds: chat.onlineUserIds });
+
+  useEffect(() => {
+    friendWsHandlerRef.current = friends.handleWsEvent;
+  }, [friends.handleWsEvent]);
 
   const handleLogout = async () => {
     await authService.logout();

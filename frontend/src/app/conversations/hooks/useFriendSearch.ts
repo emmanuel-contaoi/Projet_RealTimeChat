@@ -39,6 +39,11 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
   const currentUserId = authService.getCurrentUser()?.id ?? "";
 
+  const refreshFriendsDataRef = useRef(refreshFriendsData);
+  useEffect(() => {
+    refreshFriendsDataRef.current = refreshFriendsData;
+  }, [refreshFriendsData]);
+
   const mapFriends = useCallback(
     (users: UserSearchResult[]) =>
       users.map((user) => ({
@@ -207,6 +212,23 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     }
   };
 
+  const FRIEND_WS_EVENTS = new Set([
+    "friend_request_received",
+    "friend_request_cancelled",
+    "friend_request_accepted",
+    "friend_request_rejected",
+    "friend_removed",
+  ]);
+
+  const handleWsEvent = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      if (FRIEND_WS_EVENTS.has(event.type)) {
+        refreshFriendsDataRef.current().catch(console.error);
+      }
+    },
+    []
+  );
+
   return {
     friendList,
     selectedFriend,
@@ -225,5 +247,6 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     handleRejectFriendRequest,
     handleCancelFriendRequest,
     handleRemoveFriend,
+    handleWsEvent,
   };
 }
