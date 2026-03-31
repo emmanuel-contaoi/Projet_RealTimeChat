@@ -32,14 +32,16 @@ impl FriendRepository {
         .map(|_| ())
     }
 
-    // Supprime un ami de la liste
+    // Supprime un ami de la liste (dans les deux sens)
     pub async fn remove(pool: &PgPool, user_id: Uuid, friend_id: Uuid) -> sqlx::Result<()> {
-        sqlx::query("DELETE FROM user_friends WHERE user_id = $1 AND friend_id = $2")
-            .bind(user_id)
-            .bind(friend_id)
-            .execute(pool)
-            .await
-            .map(|_| ())
+        sqlx::query(
+            "DELETE FROM user_friends WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)"
+        )
+        .bind(user_id)
+        .bind(friend_id)
+        .execute(pool)
+        .await
+        .map(|_| ())
     }
 
     // Verifie si deux utilisateurs sont deja amis

@@ -1,6 +1,6 @@
 // Hook pour gerer la liste d'amis, les demandes et la recherche d'utilisateurs
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authService, friendsService } from "@/services/api";
 import { formatUserLabel } from "../utils";
 import type { Friend, FriendRequest, UserSearchResult } from "../types";
@@ -16,6 +16,14 @@ type ApiErrorShape = {
     data?: unknown;
   };
 };
+
+const FRIEND_WS_EVENTS = new Set([
+  "friend_request_received",
+  "friend_request_cancelled",
+  "friend_request_accepted",
+  "friend_request_rejected",
+  "friend_removed",
+]);
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as ApiErrorShape;
@@ -59,6 +67,11 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     setIncomingRequests(incomingData);
     setOutgoingRequests(outgoingData);
   }, [mapFriends]);
+
+  const refreshFriendsDataRef = useRef(refreshFriendsData);
+  useEffect(() => {
+    refreshFriendsDataRef.current = refreshFriendsData;
+  }, [refreshFriendsData]);
 
   // Charger amis + demandes au demarrage
   useEffect(() => {
@@ -207,6 +220,16 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     }
   };
 
+  const handleWsEvent = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      console.log("[WS] friend event received:", event.type);
+      if (FRIEND_WS_EVENTS.has(event.type)) {
+        refreshFriendsDataRef.current().catch(console.error);
+      }
+    },
+    []
+  );
+
   return {
     friendList,
     selectedFriend,
@@ -225,5 +248,6 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     handleRejectFriendRequest,
     handleCancelFriendRequest,
     handleRemoveFriend,
+    handleWsEvent,
   };
 }
