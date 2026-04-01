@@ -43,34 +43,40 @@ export default function Home() {
   ];
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
+    <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,212,255,0.45),_transparent_55%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-none items-center justify-between px-8 py-6 md:px-12">
-        <Image src="/logo.svg" alt="Logo Nexus" width={0} height={0} sizes="100vw" className="h-12 w-auto" />
-        <div className="flex items-center gap-4 text-base font-semibold">
+      {/* HEADER RESPONSIVE : S'empile sur mobile, s'aligne sur tablette/PC */}
+      <header className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-5 px-4 py-6 sm:flex-row md:px-12">
+        <Image src="/logo.svg" alt="Logo Nexus" width={0} height={0} sizes="100vw" className="h-10 w-auto md:h-12" />
+        
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold sm:gap-4 md:text-base">
           <LanguageSwitcher />
-          <a className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-slate-200 transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)]" href="/login">
+          <a className="rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-4 py-2 text-slate-200 transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)] md:px-6 md:py-3" href="/login">
             {t("login")}
           </a>
-          <a className="rounded-full bg-[var(--brand-1)] px-6 py-3 text-white shadow-[0_10px_24px_rgba(88,101,242,0.45)] transition hover:-translate-y-0.5 hover:bg-[var(--surface-strong)] md:inline-flex" href="/register">
+          <a className="rounded-full bg-[var(--brand-1)] px-4 py-2 text-white shadow-[0_10px_24px_rgba(88,101,242,0.45)] transition hover:-translate-y-0.5 hover:brightness-110 md:px-6 md:py-3" href="/register">
             {t("register")}
           </a>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-16 px-6 py-10">
+      {/* CONTENU PRINCIPAL RESPONSIVE */}
+      <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center gap-12 px-5 py-10 md:gap-16 md:px-8">
         <section className="flex flex-col gap-6 text-center">
-          <div className="mx-auto flex max-w-2xl flex-col gap-5">
-            <h1 className="font-display text-4xl leading-tight text-white md:text-5xl">
+          <div className="mx-auto flex max-w-2xl flex-col gap-4 md:gap-5">
+            <h1 className="font-display text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl">
               {t("tagline")}
             </h1>
-            <p className="text-base leading-7 text-slate-300">{t("description")}</p>
+            <p className="text-sm leading-relaxed text-slate-300 sm:text-base md:leading-7">
+              {t("description")}
+            </p>
           </div>
         </section>
 
-        <section id="features" className="grid gap-6 md:grid-cols-3">
+        {/* GRILLE RESPONSIVE : 1 colonne (mobile) -> 2 colonnes (tablette) -> 3 colonnes (PC) */}
+        <section id="features" className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 md:gap-6">
           {features.map((feature) => (
             <div
               key={feature.key}
@@ -86,7 +92,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="relative z-10 px-8 py-6 md:px-12">
+      <footer className="relative z-10 px-4 py-6 md:px-12">
         <p className="text-center text-xs text-slate-600">{t("title")}</p>
       </footer>
     </div>
