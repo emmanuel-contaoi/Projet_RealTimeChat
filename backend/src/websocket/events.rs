@@ -27,6 +27,7 @@ pub enum ClientEvent {
 }
 
 // les événements que le serveur envoie au client
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerEvent {
