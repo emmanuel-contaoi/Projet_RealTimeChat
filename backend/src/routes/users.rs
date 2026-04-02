@@ -12,12 +12,12 @@ use crate::services::ServiceError;
 use crate::utils::jwt::validate_token_claims;
 use crate::{models::UserResponse, state::AppState};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct SearchUsersQuery {
     pub q: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct UpdateProfileRequest {
     pub first_name: String,
     pub last_name: String,
@@ -35,6 +35,21 @@ fn normalize_search_query(query: Option<String>) -> Option<String> {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/users/search",
+    tag = "Users",
+    security(
+        ("bearerAuth" = [])
+    ),
+    params(
+        ("q" = Option<String>, Query, description = "Recherche par nom ou email")
+    ),
+    responses(
+        (status = 200, description = "Résultats de recherche", body = Vec<UserResponse>),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn search_users(
     State(state): State<AppState>,
     Query(params): Query<SearchUsersQuery>,
@@ -51,6 +66,18 @@ pub async fn search_users(
     Ok(Json(users.into_iter().map(UserResponse::from).collect()))
 }
 
+#[utoipa::path(
+    get,
+    path = "/users",
+    tag = "Users",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Liste de tous les utilisateurs", body = Vec<UserResponse>),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn list_users(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<UserResponse>>, ServiceError> {
@@ -61,12 +88,25 @@ pub async fn list_users(
     Ok(Json(users.into_iter().map(UserResponse::from).collect()))
 }
 
+#[utoipa::path(
+    put,
+    path = "/users/me",
+    tag = "Users",
+    security(
+        ("bearerAuth" = [])
+    ),
+    request_body = UpdateProfileRequest,
+    responses(
+        (status = 200, description = "Profil mis à jour", body = UserResponse),
+        (status = 400, description = "Données invalides"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn update_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<UpdateProfileRequest>,
 ) -> Result<Json<UserResponse>, ServiceError> {
-    // 1. Récupérer et valider le token
     let auth_header = headers
         .get("Authorization")
         .and_then(|h| h.to_str().ok())
@@ -79,9 +119,7 @@ pub async fn update_profile(
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| ServiceError::BadRequest("ID utilisateur invalide".to_string()))?;
 
-    // 2. Mettre à jour l'utilisateur
     let updated_user = if let Some(new_password) = payload.password {
-        // CAS 1 : L'utilisateur a tapé un nouveau mot de passe -> on le hache !
         let password_hash = hash(new_password.as_bytes(), DEFAULT_COST)
             .map_err(|e| ServiceError::Internal(format!("Hash error: {}", e)))?;
 
@@ -102,7 +140,6 @@ pub async fn update_profile(
         .fetch_one(&state.pool)
         .await
     } else {
-        // CAS 2 : Pas de mot de passe renseigné -> on ne touche pas à password_hash
         sqlx::query_as::<_, crate::models::User>(
             r#"
             UPDATE users
@@ -123,7 +160,6 @@ pub async fn update_profile(
     let user =
         updated_user.map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
-    // 3. Renvoyer les nouvelles données
     Ok(Json(UserResponse::from(user)))
 }
 

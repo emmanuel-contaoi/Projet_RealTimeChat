@@ -8,6 +8,17 @@ use crate::services::auth_service::AuthService;
 use crate::services::ServiceError;
 use crate::state::AppState;
 
+#[utoipa::path(
+    post,
+    path = "/auth/signup",
+    tag = "Auth",
+    request_body = RegisterRequest,
+    responses(
+        (status = 200, description = "Inscription réussie", body = AuthResponse),
+        (status = 400, description = "Données invalides"),
+        (status = 500, description = "Erreur serveur")
+    )
+)]
 pub async fn register(
     State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
@@ -16,6 +27,17 @@ pub async fn register(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    tag = "Auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Connexion réussie", body = AuthResponse),
+        (status = 401, description = "Identifiants invalides"),
+        (status = 500, description = "Erreur serveur")
+    )
+)]
 pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
@@ -24,6 +46,18 @@ pub async fn login(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    get,
+    path = "/auth/me",
+    tag = "Auth",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Informations de l'utilisateur", body = UserResponse),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn me(
     State(_state): State<AppState>,
     axum::extract::Extension(crate::utils::auth::AuthUser(user)): axum::extract::Extension<
@@ -33,6 +67,17 @@ pub async fn me(
     Ok(Json(user.into()))
 }
 
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    tag = "Auth",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Déconnexion réussie")
+    )
+)]
 pub async fn logout() -> StatusCode {
     StatusCode::OK
 }
