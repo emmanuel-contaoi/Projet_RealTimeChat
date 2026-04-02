@@ -41,6 +41,18 @@ fn build_message_reaction_updated_event(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/channels/{channel_id}/messages",
+    tag = "Messages",
+    security(("bearerAuth" = [])),
+    params(
+        ("channel_id" = Uuid, Path, description = "ID du channel")
+    ),
+    responses(
+        (status = 200, description = "Historique des messages")
+    )
+)]
 pub async fn get_chat_history(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -51,6 +63,19 @@ pub async fn get_chat_history(
     Ok(Json(messages))
 }
 
+#[utoipa::path(
+    post,
+    path = "/channels/{channel_id}/messages",
+    tag = "Messages",
+    security(("bearerAuth" = [])),
+    params(
+        ("channel_id" = Uuid, Path, description = "ID du channel")
+    ),
+    request_body = CreateMessageRequest,
+    responses(
+        (status = 201, description = "Message envoyé")
+    )
+)]
 pub async fn send_message(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -75,6 +100,19 @@ pub async fn send_message(
     Ok(StatusCode::CREATED)
 }
 
+#[utoipa::path(
+    put,
+    path = "/messages/{message_id}",
+    tag = "Messages",
+    security(("bearerAuth" = [])),
+    params(
+        ("message_id" = String, Path, description = "ID du message")
+    ),
+    request_body = CreateMessageRequest,
+    responses(
+        (status = 200, description = "Message modifié")
+    )
+)]
 pub async fn edit_message(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -82,12 +120,10 @@ pub async fn edit_message(
     Json(payload): Json<CreateMessageRequest>,
 ) -> Result<StatusCode, ServiceError> {
     let content = payload.content.clone();
-    // On modifie le message et on recupere le channel_id pour le broadcast
     let channel_id =
         MessageService::edit_message(&state.mongo, auth_user.0.id, &message_id, payload.content)
             .await?;
 
-    // On notifie tous les utilisateurs du channel que le message a ete modifie
     let event = build_message_edited_event(&message_id, &channel_id, content);
     if let Ok(json) = event.to_json() {
         state
@@ -98,17 +134,27 @@ pub async fn edit_message(
     Ok(StatusCode::OK)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/messages/{message_id}",
+    tag = "Messages",
+    security(("bearerAuth" = [])),
+    params(
+        ("message_id" = String, Path, description = "ID du message")
+    ),
+    responses(
+        (status = 204, description = "Message supprimé")
+    )
+)]
 pub async fn delete_message(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Path(message_id): Path<String>,
 ) -> Result<StatusCode, ServiceError> {
-    // On supprime le message et on recupere le channel_id pour le broadcast
     let channel_id =
         MessageService::delete_message(&state.pool, &state.mongo, auth_user.0.id, &message_id)
             .await?;
 
-    // On notifie tous les utilisateurs du channel que le message a ete supprime
     let event = build_message_deleted_event(&message_id, &channel_id);
     if let Ok(json) = event.to_json() {
         state
@@ -119,6 +165,19 @@ pub async fn delete_message(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    put,
+    path = "/messages/{message_id}/reactions",
+    tag = "Messages",
+    security(("bearerAuth" = [])),
+    params(
+        ("message_id" = String, Path, description = "ID du message")
+    ),
+    request_body = ReactMessageRequest,
+    responses(
+        (status = 200, description = "Réaction ajoutée")
+    )
+)]
 pub async fn add_reaction(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -144,6 +203,19 @@ pub async fn add_reaction(
     Ok(Json(reactions))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/messages/{message_id}/reactions",
+    tag = "Messages",
+    security(("bearerAuth" = [])),
+    params(
+        ("message_id" = String, Path, description = "ID du message")
+    ),
+    request_body = ReactMessageRequest,
+    responses(
+        (status = 200, description = "Réaction retirée")
+    )
+)]
 pub async fn remove_reaction(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,

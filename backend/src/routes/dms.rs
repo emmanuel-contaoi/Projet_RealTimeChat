@@ -5,6 +5,19 @@ use axum::{extract::State, Json};
 use crate::models::dm::{CreateDmRequest, DmChannel};
 use crate::state::AppState;
 
+#[utoipa::path(
+    post,
+    path = "/dms",
+    tag = "DMs",
+    security(
+        ("bearerAuth" = [])
+    ),
+    request_body = CreateDmRequest,
+    responses(
+        (status = 200, description = "Message privé récupéré ou créé", body = DmChannel),
+        (status = 500, description = "Erreur interne du serveur")
+    )
+)]
 pub async fn get_or_create_dm(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,

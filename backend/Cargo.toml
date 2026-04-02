@@ -28,5 +28,9 @@ dotenv = "0.15"
 jsonwebtoken = "9"
 bcrypt = "0.15"
 
+# --- Swagger / OpenAPI ---
+utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

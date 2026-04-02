@@ -7,7 +7,7 @@ use axum::{
 };
 use uuid::Uuid;
 
-use crate::modules::servers::models::{CreateChannelRequest, UpdateChannelRequest};
+use crate::modules::servers::models::{Channel, CreateChannelRequest, UpdateChannelRequest};
 use crate::repositories::channel_repository::ChannelRepository;
 use crate::repositories::server_repository::ServerRepository;
 use crate::services::channel_service::ChannelService;
@@ -51,6 +51,21 @@ fn build_channel_deleted_event(channel_id: Uuid, server_id: Uuid) -> ServerEvent
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/servers/{server_id}/channels",
+    tag = "Channels",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    request_body = CreateChannelRequest,
+    responses(
+        (status = 201, description = "Channel créé avec succès", body = Channel),
+        (status = 401, description = "Non autorisé"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn create_channel(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -60,7 +75,6 @@ pub async fn create_channel(
     let channel =
         ChannelService::create_channel(&state.pool, auth_user.0.id, server_id, payload).await?;
 
-    // On notifie tous les membres du serveur qu'un nouveau channel a ete cree
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
         .await
         .unwrap_or_default();
@@ -79,6 +93,19 @@ pub async fn create_channel(
     Ok((StatusCode::CREATED, Json(channel)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/servers/{server_id}/channels",
+    tag = "Channels",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    responses(
+        (status = 200, description = "Liste des channels", body = Vec<Channel>),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn list_channels(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -88,6 +115,19 @@ pub async fn list_channels(
     Ok(Json(channels))
 }
 
+#[utoipa::path(
+    get,
+    path = "/channels/{channel_id}",
+    tag = "Channels",
+    security(("bearerAuth" = [])),
+    params(
+        ("channel_id" = Uuid, Path, description = "ID du channel")
+    ),
+    responses(
+        (status = 200, description = "Détails du channel", body = Channel),
+        (status = 404, description = "Introuvable")
+    )
+)]
 pub async fn get_channel(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -97,6 +137,20 @@ pub async fn get_channel(
     Ok(Json(channel))
 }
 
+#[utoipa::path(
+    put,
+    path = "/channels/{channel_id}",
+    tag = "Channels",
+    security(("bearerAuth" = [])),
+    params(
+        ("channel_id" = Uuid, Path, description = "ID du channel")
+    ),
+    request_body = UpdateChannelRequest,
+    responses(
+        (status = 200, description = "Channel mis à jour", body = Channel),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn update_channel(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -106,7 +160,6 @@ pub async fn update_channel(
     let channel =
         ChannelService::update_channel(&state.pool, auth_user.0.id, channel_id, payload).await?;
 
-    // On notifie tous les membres du serveur que le channel a ete renomme
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, channel.server_id)
         .await
         .unwrap_or_default();
@@ -125,12 +178,24 @@ pub async fn update_channel(
     Ok(Json(channel))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/channels/{channel_id}",
+    tag = "Channels",
+    security(("bearerAuth" = [])),
+    params(
+        ("channel_id" = Uuid, Path, description = "ID du channel")
+    ),
+    responses(
+        (status = 204, description = "Channel supprimé"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn delete_channel(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Path(channel_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    // On recupere les infos du channel avant de le supprimer (pour avoir le server_id)
     let channel = ChannelRepository::find_by_id(&state.pool, channel_id)
         .await
         .ok()
@@ -138,7 +203,6 @@ pub async fn delete_channel(
 
     ChannelService::delete_channel(&state.pool, auth_user.0.id, channel_id).await?;
 
-    // On notifie tous les membres du serveur que le channel a ete supprime
     if let Some(ch) = channel {
         let member_ids = ServerRepository::get_member_user_ids(&state.pool, ch.server_id)
             .await

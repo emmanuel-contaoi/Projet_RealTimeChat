@@ -16,16 +16,116 @@ use axum::{
 };
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
+use utoipa::{
+    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+    Modify, OpenApi,
+};
+use utoipa_swagger_ui::SwaggerUi;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        routes::auth::register,
+        routes::auth::login,
+        routes::auth::me,
+        routes::auth::logout,
+        routes::dms::get_or_create_dm,
+        routes::friends::list_friends,
+        routes::friends::send_friend_request,
+        routes::friends::list_incoming_requests,
+        routes::friends::list_outgoing_requests,
+        routes::friends::accept_friend_request,
+        routes::friends::reject_friend_request,
+        routes::friends::cancel_friend_request,
+        routes::friends::remove_friend,
+        routes::users::search_users,
+        routes::users::list_users,
+        routes::users::update_profile,
+        modules::servers::handlers::server_handlers::create_server,
+        modules::servers::handlers::server_handlers::list_servers,
+        modules::servers::handlers::server_handlers::join_server,
+        modules::servers::handlers::server_handlers::leave_server,
+        modules::servers::handlers::server_handlers::delete_server,
+        modules::servers::handlers::server_handlers::get_server,
+        modules::servers::handlers::server_handlers::update_server,
+        modules::servers::handlers::server_handlers::transfer_ownership,
+        modules::servers::handlers::channel_handlers::create_channel,
+        modules::servers::handlers::channel_handlers::list_channels,
+        modules::servers::handlers::channel_handlers::get_channel,
+        modules::servers::handlers::channel_handlers::update_channel,
+        modules::servers::handlers::channel_handlers::delete_channel,
+        modules::servers::handlers::member_handlers::list_members,
+        modules::servers::handlers::member_handlers::kick_member,
+        modules::servers::handlers::member_handlers::ban_member,
+        modules::servers::handlers::member_handlers::update_member_role,
+        modules::servers::handlers::member_handlers::list_bans,
+        modules::servers::handlers::member_handlers::unban_member,
+        modules::servers::handlers::message_handlers::get_chat_history,
+        modules::servers::handlers::message_handlers::send_message,
+        modules::servers::handlers::message_handlers::edit_message,
+        modules::servers::handlers::message_handlers::delete_message,
+        modules::servers::handlers::message_handlers::add_reaction,
+        modules::servers::handlers::message_handlers::remove_reaction
+    ),
+    components(
+        schemas(
+            routes::friends::AddFriendRequest,
+            routes::users::UpdateProfileRequest,
+            routes::users::SearchUsersQuery,
+            models::AuthResponse,
+            models::LoginRequest,
+            models::RegisterRequest,
+            models::UserResponse,
+            models::dm::CreateDmRequest,
+            models::dm::DmChannel,
+            models::FriendRequestResponse,
+            modules::servers::models::Server,
+            modules::servers::models::CreateServerRequest,
+            modules::servers::models::UpdateServerRequest,
+            modules::servers::models::TransferOwnershipRequest,
+            modules::servers::models::Channel,
+            modules::servers::models::CreateChannelRequest,
+            modules::servers::models::JoinServerRequest,
+            modules::servers::models::Message,
+            modules::servers::models::MessageReaction,
+            modules::servers::models::UpdateChannelRequest,
+            modules::servers::models::CreateMessageRequest,
+            modules::servers::models::ReactMessageRequest,
+            modules::servers::models::MemberRow,
+            modules::servers::models::UpdateRoleRequest,
+            modules::servers::models::BanRequest,
+            modules::servers::handlers::member_handlers::BannedUserResponse
+        )
+    ),
+    modifiers(&SecurityAddon)
+)]
+pub struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearerAuth",
+                SecurityScheme::Http(
+                    HttpBuilder::new()
+                        .scheme(HttpAuthScheme::Bearer)
+                        .bearer_format("JWT")
+                        .build(),
+                ),
+            )
+        }
+    }
+}
 
 fn build_app(state: AppState) -> Router {
-    // 4. Routes publiques (sans authentification)
     let public_routes = Router::new()
         .route("/", get(|| async { "Backend RTC fonctionne !" }))
         .route("/health", get(|| async { "OK" }))
         .route("/auth/signup", post(routes::auth::register))
         .route("/auth/login", post(routes::auth::login));
 
-    // 5. Routes protégées (avec authentification)
     let protected_routes = Router::new()
         .route("/me", get(routes::auth::me))
         .route("/auth/me", get(routes::auth::me))
@@ -67,7 +167,6 @@ fn build_app(state: AppState) -> Router {
             utils::auth::auth_middleware,
         ));
 
-    // 6. Routes servers (protégées par auth)
     let server_routes = Router::new()
         .nest("/servers", modules::servers::router())
         .layer(middleware::from_fn_with_state(
@@ -75,7 +174,6 @@ fn build_app(state: AppState) -> Router {
             utils::auth::auth_middleware,
         ));
 
-    // Routes channels/messages (protégées par auth)
     let channel_routes = Router::new()
         .route(
             "/channels/{id}",
@@ -103,16 +201,15 @@ fn build_app(state: AppState) -> Router {
             utils::auth::auth_middleware,
         ));
 
-    // 7. Route WebSocket
     let ws_route = Router::new().route("/ws", get(websocket::websocket_handler));
 
-    // 8. Combiner toutes les routes
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
         .merge(server_routes)
         .merge(channel_routes)
         .merge(ws_route)
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .layer(
             CorsLayer::new()
                 .allow_origin(Any)
@@ -126,7 +223,6 @@ fn build_app(state: AppState) -> Router {
 async fn main() {
     dotenvy::dotenv().ok();
 
-    // 1. Connexion PostgreSQL
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL doit être défini dans .env");
 
@@ -136,10 +232,8 @@ async fn main() {
         .await
         .expect("Impossible de se connecter à PostgreSQL");
 
-    // Migrations : creer les tables si elles n'existent pas
     db::migrations::run_migrations(&pool).await;
 
-    // 2. Connexion MongoDB
     let mongo_client = db::mongo::init_mongo().await;
 
     let state = AppState {
