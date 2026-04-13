@@ -222,7 +222,6 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
 
   const handleWsEvent = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
-      console.log("[WS] friend event received:", event.type);
       if (FRIEND_WS_EVENTS.has(event.type)) {
         refreshFriendsDataRef.current().catch(console.error);
       }

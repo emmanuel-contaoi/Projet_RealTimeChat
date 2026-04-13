@@ -304,7 +304,7 @@ export default function MembersPanel({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="w-full min-w-0 bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
-            placeholder="Rechercher..."
+            placeholder={t("search_placeholder")}
           />
         </div>
       </div>
@@ -313,13 +313,13 @@ export default function MembersPanel({
         <button
           onClick={() => setShowBans(true)}
           className="mt-3 flex w-full shrink-0 items-center justify-between rounded-[14px] border border-[rgba(248,113,113,0.15)] bg-[rgba(248,113,113,0.04)] px-3.5 py-2.5 transition hover:bg-[rgba(248,113,113,0.08)]"
-          title="Voir les membres bannis"
+          title={t("view_banned")}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-red-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
-            <span className="truncate text-[13px] font-semibold text-red-400">Membres bannis</span>
+            <span className="truncate text-[13px] font-semibold text-red-400">{t("view_banned")}</span>
           </div>
           <svg aria-hidden="true" className="h-4 w-4 shrink-0 text-red-400/50" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -330,7 +330,7 @@ export default function MembersPanel({
       <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
         <div>
           <div className="mb-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            <span>En ligne</span>
+            <span>{t("online_section")}</span>
             <span>{onlineMembers.length}</span>
           </div>
           <div className="space-y-2.5">
@@ -344,7 +344,7 @@ export default function MembersPanel({
 
         <div>
           <div className="mb-2.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            <span>Hors ligne</span>
+            <span>{t("offline_section")}</span>
             <span>{offlineMembers.length}</span>
           </div>
           <div className="space-y-2.5">

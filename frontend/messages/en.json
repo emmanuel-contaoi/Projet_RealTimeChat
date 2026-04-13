@@ -61,7 +61,9 @@
     "servers": "Servers",
     "friends": "Friends",
     "servers_count": "{count} active",
-    "friends_count": "{count} friends"
+    "friends_count": "{count} friends",
+    "main_view": "Main view",
+    "active_friends": "Active friends"
   },
   "server_list": {
     "create": "+ Create",
@@ -71,7 +73,9 @@
     "leave": "Leave server",
     "rename": "Rename server",
     "delete": "Delete server",
-    "rename_prompt": "New server name (20 chars max):"
+    "rename_prompt": "New server name (20 chars max):",
+    "show_info": "Show info",
+    "hide_info": "Hide info"
   },
   "channels": {
     "title": "Channels",
@@ -106,6 +110,7 @@
     "no_messages": "No messages yet.",
     "select_channel": "Select a channel.",
     "placeholder": "Write a message...",
+    "placeholder_channel": "Write a message in #{channelName}...",
     "send": "Send",
     "edit": "Edit message",
     "delete": "Delete message",
@@ -115,7 +120,12 @@
     "emoji_ok": "OK",
     "react": "React with an emoji",
     "remove_reaction": "Remove my reaction",
-    "add_reaction": "Add a reaction"
+    "add_reaction": "Add a reaction",
+    "gif_search_placeholder": "Search a GIF...",
+    "gif_loading": "Loading GIFs...",
+    "gif_empty": "No GIF found.",
+    "gif_error": "Unable to load GIFs.",
+    "me": "Me"
   },
   "members": {
     "title": "Members",
@@ -138,7 +148,11 @@
     "ban_temp": "Temp ban",
     "ban_temp_title": "Temporarily ban",
     "ban_duration_placeholder": "Duration (minutes)",
-    "empty": "No members."
+    "empty": "No members.",
+    "search_placeholder": "Search...",
+    "view_banned": "View banned members",
+    "online_section": "Online",
+    "offline_section": "Offline"
   },
   "friends": {
     "requests_title": "Friend requests",
