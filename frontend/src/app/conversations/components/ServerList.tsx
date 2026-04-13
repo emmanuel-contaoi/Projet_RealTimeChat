@@ -131,7 +131,7 @@ export default function ServerList({
                   type="button"
                   className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full border border-[var(--stroke)] text-slate-400 transition hover:border-[rgba(21,209,255,0.35)] hover:text-[var(--brand-1)]"
                   onClick={(e) => handleToggleDetails(e, server.id)}
-                  title={isExpanded ? "Masquer les infos" : "Afficher les infos"}
+                  title={isExpanded ? t("hide_info") : t("show_info")}
                 >
                   <svg
                     width="14"

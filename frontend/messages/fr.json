@@ -61,7 +61,9 @@
     "servers": "Serveurs",
     "friends": "Amis",
     "servers_count": "{count} actifs",
-    "friends_count": "{count} amis"
+    "friends_count": "{count} amis",
+    "main_view": "Vue principale",
+    "active_friends": "Amis actifs"
   },
   "server_list": {
     "create": "+ Créer",
@@ -71,7 +73,9 @@
     "leave": "Quitter le serveur",
     "rename": "Renommer le serveur",
     "delete": "Supprimer le serveur",
-    "rename_prompt": "Nouveau nom du serveur (20 caractères max) :"
+    "rename_prompt": "Nouveau nom du serveur (20 caractères max) :",
+    "show_info": "Afficher les infos",
+    "hide_info": "Masquer les infos"
   },
   "channels": {
     "title": "Channels",
@@ -106,6 +110,7 @@
     "no_messages": "Aucun message pour l'instant.",
     "select_channel": "Sélectionnez un channel.",
     "placeholder": "Écris un message...",
+    "placeholder_channel": "Écris un message dans #{channelName}...",
     "send": "Envoyer",
     "edit": "Modifier ce message",
     "delete": "Supprimer ce message",
@@ -115,7 +120,12 @@
     "emoji_ok": "OK",
     "react": "Réagir avec un emoji",
     "remove_reaction": "Retirer ma réaction",
-    "add_reaction": "Ajouter une réaction"
+    "add_reaction": "Ajouter une réaction",
+    "gif_search_placeholder": "Rechercher un GIF...",
+    "gif_loading": "Chargement des GIFs...",
+    "gif_empty": "Aucun GIF trouvé.",
+    "gif_error": "Impossible de charger les GIFs pour le moment.",
+    "me": "Moi"
   },
   "members": {
     "title": "Membres",
@@ -138,7 +148,11 @@
     "ban_temp": "Ban tempo",
     "ban_temp_title": "Bannir temporairement",
     "ban_duration_placeholder": "Durée (minutes)",
-    "empty": "Aucun membre."
+    "empty": "Aucun membre.",
+    "search_placeholder": "Rechercher...",
+    "view_banned": "Voir les membres bannis",
+    "online_section": "En ligne",
+    "offline_section": "Hors ligne"
   },
   "friends": {
     "requests_title": "Demandes d'amis",

@@ -135,7 +135,7 @@ export default function Sidebar({
       </div>
 
       <div className="mt-3.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-        <span>{activeTab === "servers" ? "Vue principale" : "Amis actifs"}</span>
+        <span>{activeTab === "servers" ? t("main_view") : t("active_friends")}</span>
         <span>
           {activeTab === "servers"
             ? t("servers_count", { count: serverList.length })

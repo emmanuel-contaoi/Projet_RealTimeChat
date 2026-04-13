@@ -156,7 +156,7 @@ export default function ChatPanel({
       } catch {
         if (!cancelled) {
           setGifResults([]);
-          setGifError("Impossible de charger les GIFs pour le moment.");
+          setGifError(t("gif_error"));
         }
       } finally {
         if (!cancelled) setGifLoading(false);
@@ -174,7 +174,7 @@ export default function ChatPanel({
   }, [messages]);
 
   const inputPlaceholder = channelName
-    ? `Écris un message dans #${channelName}...`
+    ? t("placeholder_channel", { channelName })
     : t("placeholder");
   const messageGroups = messages.reduce<MessageGroup[]>((groups, message, index) => {
     const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -233,7 +233,7 @@ export default function ChatPanel({
             {messageGroups.map((group) => {
               const firstMessage = group.items[0];
               const isMe = firstMessage.user_id === currentUserId;
-              const displayName = isMe ? "Moi" : firstMessage.username || "Utilisateur";
+              const displayName = isMe ? t("me") : firstMessage.username || "Utilisateur";
               const avatarInitial = displayName.charAt(0).toUpperCase();
               const avatarColor = getColorFromName(firstMessage.username || "User");
 
@@ -582,7 +582,7 @@ export default function ChatPanel({
                   <div className="fixed bottom-[80px] left-1/2 z-[100] w-[340px] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-[24px] border border-slate-700/60 bg-[rgba(15,22,33,0.98)] p-3 shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:absolute sm:bottom-14 sm:left-auto sm:right-0 sm:translate-x-0 sm:z-[100]">
                     <input
                       className="mb-3 w-full rounded-[16px] border border-slate-700 bg-[rgba(25,35,50,0.8)] px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[var(--brand-1)]/50 transition-colors"
-                      placeholder="Rechercher un GIF..."
+                      placeholder={t("gif_search_placeholder")}
                       value={gifSearch}
                       onChange={(event) => setGifSearch(event.target.value)}
                     />
@@ -593,7 +593,7 @@ export default function ChatPanel({
                         <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-600 border-t-[var(--brand-1)]" />
                       </div>
                     ) : gifResults.length === 0 ? (
-                      <p className="py-6 text-center text-sm font-medium text-slate-400">Aucun GIF trouvé.</p>
+                      <p className="py-6 text-center text-sm font-medium text-slate-400">{t("gif_empty")}</p>
                     ) : (
                       <div className="grid max-h-[300px] grid-cols-2 gap-2.5 overflow-y-auto pr-1">
                         {gifResults.map((gif) => (
