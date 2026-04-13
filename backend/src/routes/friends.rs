@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{ws::Message, Path, State},
     http::StatusCode,
     Json,
 };
@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::services::friend_service::FriendService;
 use crate::services::ServiceError;
+use crate::websocket::events::ServerEvent;
 use crate::{
     models::{FriendRequestResponse, UserResponse},
     state::AppState,
@@ -59,6 +60,17 @@ pub async fn send_friend_request(
     Json(payload): Json<AddFriendRequest>,
 ) -> Result<StatusCode, ServiceError> {
     FriendService::send_friend_request(&state.pool, user.id, payload.friend_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestReceived {
+        from_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[payload.friend_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::CREATED)
 }
 
@@ -122,7 +134,18 @@ pub async fn accept_friend_request(
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(request_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    FriendService::accept_request(&state.pool, user.id, request_id).await?;
+    let sender_id = FriendService::accept_request(&state.pool, user.id, request_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestAccepted {
+        by_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[sender_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::OK)
 }
 
@@ -146,7 +169,18 @@ pub async fn reject_friend_request(
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(request_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    FriendService::reject_request(&state.pool, user.id, request_id).await?;
+    let sender_id = FriendService::reject_request(&state.pool, user.id, request_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestRejected {
+        by_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[sender_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::OK)
 }
 
@@ -170,7 +204,18 @@ pub async fn cancel_friend_request(
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(request_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    FriendService::cancel_request(&state.pool, user.id, request_id).await?;
+    let receiver_id = FriendService::cancel_request(&state.pool, user.id, request_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestCancelled {
+        from_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[receiver_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -195,6 +240,17 @@ pub async fn remove_friend(
     Path(friend_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
     FriendService::remove_friend(&state.pool, user.id, friend_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRemoved {
+        by_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[friend_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::NO_CONTENT)
 }
 
