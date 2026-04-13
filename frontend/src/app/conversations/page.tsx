@@ -28,7 +28,6 @@ export default function ConversationsPage() {
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
   
-  // NOUVEL ÉTAT : On sauvegarde le pseudo et le statut de la personne cliquée
   const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string} | null>(null);
   
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -112,8 +111,9 @@ export default function ConversationsPage() {
       return;
     }
 
-    // ON SAUVEGARDE LE VRAI PSEUDO DIRECTEMENT ICI
-    const friendName = (friend as any).username || (friend as any).name || "Utilisateur";
+    // CORRECTION ESLINT : Typage propre sans "any"
+    const f = friend as Friend & { username?: string };
+    const friendName = f.username || f.name || "Utilisateur";
     setCurrentDmUser({ name: friendName, status: friend.status || "Hors ligne" });
 
     try {
@@ -150,7 +150,6 @@ export default function ConversationsPage() {
     return <LoadingScreen />;
   }
 
-  // Utilisation de l'état stocké
   const currentFriendName = currentDmUser?.name || "";
   const currentFriendStatus = currentDmUser?.status || "Hors ligne";
 

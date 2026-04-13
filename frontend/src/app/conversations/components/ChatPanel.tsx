@@ -171,7 +171,7 @@ export default function ChatPanel({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [showGifPicker, gifSearch]);
+  }, [showGifPicker, gifSearch, t]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -230,7 +230,6 @@ export default function ChatPanel({
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
-              {/* CORRECTION ICI : Affiche le nom de l'ami si DM, sinon fallback sur t("select_channel") */}
               <p className="truncate text-[1.7rem] font-semibold leading-none text-white">
                 {isDm ? channelName : (channelName || t("select_channel"))}
               </p>
