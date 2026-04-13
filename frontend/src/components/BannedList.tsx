@@ -1,94 +1,121 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { serversService } from '@/services/api';
+import { useEffect, useState, useCallback } from "react";
+import { useTranslations } from "next-intl";
+import { authService } from "@/services/api";
 
-// Adapte ces types si tu as un fichier de types global
-interface BannedUser {
+type BannedUser = {
   id: string;
   username: string;
   expires_at: string | null;
   created_at: string | null;
-}
+};
 
-interface BannedListProps {
+type BannedListProps = {
   serverId: string;
-  onClose: () => void;
-}
+  onClose?: () => void;
+};
 
 export default function BannedList({ serverId, onClose }: BannedListProps) {
+  const t = useTranslations("server");
   const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
+  const fetchBans = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:3001/servers/${serverId}/bans`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur de chargement");
+      }
+
+      const data = await response.json();
+      setBannedUsers(data);
+    } catch {
+      // CORRECTION ESLINT : "catch (err)" remplacé par "catch" tout court
+      setError(t("ban_load_error"));
+    } finally {
+      setLoading(false);
+    }
+  }, [serverId, t]); // useCallback a besoin de ses dépendances
+
+  // CORRECTION ESLINT : fetchBans est maintenant dans le tableau de dépendances
   useEffect(() => {
     fetchBans();
-  }, [serverId]);
-
-  const fetchBans = async () => {
-    try {
-      setIsLoading(true);
-      const data = await serversService.bans(serverId);
-      setBannedUsers(data);
-    } catch (err) {
-      setError("Impossible de charger la liste des bannis.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [fetchBans]);
 
   const handleUnban = async (userId: string) => {
     try {
-      await serversService.unban(serverId, userId);
-      // Met à jour la liste en retirant l'utilisateur débanni
-      setBannedUsers(prev => prev.filter(u => u.id !== userId));
-    } catch (err) {
-      alert("Erreur lors du débannissement");
+      const token = localStorage.getItem("token");
+      const response = await fetch(`http://localhost:3001/servers/${serverId}/bans/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur de débannissement");
+      }
+
+      // Met à jour la liste localement après un succès
+      setBannedUsers((prev) => prev.filter((user) => user.id !== userId));
+    } catch {
+      // CORRECTION ESLINT : "catch (err)" remplacé par "catch"
+      alert(t("unban_error"));
     }
   };
 
-  return (
-    <div className="absolute inset-0 bg-[var(--surface-color)] z-50 flex flex-col h-full bg-gray-900 text-white">
-      {/* En-tête de la liste des bans */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-700">
-        <h2 className="text-lg font-bold text-red-400">Membres Bannis</h2>
-        <button 
-          onClick={onClose}
-          className="p-1 hover:bg-gray-800 rounded-md text-gray-400 hover:text-white"
-        >
-          ✕ Retour
-        </button>
-      </div>
+  if (loading) {
+    return <div className="p-4 text-center text-slate-400">Chargement...</div>;
+  }
 
-      {/* Liste des utilisateurs */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {isLoading ? (
-          <p className="text-gray-400 text-center mt-4">Chargement...</p>
-        ) : error ? (
-          <p className="text-red-400 text-center mt-4">{error}</p>
-        ) : bannedUsers.length === 0 ? (
-          <p className="text-gray-400 text-center mt-4">Aucun utilisateur banni sur ce serveur.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {bannedUsers.map(user => (
-              <div key={user.id} className="flex items-center justify-between bg-gray-800 p-3 rounded-lg border border-gray-700">
-                <div className="flex flex-col">
-                  <span className="font-semibold">{user.username}</span>
-                  <span className="text-xs text-gray-400">
-                    Banni le : {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Inconnu'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleUnban(user.id)}
-                  className="px-3 py-1 bg-gray-700 hover:bg-green-600 text-sm font-medium rounded transition-colors"
-                >
-                  Débannir
-                </button>
-              </div>
-            ))}
-          </div>
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-bold text-white">Utilisateurs bannis</h3>
+        {onClose && (
+          <button onClick={onClose} className="text-slate-400 hover:text-white" type="button">
+            ✕
+          </button>
         )}
       </div>
+
+      {error && <p className="text-sm text-rose-400">{error}</p>}
+
+      {bannedUsers.length === 0 ? (
+        <p className="text-sm text-slate-400">Aucun utilisateur banni.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {bannedUsers.map((user) => (
+            <div key={user.id} className="flex items-center justify-between rounded-xl bg-slate-800/50 p-3 border border-slate-700/50">
+              <div>
+                <p className="text-sm font-semibold text-white">{user.username}</p>
+                <p className="text-xs text-slate-400">
+                  {user.expires_at
+                    ? `Expire le : ${new Date(user.expires_at).toLocaleDateString("fr-FR")}`
+                    : "Bannissement permanent"}
+                </p>
+              </div>
+              <button
+                className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-600"
+                onClick={() => handleUnban(user.id)}
+                type="button"
+              >
+                Débannir
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

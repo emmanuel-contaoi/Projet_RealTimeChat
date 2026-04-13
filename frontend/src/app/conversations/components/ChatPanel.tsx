@@ -17,6 +17,8 @@ type ChatPanelProps = {
   currentUserId: string;
   currentUserRole: string;
   typingUsers: string[];
+  isDm?: boolean;
+  friendStatus?: string;
   onSendMessage: (content: string) => void;
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
@@ -55,6 +57,8 @@ export default function ChatPanel({
   currentUserId,
   currentUserRole,
   typingUsers,
+  isDm,
+  friendStatus,
   onSendMessage,
   onTyping,
   onEditMessage,
@@ -167,7 +171,7 @@ export default function ChatPanel({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [showGifPicker, gifSearch]);
+  }, [showGifPicker, gifSearch, t]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -205,22 +209,41 @@ export default function ChatPanel({
     <section className="flex h-full min-h-0 flex-col bg-[var(--panel)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(36,52,75,0.72)] bg-[rgba(20,28,39,0.9)] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(21,209,255,0.45)] bg-[rgba(21,209,255,0.08)] text-[1.45rem] font-semibold text-[var(--brand-1)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-            #
-          </div>
+          
+          {/* HEADER MODIFIÉ SELON isDm */}
+          {isDm ? (
+            <div className="relative">
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
+                {(channelName || "A").charAt(0).toUpperCase()}
+              </div>
+              <span
+                className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[rgba(20,28,39,0.9)] ${
+                  friendStatus === "En ligne" ? "bg-[var(--success)]" : "bg-slate-500"
+                }`}
+              />
+            </div>
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(21,209,255,0.45)] bg-[rgba(21,209,255,0.08)] text-[1.45rem] font-semibold text-[var(--brand-1)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+              #
+            </div>
+          )}
+
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2.5">
               <p className="truncate text-[1.7rem] font-semibold leading-none text-white">
-                {channelName || t("select_channel")}
+                {isDm ? channelName : (channelName || t("select_channel"))}
               </p>
-              {selectedChannel ? (
+              {selectedChannel && !isDm ? (
                 <span className="rounded-lg border border-[rgba(21,209,255,0.35)] bg-[rgba(21,209,255,0.12)] px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-1)]">
                   Public
                 </span>
               ) : null}
             </div>
             <p className="mt-0.5 text-[11px] text-slate-400">
-              {selectedServer ? `Bienvenue sur ${selectedServer}` : t("select_channel")}
+              {isDm 
+                ? (friendStatus === "En ligne" ? "Actif maintenant" : "Hors ligne")
+                : (selectedServer ? `Bienvenue sur ${selectedServer}` : t("select_channel"))
+              }
             </p>
           </div>
         </div>
@@ -493,14 +516,14 @@ export default function ChatPanel({
         ) : (
           <div className="flex h-full min-h-[320px] items-center justify-center">
             <p className="text-sm font-medium text-slate-500 bg-slate-800/30 px-6 py-3 rounded-full border border-slate-700/30">
-              {selectedChannel ? t("no_messages") : t("select_channel")}
+              {isDm ? "Aucun message pour l'instant." : (selectedChannel ? t("no_messages") : t("select_channel"))}
             </p>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* BARRE DU BAS RESPONSIVE (Pas de retour à la ligne) */}
+      {/* BARRE DU BAS RESPONSIVE */}
       <div className="relative z-50 border-t border-[rgba(36,52,75,0.72)] bg-[rgba(17,24,35,0.96)] px-3 py-3.5 sm:px-4 backdrop-blur-md">
         {typingUsers.length > 0 ? (
           <div className="mb-4 text-xs font-medium text-slate-400">
@@ -518,10 +541,8 @@ export default function ChatPanel({
         ) : null}
 
         <form onSubmit={handleSubmit}>
-          {/* MODIFICATION ICI : On enlève le flex-wrap pour forcer une seule ligne */}
           <div className="flex items-center gap-2 sm:gap-3">
             
-            {/* L'input prend tout l'espace disponible (flex-1) mais sans largeur minimum stricte */}
             <div className="min-w-0 flex-1 rounded-[16px] border border-slate-700/60 bg-[rgba(26,37,53,0.7)] px-3 sm:px-4 py-2 sm:py-3 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)] transition-colors focus-within:border-[var(--brand-1)]/50 focus-within:bg-[rgba(26,37,53,0.9)]">
               <input
                 className="w-full bg-transparent text-[0.95rem] text-white outline-none placeholder:text-slate-500"
@@ -532,7 +553,6 @@ export default function ChatPanel({
               />
             </div>
 
-            {/* MODIFICATION ICI : Les boutons sont dans un conteneur qui ne rétrécit pas (shrink-0) */}
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <div className="relative" ref={emojiPickerRef}>
                 <button
@@ -624,7 +644,6 @@ export default function ChatPanel({
                 ) : null}
               </div>
 
-              {/* Bouton Envoyer PC */}
               <button
                 type="submit"
                 className="hidden h-11 items-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,_var(--brand-1),_#2958d3)] px-5 text-[14px] font-bold tracking-wide text-white transition-all hover:brightness-110 hover:shadow-[0_0_20px_rgba(21,209,255,0.4)] hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none md:inline-flex"
@@ -637,7 +656,6 @@ export default function ChatPanel({
                 {t("send")}
               </button>
 
-              {/* Bouton Envoyer Mobile (Icone seule) */}
               <button
                 type="submit"
                 className="inline-flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-[12px] sm:rounded-[14px] bg-[linear-gradient(135deg,_var(--brand-1),_#2958d3)] text-white transition-all hover:brightness-110 hover:shadow-[0_0_15px_rgba(21,209,255,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 md:hidden"

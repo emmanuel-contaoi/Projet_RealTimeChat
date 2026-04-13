@@ -22,14 +22,13 @@ import Sidebar from "./components/Sidebar";
 export default function ConversationsPage() {
   const router = useRouter();
   
-  // L'état original pour le menu "Déconnexion / Edition"
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
-  
-  // ETAT : Pour le tiroir mobile entier
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
+  
+  const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string} | null>(null);
   
   const menuRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
@@ -102,10 +101,20 @@ export default function ConversationsPage() {
   const handleSelectFriend = async (friend: Friend) => {
     friends.setSelectedFriend(friend.id); 
     
-    // Ferme le tiroir mobile quand on choisit un ami (lg: 1024px)
     if (window.innerWidth < 1024) {
       setIsMobileDrawerOpen(false);
     }
+
+    if (!friend.id) {
+      setActiveDmChannel(null);
+      setCurrentDmUser(null);
+      return;
+    }
+
+    // CORRECTION ESLINT : Typage propre sans "any"
+    const f = friend as Friend & { username?: string };
+    const friendName = f.username || f.name || "Utilisateur";
+    setCurrentDmUser({ name: friendName, status: friend.status || "Hors ligne" });
 
     try {
       const token = localStorage.getItem("token");
@@ -141,7 +150,8 @@ export default function ConversationsPage() {
     return <LoadingScreen />;
   }
 
-  const currentFriendName = friends.friendList.find((f: Friend) => f.id === friends.selectedFriend)?.name || "Messages Privés";
+  const currentFriendName = currentDmUser?.name || "";
+  const currentFriendStatus = currentDmUser?.status || "Hors ligne";
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -151,7 +161,6 @@ export default function ConversationsPage() {
 
       <main className="relative z-10 mx-2 mb-2 flex min-h-0 flex-1 overflow-hidden rounded-[26px] border border-[var(--stroke)] bg-[rgba(9,15,23,0.94)] shadow-[0_24px_64px_rgba(2,8,18,0.52)]">
         
-        {/* BOUTON HAMBURGER / FERMER - Affiché jusqu'à lg (1024px) */}
         <button
           onClick={() => setIsMobileDrawerOpen(!isMobileDrawerOpen)}
           className="absolute right-4 top-3 z-[60] flex h-10 w-10 items-center justify-center text-slate-300 transition-all hover:scale-110 hover:text-[var(--brand-1)] active:scale-95 lg:hidden"
@@ -171,7 +180,6 @@ export default function ConversationsPage() {
           )}
         </button>
 
-        {/* OVERLAY SOMBRE */}
         {isMobileDrawerOpen && (
           <div
             className="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm transition-opacity duration-300 lg:hidden"
@@ -179,17 +187,13 @@ export default function ConversationsPage() {
           />
         )}
 
-        {/* TIROIR COULISSANT MOBILE & BARRE LATÉRALE PC */}
         <div
           ref={drawerRef}
           className={`absolute inset-y-0 left-0 z-50 flex h-full w-[85vw] sm:w-[340px] snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth bg-[rgba(15,22,33,0.98)] transform transition-transform duration-300 ease-out [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] lg:static lg:w-auto lg:max-w-none lg:overflow-visible lg:bg-transparent lg:translate-x-0 lg:shadow-none ${
             isMobileDrawerOpen ? "translate-x-0 shadow-[10px_0_50px_rgba(0,0,0,0.8)]" : "-translate-x-full"
           }`}
         >
-          {/* PAGE 1 DU TIROIR : SERVEURS / AMIS */}
-          <div className={`snap-start snap-always flex-shrink-0 h-full w-full transition-all duration-300 lg:w-[250px] ${
-            activeTab === "friends" ? "lg:w-[280px]" : ""
-          }`}>
+          <div className="snap-start snap-always flex-shrink-0 h-full w-full transition-all duration-300 lg:w-auto flex">
             <Sidebar
               activeTab={activeTab}
               serverList={server.serverList}
@@ -218,7 +222,6 @@ export default function ConversationsPage() {
                 setActiveTab("servers");
                 setActiveDmChannel(null);
                 
-                // UX : Sur mobile, glisser doucement vers la droite pour voir les salons
                 if (window.innerWidth < 1024 && drawerRef.current) {
                   setTimeout(() => {
                     const drawerWidth = drawerRef.current?.clientWidth || 0;
@@ -238,11 +241,8 @@ export default function ConversationsPage() {
             />
           </div>
 
-          {/* PAGE 2 DU TIROIR : SALONS TEXTUELS */}
           {activeTab === "servers" && (
-            <div className="flex flex-col snap-start snap-always flex-shrink-0 h-full w-full lg:w-[220px] xl:w-[230px] border-l border-[rgba(255,255,255,0.03)] bg-[rgba(20,28,39,0.98)] lg:bg-transparent lg:border-none">
-              
-              {/* BOUTON RETOUR (Uniquement Mobile) */}
+            <div className="flex flex-col snap-start snap-always flex-shrink-0 h-full w-full lg:w-[240px] border-l border-[rgba(255,255,255,0.03)] bg-[rgba(20,28,39,0.98)] lg:bg-transparent lg:border-none">
               <div className="flex items-center px-4 py-3 border-b border-[rgba(255,255,255,0.05)] lg:hidden">
                 <button
                   onClick={() => {
@@ -268,10 +268,8 @@ export default function ConversationsPage() {
                   onSelectChannel={(channelId) => {
                     server.setSelectedChannel(channelId);
                     
-                    // Ferme le tiroir quand on clique sur un salon sur mobile
                     if (window.innerWidth < 1024) {
                       setIsMobileDrawerOpen(false);
-                      // On remet la vue sur les serveurs pour la prochaine fois qu'on ouvre le menu
                       setTimeout(() => {
                         drawerRef.current?.scrollTo({ left: 0 });
                       }, 300);
@@ -286,7 +284,6 @@ export default function ConversationsPage() {
           )}
         </div>
 
-        {/* CONTENU PRINCIPAL (Chat) */}
         <div className="relative flex min-w-0 flex-1 flex-col bg-transparent">
           {activeTab === "servers" ? (
             <ChatPanel
@@ -308,11 +305,13 @@ export default function ConversationsPage() {
             <ChatPanel
               channelName={currentFriendName}
               selectedChannel={activeDmChannel}
-              selectedServer="Messages Privés"
+              selectedServer=""
               messages={chat.messages}
               currentUserId={currentUserId}
               currentUserRole="member"
               typingUsers={chat.typingUserNames}
+              isDm={true}
+              friendStatus={currentFriendStatus}
               onSendMessage={chat.handleSendMessage}
               onTyping={chat.handleTyping}
               onEditMessage={chat.handleEditMessage}
@@ -340,9 +339,8 @@ export default function ConversationsPage() {
           )}
         </div>
 
-        {/* PANNEAU DES MEMBRES (Uniquement sur très grand écran PC) */}
         {activeTab === "servers" && (
-          <div className="hidden w-[250px] flex-shrink-0 border-l border-[rgba(255,255,255,0.05)] xl:block">
+          <div className="hidden w-[240px] flex-shrink-0 border-l border-[rgba(255,255,255,0.05)] xl:block">
             <MembersPanel
               serverId={server.selectedServer || ""}
               members={server.members}
