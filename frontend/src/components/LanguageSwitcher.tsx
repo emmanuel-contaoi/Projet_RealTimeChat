@@ -14,8 +14,12 @@ export default function LanguageSwitcher({ compact = false }: LanguageSwitcherPr
   const locale = useLocale();
   const router = useRouter();
 
+  const LOCALES = ["fr", "en", "es"] as const;
+  const LABELS: Record<string, string> = { fr: "FR", en: "EN", es: "ES" };
+
   const toggle = () => {
-    const next = locale === "fr" ? "en" : "fr";
+    const currentIndex = LOCALES.indexOf(locale as typeof LOCALES[number]);
+    const next = LOCALES[(currentIndex + 1) % LOCALES.length];
     document.cookie = `locale=${next}; path=/; max-age=31536000`; // 1 an
     router.refresh();
   };
@@ -31,7 +35,7 @@ export default function LanguageSwitcher({ compact = false }: LanguageSwitcherPr
       }`}
       title="Changer de langue"
     >
-      {locale === "fr" ? "EN" : "FR"}
+      {LABELS[locale] ?? locale.toUpperCase()}
     </button>
   );
 }
