@@ -50,6 +50,64 @@ describe("serversService", () => {
       { role: "admin" }
     );
   });
+
+  it("kicks a member from a server", async () => {
+    const deleteSpy = jest.spyOn(api, "delete").mockResolvedValueOnce({ data: {} });
+
+    await serversService.kick("server-1", "user-2");
+
+    expect(deleteSpy).toHaveBeenCalledWith("/servers/server-1/members/user-2");
+  });
+
+  it("bans a member permanently when no duration is given", async () => {
+    const postSpy = jest.spyOn(api, "post").mockResolvedValueOnce({ data: {} });
+
+    await serversService.ban("server-1", "user-2");
+
+    expect(postSpy).toHaveBeenCalledWith(
+      "/servers/server-1/members/user-2/ban",
+      { duration_minutes: undefined }
+    );
+  });
+
+  it("bans a member temporarily when a duration is given", async () => {
+    const postSpy = jest.spyOn(api, "post").mockResolvedValueOnce({ data: {} });
+
+    await serversService.ban("server-1", "user-2", 60);
+
+    expect(postSpy).toHaveBeenCalledWith(
+      "/servers/server-1/members/user-2/ban",
+      { duration_minutes: 60 }
+    );
+  });
+
+  it("lists the bans of a server", async () => {
+    const payload = [{ user_id: "user-2", banned_until: null }];
+    const getSpy = jest.spyOn(api, "get").mockResolvedValueOnce({ data: payload });
+
+    await expect(serversService.bans("server-1")).resolves.toEqual(payload);
+    expect(getSpy).toHaveBeenCalledWith("/servers/server-1/bans");
+  });
+
+  it("unbans a user from a server", async () => {
+    const payload = { ok: true };
+    const deleteSpy = jest.spyOn(api, "delete").mockResolvedValueOnce({ data: payload });
+
+    await expect(serversService.unban("server-1", "user-2")).resolves.toEqual(payload);
+    expect(deleteSpy).toHaveBeenCalledWith("/servers/server-1/bans/user-2");
+  });
+
+  it("transfers server ownership to another member", async () => {
+    const payload = { ok: true };
+    const postSpy = jest.spyOn(api, "post").mockResolvedValueOnce({ data: payload });
+
+    await expect(
+      serversService.transferOwnership("server-1", "user-3")
+    ).resolves.toEqual(payload);
+    expect(postSpy).toHaveBeenCalledWith("/servers/server-1/transfer", {
+      new_owner_id: "user-3",
+    });
+  });
 });
 
 describe("channelsService", () => {
@@ -88,6 +146,14 @@ describe("channelsService", () => {
     expect(putSpy).toHaveBeenCalledWith("/channels/channel-1", {
       name: "annonces",
     });
+  });
+
+  it("deletes a channel", async () => {
+    const deleteSpy = jest.spyOn(api, "delete").mockResolvedValueOnce({ data: {} });
+
+    await channelsService.delete("channel-1");
+
+    expect(deleteSpy).toHaveBeenCalledWith("/channels/channel-1");
   });
 });
 
@@ -128,6 +194,24 @@ describe("messagesService", () => {
     expect(deleteSpy).toHaveBeenCalledWith("/messages/message-1/reactions", {
       data: { emoji: ":fire:" },
     });
+  });
+
+  it("edits the content of a message", async () => {
+    const putSpy = jest.spyOn(api, "put").mockResolvedValueOnce({ data: {} });
+
+    await messagesService.update("message-1", "nouveau contenu");
+
+    expect(putSpy).toHaveBeenCalledWith("/messages/message-1", {
+      content: "nouveau contenu",
+    });
+  });
+
+  it("deletes a message", async () => {
+    const deleteSpy = jest.spyOn(api, "delete").mockResolvedValueOnce({ data: {} });
+
+    await messagesService.delete("message-1");
+
+    expect(deleteSpy).toHaveBeenCalledWith("/messages/message-1");
   });
 });
 
@@ -173,5 +257,27 @@ describe("friendsService", () => {
 
     await expect(friendsService.remove("friend-1")).resolves.toBeUndefined();
     expect(deleteSpy).toHaveBeenCalledWith("/friends/friend-1");
+  });
+
+  it("lists outgoing friend requests", async () => {
+    const payload = [{ id: "request-2" }];
+    const getSpy = jest.spyOn(api, "get").mockResolvedValueOnce({ data: payload });
+
+    await expect(friendsService.outgoingRequests()).resolves.toEqual(payload);
+    expect(getSpy).toHaveBeenCalledWith("/friends/requests/outgoing");
+  });
+
+  it("rejects a friend request", async () => {
+    const postSpy = jest.spyOn(api, "post").mockResolvedValueOnce({ data: {} });
+
+    await expect(friendsService.rejectRequest("request-1")).resolves.toBeUndefined();
+    expect(postSpy).toHaveBeenCalledWith("/friends/requests/request-1/reject");
+  });
+
+  it("cancels an outgoing friend request", async () => {
+    const deleteSpy = jest.spyOn(api, "delete").mockResolvedValueOnce({ data: {} });
+
+    await expect(friendsService.cancelRequest("request-2")).resolves.toBeUndefined();
+    expect(deleteSpy).toHaveBeenCalledWith("/friends/requests/request-2");
   });
 });

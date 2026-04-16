@@ -114,4 +114,47 @@ describe("authService", () => {
   it("returns null when there is no current user in localStorage", () => {
     expect(authService.getCurrentUser()).toBeNull();
   });
+
+  it("maps French field names to the English API payload and updates localStorage", async () => {
+    const updatedUser = { id: "user-1", email: "manu@example.com", username: "manu" };
+    const putSpy = jest.spyOn(api, "put").mockResolvedValueOnce({ data: updatedUser });
+
+    await expect(
+      authService.updateProfile({
+        nom: "Dupont",
+        prenom: "Manu",
+        email: "manu@example.com",
+        username: "manu",
+      })
+    ).resolves.toEqual(updatedUser);
+
+    expect(putSpy).toHaveBeenCalledWith("/users/me", {
+      first_name: "Manu",
+      last_name: "Dupont",
+      email: "manu@example.com",
+      username: "manu",
+    });
+    expect(window.localStorage.getItem("user")).toBe(JSON.stringify(updatedUser));
+  });
+
+  it("includes the new password in the payload only when provided", async () => {
+    const updatedUser = { id: "user-1", email: "manu@example.com" };
+    const putSpy = jest.spyOn(api, "put").mockResolvedValueOnce({ data: updatedUser });
+
+    await authService.updateProfile({
+      nom: "Dupont",
+      prenom: "Manu",
+      email: "manu@example.com",
+      username: "manu",
+      newPassword: "newSecret99",
+    });
+
+    expect(putSpy).toHaveBeenCalledWith("/users/me", {
+      first_name: "Manu",
+      last_name: "Dupont",
+      email: "manu@example.com",
+      username: "manu",
+      password: "newSecret99",
+    });
+  });
 });
