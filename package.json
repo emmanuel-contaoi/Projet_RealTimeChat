@@ -4,6 +4,9 @@
   "scripts": {
     "test:front": "npm --prefix frontend test -- --runInBand",
     "test:back": "cargo test --manifest-path backend/Cargo.toml",
-    "test": "npm run test:front && npm run test:back"
+    "test": "npm run test:front && npm run test:back",
+    "coverage:front": "npm --prefix frontend test -- --runInBand --coverage",
+    "coverage:back": "SQLX_OFFLINE=true cargo tarpaulin --manifest-path backend/Cargo.toml",
+    "coverage": "npm run coverage:front && npm run coverage:back"
   }
 }
