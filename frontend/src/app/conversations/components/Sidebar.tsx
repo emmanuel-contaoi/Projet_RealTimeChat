@@ -11,6 +11,8 @@ type SidebarProps = {
   activeTab: "servers" | "friends";
   serverList: Server[];
   friendList: Friend[];
+  incomingFriendRequestCount: number;
+  unreadMessageCountByFriendId: Record<string, number>;
   selectedServer: string;
   selectedFriend: string;
   currentUserRole: string;
@@ -35,6 +37,8 @@ export default function Sidebar({
   activeTab,
   serverList,
   friendList,
+  incomingFriendRequestCount,
+  unreadMessageCountByFriendId,
   selectedServer,
   selectedFriend,
   isMenuOpen,
@@ -174,7 +178,12 @@ export default function Sidebar({
               type="button"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              {t("friends")}
+              <span>{t("friends")}</span>
+              {incomingFriendRequestCount > 0 ? (
+                <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-[0_0_10px_rgba(244,63,94,0.45)]">
+                  {incomingFriendRequestCount}
+                </span>
+              ) : null}
             </button>
           </div>
 
@@ -190,6 +199,7 @@ export default function Sidebar({
               friendList={friendList}
               selectedFriend={selectedFriend}
               unreadChannels={unreadChannels}
+              unreadMessageCountByFriendId={unreadMessageCountByFriendId}
               onSelectFriend={onSelectFriend}
               onRemoveFriend={onRemoveFriend}
             />

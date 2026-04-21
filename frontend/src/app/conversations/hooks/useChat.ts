@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useWebSocket from "@/hooks/useWebSocket";
 import { authService, messagesService } from "@/services/api";
 import type { ChannelMessage, MessageReaction } from "../types";
@@ -7,9 +7,21 @@ type UseChatOptions = {
   onExtraWsEvent?: (event: { type: string; [key: string]: unknown }) => void;
 };
 
+type ChatToastNotification = {
+  id: string;
+  channelId: string;
+  title: string;
+  body: string;
+};
+
+const TOAST_NOTIFICATION_DURATION_MS = 12000;
+const UNREAD_STORAGE_PREFIX = "chat-unread-state:";
+
 export default function useChat(options?: UseChatOptions) {
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [unreadChannels, setUnreadChannels] = useState<Set<string>>(new Set());
+  const [unreadCountByChannel, setUnreadCountByChannel] = useState<Record<string, number>>({});
+  const [toastNotifications, setToastNotifications] = useState<ChatToastNotification[]>([]);
   
   const [typingUsers, setTypingUsers] = useState<
     Record<string, { username: string; timer: ReturnType<typeof setTimeout> }>
@@ -19,6 +31,77 @@ export default function useChat(options?: UseChatOptions) {
   const typingThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevChannelRef = useRef("");
   const activeChannelRef = useRef("");
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
+  const toastTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const hasHydratedUnreadStateRef = useRef(false);
+
+  const getUnreadStorageKey = useCallback(() => {
+    const currentUser = authService.getCurrentUser() as { id?: string } | null;
+    return currentUser?.id ? `${UNREAD_STORAGE_PREFIX}${currentUser.id}` : null;
+  }, []);
+
+  const sanitizeUnreadCounts = useCallback((value: unknown): Record<string, number> => {
+    if (!value || typeof value !== "object") return {};
+
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([channelId, count]) => (
+          typeof channelId === "string" &&
+          Number.isFinite(count) &&
+          typeof count === "number" &&
+          count > 0
+        ))
+        .map(([channelId, count]) => [channelId, Math.floor(count)])
+    );
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storageKey = getUnreadStorageKey();
+    if (!storageKey) {
+      hasHydratedUnreadStateRef.current = true;
+      return;
+    }
+
+    try {
+      const rawValue = window.localStorage.getItem(storageKey);
+      if (!rawValue) {
+        hasHydratedUnreadStateRef.current = true;
+        return;
+      }
+
+      const parsed = JSON.parse(rawValue) as { unreadCountByChannel?: unknown };
+      const nextUnreadCountByChannel = sanitizeUnreadCounts(parsed.unreadCountByChannel);
+      setUnreadCountByChannel(nextUnreadCountByChannel);
+      setUnreadChannels(new Set(Object.keys(nextUnreadCountByChannel)));
+    } catch {
+      window.localStorage.removeItem(storageKey);
+    } finally {
+      hasHydratedUnreadStateRef.current = true;
+    }
+  }, [getUnreadStorageKey, sanitizeUnreadCounts]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasHydratedUnreadStateRef.current) return;
+
+    const storageKey = getUnreadStorageKey();
+    if (!storageKey) return;
+
+    try {
+      if (!Object.keys(unreadCountByChannel).length) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({ unreadCountByChannel })
+      );
+    } catch {
+      // On ignore les erreurs de quota/localStorage indisponible
+    }
+  }, [getUnreadStorageKey, unreadCountByChannel]);
 
   const setActiveChannel = useCallback((channelId: string) => {
     activeChannelRef.current = channelId;
@@ -26,6 +109,12 @@ export default function useChat(options?: UseChatOptions) {
       if (!prev.has(channelId)) return prev;
       const next = new Set(prev);
       next.delete(channelId);
+      return next;
+    });
+    setUnreadCountByChannel((prev) => {
+      if (!prev[channelId]) return prev;
+      const next = { ...prev };
+      delete next[channelId];
       return next;
     });
   }, []);
@@ -46,32 +135,126 @@ export default function useChat(options?: UseChatOptions) {
       }));
   }, []);
 
+  const notifyNewMessage = useCallback((message: ChannelMessage) => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+
+    const currentUser = authService.getCurrentUser() as { id?: string } | null;
+    if (message.user_id === currentUser?.id) return;
+
+    const showNotification = () => {
+      const body = message.content.trim()
+        ? message.content.slice(0, 120)
+        : "Vous avez recu un nouveau message.";
+      const notification = new window.Notification(`Nouveau message de ${message.username}`, {
+        body,
+        tag: `chat-${message.channel_id}`,
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    };
+
+    if (window.Notification.permission === "granted") {
+      showNotification();
+      return;
+    }
+
+    if (window.Notification.permission === "default") {
+      void window.Notification.requestPermission()
+        .then((permission) => {
+          if (permission === "granted") {
+            showNotification();
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const dismissToastNotification = useCallback((toastId: string) => {
+    const timer = toastTimersRef.current[toastId];
+    if (timer) {
+      clearTimeout(timer);
+      delete toastTimersRef.current[toastId];
+    }
+    setToastNotifications((prev) => prev.filter((toast) => toast.id !== toastId));
+  }, []);
+
+  const pushToastNotification = useCallback((message: ChannelMessage) => {
+    const currentUser = authService.getCurrentUser() as { id?: string } | null;
+    if (message.user_id === currentUser?.id) return;
+
+    const preview = message.content.trim()
+      ? message.content.slice(0, 120)
+      : "Vous avez recu un nouveau message.";
+    const toastId = message.id ?? `${message.channel_id}-${Date.now()}`;
+
+    setToastNotifications((prev) => {
+      const next = prev.filter((toast) => toast.id !== toastId);
+      return [
+        ...next,
+        {
+          id: toastId,
+          channelId: message.channel_id,
+          title: `Nouveau message de ${message.username}`,
+          body: preview,
+        },
+      ].slice(-3);
+    });
+
+    const existingTimer = toastTimersRef.current[toastId];
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+    toastTimersRef.current[toastId] = setTimeout(() => {
+      dismissToastNotification(toastId);
+    }, TOAST_NOTIFICATION_DURATION_MS);
+  }, [dismissToastNotification]);
+
+  useEffect(() => () => {
+    Object.values(toastTimersRef.current).forEach((timer) => clearTimeout(timer));
+    toastTimersRef.current = {};
+  }, []);
+
   const handleWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
       if (event.type === "message_new") {
         const msgChannelId = event.channel_id as string;
-        
+        const currentUser = authService.getCurrentUser() as { id?: string } | null;
+        const msg: ChannelMessage = {
+          id: event.id as string | undefined,
+          channel_id: msgChannelId,
+          user_id: event.user_id as string,
+          username: event.username as string,
+          content: event.content as string,
+          created_at: event.created_at as string | undefined,
+          reactions: normalizeReactions(event.reactions),
+        };
+
+        if (msg.id) {
+          if (seenMessageIdsRef.current.has(msg.id)) return;
+          seenMessageIdsRef.current.add(msg.id);
+        }
+
+        const isOwnMessage = msg.user_id === currentUser?.id;
+
         if (msgChannelId === activeChannelRef.current) {
-          const msg: ChannelMessage = {
-            id: event.id as string | undefined,
-            channel_id: msgChannelId,
-            user_id: event.user_id as string,
-            username: event.username as string,
-            content: event.content as string,
-            created_at: event.created_at as string | undefined,
-            reactions: normalizeReactions(event.reactions),
-          };
-          setMessages((prev) => {
-            if (prev.some((m) => m.id && m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-        } else {
+          setMessages((prev) => [...prev, msg]);
+        } else if (!isOwnMessage) {
           setUnreadChannels((prev) => {
             const next = new Set(prev);
             next.add(msgChannelId);
             return next;
           });
+          setUnreadCountByChannel((prev) => ({
+            ...prev,
+            [msgChannelId]: (prev[msgChannelId] ?? 0) + 1,
+          }));
         }
+
+        notifyNewMessage(msg);
+        pushToastNotification(msg);
       }
 
       if (event.type === "user_connected") {
@@ -150,7 +333,7 @@ export default function useChat(options?: UseChatOptions) {
         });
       }
     },
-    [normalizeReactions]
+    [normalizeReactions, notifyNewMessage, pushToastNotification]
   );
 
   const { sendMessage, joinChannel, leaveChannel, startTyping, stopTyping, isConnected } =
@@ -172,6 +355,11 @@ export default function useChat(options?: UseChatOptions) {
             ),
           }))
         : [];
+      nextMessages.forEach((message) => {
+        if (message.id) {
+          seenMessageIdsRef.current.add(message.id);
+        }
+      });
       setMessages(nextMessages);
     } catch (err) {
       console.error("[API] Failed to load messages:", err);
@@ -262,11 +450,14 @@ export default function useChat(options?: UseChatOptions) {
     typingUserNames,
     onlineUserIds,
     unreadChannels, 
+    unreadCountByChannel,
+    toastNotifications,
     isConnected,
     joinChannel,
     loadMessages,
     syncChannel,
     setActiveChannel,
+    dismissToastNotification,
     handleSendMessage,
     handleEditMessage,
     handleDeleteMessage,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Friend } from "./types";
+import type { DmChannel, Friend } from "./types";
 
 import { authService } from "@/services/api";
 import useChat from "./hooks/useChat";
@@ -27,6 +27,7 @@ export default function ConversationsPage() {
 
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
+  const [dmChannelByFriendId, setDmChannelByFriendId] = useState<Record<string, string>>({});
   
   const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string} | null>(null);
   
@@ -66,6 +67,10 @@ export default function ConversationsPage() {
       friendWsHandlerRef.current?.(e);
     }, []),
   });
+  const isChatConnected = chat.isConnected;
+  const joinChatChannel = chat.joinChannel;
+  const unreadChannelIds = chat.unreadChannels;
+  const unreadCountByChannel = chat.unreadCountByChannel;
 
   const server = useServerManager({
     isReady,
@@ -87,6 +92,68 @@ export default function ConversationsPage() {
   useEffect(() => {
     friendWsHandlerRef.current = friends.handleWsEvent;
   }, [friends.handleWsEvent]);
+
+  useEffect(() => {
+    if (!isReady || !isChatConnected || !friends.friendList.length) return;
+
+    let isCancelled = false;
+
+    const syncDmChannels = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      const channelEntries = await Promise.all(
+        friends.friendList.map(async (friend) => {
+          const response = await fetch("http://localhost:3001/dms", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ target_user_id: friend.id }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Impossible de synchroniser les messages directs.");
+          }
+
+          const dmChannel = await response.json() as DmChannel;
+          return [friend.id, dmChannel.id] as const;
+        })
+      );
+
+      if (isCancelled) return;
+
+      const nextMapping = Object.fromEntries(channelEntries);
+      setDmChannelByFriendId(nextMapping);
+      channelEntries.forEach(([, channelId]) => {
+        joinChatChannel(channelId);
+      });
+    };
+
+    syncDmChannels().catch((error) => {
+      console.error(error);
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isReady, isChatConnected, joinChatChannel, friends.friendList]);
+
+  useEffect(() => {
+    if (!isChatConnected) return;
+
+    Object.values(dmChannelByFriendId).forEach((channelId) => {
+      joinChatChannel(channelId);
+    });
+  }, [
+    isChatConnected,
+    joinChatChannel,
+    dmChannelByFriendId,
+    activeTab,
+    activeDmChannel,
+    server.selectedChannel,
+  ]);
 
   const handleLogout = async () => {
     await authService.logout();
@@ -118,28 +185,36 @@ export default function ConversationsPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:3001/dms", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ target_user_id: friend.id })
-      });
+      const existingDmId = dmChannelByFriendId[friend.id];
+      let dmChannelId = existingDmId;
 
-      if (!response.ok) {
-        throw new Error("Impossible de récupérer la conversation privée");
+      if (!dmChannelId) {
+        const response = await fetch("http://localhost:3001/dms", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ target_user_id: friend.id })
+        });
+
+        if (!response.ok) {
+          throw new Error("Impossible de récupérer la conversation privée");
+        }
+
+        const dmChannel = await response.json() as DmChannel;
+        dmChannelId = dmChannel.id;
+        setDmChannelByFriendId((prev) => ({ ...prev, [friend.id]: dmChannelId! }));
+        joinChatChannel(dmChannelId);
       }
 
-      const dmChannel = await response.json();
-
-      setActiveDmChannel(dmChannel.id); 
+      setActiveDmChannel(dmChannelId); 
 
       chat.setMessages([]);
-      await chat.loadMessages(dmChannel.id);
+      await chat.loadMessages(dmChannelId);
 
-      chat.syncChannel(dmChannel.id);
-      chat.setActiveChannel(dmChannel.id);
+      chat.syncChannel(dmChannelId);
+      chat.setActiveChannel(dmChannelId);
 
     } catch (error) {
       console.error(error);
@@ -152,6 +227,16 @@ export default function ConversationsPage() {
 
   const currentFriendName = currentDmUser?.name || "";
   const currentFriendStatus = currentDmUser?.status || "Hors ligne";
+  const unreadDirectMessages = new Set(
+    Object.entries(dmChannelByFriendId)
+      .filter(([, channelId]) => unreadChannelIds.has(channelId))
+      .map(([friendId]) => friendId)
+  );
+  const unreadMessageCountByFriendId = Object.fromEntries(
+    Object.entries(dmChannelByFriendId)
+      .map(([friendId, channelId]) => [friendId, unreadCountByChannel[channelId] ?? 0] as const)
+      .filter(([, count]) => count > 0)
+  );
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -198,12 +283,14 @@ export default function ConversationsPage() {
               activeTab={activeTab}
               serverList={server.serverList}
               friendList={friends.friendList}
+              incomingFriendRequestCount={friends.incomingRequests.length}
+              unreadMessageCountByFriendId={unreadMessageCountByFriendId}
               selectedServer={server.selectedServer}
               selectedFriend={friends.selectedFriend}
               currentUserRole={server.currentUserRole}
               isMenuOpen={isMenuOpen} 
               menuRef={menuRef}       
-              unreadChannels={chat.unreadChannels}
+              unreadChannels={activeTab === "friends" ? unreadDirectMessages : unreadChannelIds}
               onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
               onTabChange={async (tab) => {
                 setActiveTab(tab);
@@ -264,7 +351,7 @@ export default function ConversationsPage() {
                   channels={server.channels}
                   selectedChannel={server.selectedChannel}
                   canManageChannels={server.canManageChannels}
-                  unreadChannels={chat.unreadChannels}
+                  unreadChannels={unreadChannelIds}
                   onSelectChannel={(channelId) => {
                     server.setSelectedChannel(channelId);
                     
@@ -285,6 +372,43 @@ export default function ConversationsPage() {
         </div>
 
         <div className="relative flex min-w-0 flex-1 flex-col bg-transparent">
+          {chat.toastNotifications.length ? (
+            <div className="pointer-events-none absolute right-4 top-4 z-40 flex w-[min(320px,calc(100%-2rem))] flex-col gap-2.5">
+              {chat.toastNotifications.map((toast) => (
+                <div
+                  key={toast.id}
+                  className="pointer-events-auto rounded-[28px] border border-[rgba(255,76,76,0.28)] bg-[rgba(50,10,14,0.92)] px-4 py-3 shadow-[0_18px_36px_rgba(0,0,0,0.34)] backdrop-blur-md"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1.5 h-3 w-3 shrink-0 rounded-full bg-rose-500 shadow-[0_0_14px_rgba(244,63,94,0.95)]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold uppercase tracking-[0.14em] text-rose-100">
+                        Nouveau message
+                      </p>
+                      <p className="mt-1 truncate text-xs text-rose-200/90">
+                        {toast.title.replace(/^Nouveau message de\s+/i, "")}
+                      </p>
+                      <p className="mt-1 line-clamp-2 break-words text-sm leading-5 text-white">
+                        {toast.body}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => chat.dismissToastNotification(toast.id)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.04)] text-rose-100/80 transition hover:border-[rgba(255,255,255,0.2)] hover:text-white"
+                      aria-label="Fermer la notification"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
           {activeTab === "servers" ? (
             <ChatPanel
               channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
