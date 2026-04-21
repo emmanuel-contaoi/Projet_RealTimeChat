@@ -1,8 +1,12 @@
+/// <reference types="@jest/globals" />
+
 import fr from "../../messages/fr.json";
 import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 
-type JsonValue = string | Record<string, JsonValue>;
+type JsonLeaf = string;
+type JsonNode = { [key: string]: JsonLeaf | JsonNode };
+type JsonValue = JsonLeaf | JsonNode;
 type LocaleFile = Record<string, JsonValue>;
 
 const flattenKeys = (obj: JsonValue, prefix = ""): string[] => {
