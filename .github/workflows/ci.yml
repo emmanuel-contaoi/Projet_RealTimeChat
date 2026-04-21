@@ -1,6 +1,6 @@
 name: CI
 
-# Tourne sur chaque push (toutes branches) et sur les PRs vers dev et main
+# Tourne sur chaque push
 on:
   push:
     branches: ["**"]
@@ -8,7 +8,7 @@ on:
     branches: [main, dev]
 
 jobs:
-  # Vérifie la qualité du code (format, lint, types)
+  # Vérifie la qualité du code
   quality-checks:
     name: Quality Checks
     runs-on: self-hosted
@@ -16,7 +16,7 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v5
 
-      # Installation du compilateur C et OpenSSL pour les dépendances Rust
+      # Installation des dépendances Rust
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
@@ -61,7 +61,6 @@ jobs:
       - name: Récupérer le code
         uses: actions/checkout@v5
 
-      # Installation du compilateur C et OpenSSL ici aussi
       - name: Installer les dépendances système (C, OpenSSL)
         run: sudo apt-get update && sudo apt-get install -y build-essential pkg-config libssl-dev
 
@@ -78,13 +77,21 @@ jobs:
             backend/target
           key: ${{ runner.os }}-cargo-${{ hashFiles('backend/Cargo.lock') }}
 
+      - name: Installer cargo-tarpaulin
+        uses: taiki-e/install-action@cargo-tarpaulin
+
       - name: Compiler le backend
         working-directory: ./backend
         run: cargo build
+        env:
+          SQLX_OFFLINE: true
 
-      - name: Lancer les tests backend
+      - name: Lancer les tests backend avec couverture
         working-directory: ./backend
-        run: cargo test
+        run: cargo tarpaulin --out Xml --output-dir coverage
+        env:
+          SQLX_OFFLINE: true
+          JWT_SECRET: test_secret
 
       # Frontend avec cache
       - name: Installer Node.js (avec cache npm)
@@ -102,11 +109,11 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Lancer les tests frontend
+      - name: Lancer les tests frontend avec couverture
         working-directory: ./frontend
-        run: npx jest --passWithNoTests
+        run: npx jest --runInBand --coverage --passWithNoTests
 
-  # Vérifie les failles de sécurité dans les dépendances (tourne en parallèle)
+  # Vérifie les failles de sécurité dans les dépendances
   security-audit:
     name: Security Audit
     runs-on: self-hosted
@@ -118,7 +125,6 @@ jobs:
       - name: Installer Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # Utilise la version précompilée en 1 seconde
       - name: Installer cargo-audit (version rapide)
         uses: taiki-e/install-action@cargo-audit
 
