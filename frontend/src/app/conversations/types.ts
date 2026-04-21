@@ -33,6 +33,13 @@ export type Friend = {
   status: string;
 };
 
+export type DmChannel = {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  created_at: string;
+};
+
 export type FriendRequest = {
   id: string;
   status: string;

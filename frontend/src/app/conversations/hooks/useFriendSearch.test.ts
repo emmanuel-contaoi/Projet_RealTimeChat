@@ -100,7 +100,7 @@ describe("useFriendSearch", () => {
         { id: "friend-1", name: "Alice Martin", status: "En ligne" },
         { id: "friend-2", name: "bob", status: "Hors ligne" },
       ]);
-      expect(result.current.selectedFriend).toBe("Alice Martin");
+      expect(result.current.selectedFriend).toBe("friend-1");
       expect(result.current.incomingRequests).toHaveLength(1);
       expect(result.current.outgoingRequests).toHaveLength(1);
       expect(result.current.allUsers).toEqual([alice, bob]);

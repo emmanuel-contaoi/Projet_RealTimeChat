@@ -102,8 +102,8 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
       setSelectedFriend("");
       return;
     }
-    if (!selectedFriend || !friendList.some((f) => f.name === selectedFriend)) {
-      setSelectedFriend(friendList[0].name);
+    if (!selectedFriend || !friendList.some((f) => f.id === selectedFriend)) {
+      setSelectedFriend(friendList[0].id);
     }
   }, [activeTab, selectedFriend, friendList]);
 
