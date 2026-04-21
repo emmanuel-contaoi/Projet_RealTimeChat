@@ -1,4 +1,4 @@
-/// <reference types="@jest/globals" />
+import { describe, expect, it } from "@jest/globals";
 
 import fr from "../../messages/fr.json";
 import en from "../../messages/en.json";
