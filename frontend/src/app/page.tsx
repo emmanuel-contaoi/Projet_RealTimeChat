@@ -48,7 +48,7 @@ export default function Home() {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,_rgba(255,255,255,0.04)_1px,_transparent_1px),_linear-gradient(to_bottom,_rgba(255,255,255,0.04)_1px,_transparent_1px)] bg-[size:48px_48px] opacity-40" />
 
       {/* HEADER RESPONSIVE : S'empile sur mobile, s'aligne sur tablette/PC */}
-      <header className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-5 px-4 py-6 sm:flex-row md:px-12">
+      <header className="relative z-50 mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-5 px-4 py-6 sm:flex-row md:px-12">
         <Image src="/logo.svg" alt="Logo Nexus" width={0} height={0} sizes="100vw" className="h-10 w-auto md:h-12" />
         
         <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-semibold sm:gap-4 md:text-base">
