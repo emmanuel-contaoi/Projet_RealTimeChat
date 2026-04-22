@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, sqlx::FromRow, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, sqlx::FromRow, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -31,7 +31,7 @@ impl User {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct RegisterRequest {
     pub email: String,
     pub password: String,
@@ -40,19 +40,19 @@ pub struct RegisterRequest {
     pub username: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct AuthResponse {
     pub token: String,
     pub user: UserResponse,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct UserResponse {
     pub id: Uuid,
     pub email: String,
@@ -76,7 +76,7 @@ impl From<User> for UserResponse {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, utoipa::ToSchema)]
 pub struct FriendRequest {
     pub id: Uuid,
     pub sender_id: Uuid,
@@ -86,7 +86,7 @@ pub struct FriendRequest {
     pub responded_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, utoipa::ToSchema)]
 pub struct FriendRequestListItem {
     pub request_id: Uuid,
     pub status: String,
@@ -100,7 +100,7 @@ pub struct FriendRequestListItem {
     pub user_created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct FriendRequestResponse {
     pub id: Uuid,
     pub status: String,

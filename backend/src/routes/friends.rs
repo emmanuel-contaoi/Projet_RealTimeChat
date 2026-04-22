@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State},
+    extract::{ws::Message, Path, State},
     http::StatusCode,
     Json,
 };
@@ -8,17 +8,30 @@ use uuid::Uuid;
 
 use crate::services::friend_service::FriendService;
 use crate::services::ServiceError;
+use crate::websocket::events::ServerEvent;
 use crate::{
     models::{FriendRequestResponse, UserResponse},
     state::AppState,
     utils::auth::AuthUser,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct AddFriendRequest {
     pub friend_id: Uuid,
 }
 
+#[utoipa::path(
+    get,
+    path = "/friends",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Liste des amis récupérée", body = Vec<UserResponse>),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn list_friends(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
@@ -27,15 +40,52 @@ pub async fn list_friends(
     Ok(Json(friends))
 }
 
+#[utoipa::path(
+    post,
+    path = "/friends",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    request_body = AddFriendRequest,
+    responses(
+        (status = 201, description = "Demande d'ami envoyée"),
+        (status = 400, description = "Impossible de s'envoyer une demande à soi-même"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn send_friend_request(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Json(payload): Json<AddFriendRequest>,
 ) -> Result<StatusCode, ServiceError> {
     FriendService::send_friend_request(&state.pool, user.id, payload.friend_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestReceived {
+        from_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[payload.friend_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::CREATED)
 }
 
+#[utoipa::path(
+    get,
+    path = "/friends/requests/incoming",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Liste des demandes entrantes", body = Vec<FriendRequestResponse>),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn list_incoming_requests(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
@@ -44,6 +94,18 @@ pub async fn list_incoming_requests(
     Ok(Json(requests))
 }
 
+#[utoipa::path(
+    get,
+    path = "/friends/requests/outgoing",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Liste des demandes sortantes", body = Vec<FriendRequestResponse>),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn list_outgoing_requests(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
@@ -52,39 +114,143 @@ pub async fn list_outgoing_requests(
     Ok(Json(requests))
 }
 
+#[utoipa::path(
+    post,
+    path = "/friends/requests/{request_id}/accept",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    params(
+        ("request_id" = Uuid, Path, description = "ID de la demande")
+    ),
+    responses(
+        (status = 200, description = "Demande acceptée"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn accept_friend_request(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(request_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    FriendService::accept_request(&state.pool, user.id, request_id).await?;
+    let sender_id = FriendService::accept_request(&state.pool, user.id, request_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestAccepted {
+        by_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[sender_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::OK)
 }
 
+#[utoipa::path(
+    post,
+    path = "/friends/requests/{request_id}/reject",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    params(
+        ("request_id" = Uuid, Path, description = "ID de la demande")
+    ),
+    responses(
+        (status = 200, description = "Demande refusée"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn reject_friend_request(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(request_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    FriendService::reject_request(&state.pool, user.id, request_id).await?;
+    let sender_id = FriendService::reject_request(&state.pool, user.id, request_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestRejected {
+        by_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[sender_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::OK)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/friends/requests/{request_id}",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    params(
+        ("request_id" = Uuid, Path, description = "ID de la demande")
+    ),
+    responses(
+        (status = 204, description = "Demande annulée"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn cancel_friend_request(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(request_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    FriendService::cancel_request(&state.pool, user.id, request_id).await?;
+    let receiver_id = FriendService::cancel_request(&state.pool, user.id, request_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRequestCancelled {
+        from_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[receiver_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/friends/{friend_id}",
+    tag = "Friends",
+    security(
+        ("bearerAuth" = [])
+    ),
+    params(
+        ("friend_id" = Uuid, Path, description = "ID de l'ami")
+    ),
+    responses(
+        (status = 204, description = "Ami supprimé"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
 pub async fn remove_friend(
     State(state): State<AppState>,
     axum::extract::Extension(AuthUser(user)): axum::extract::Extension<AuthUser>,
     Path(friend_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
     FriendService::remove_friend(&state.pool, user.id, friend_id).await?;
+
+    if let Ok(json) = (ServerEvent::FriendRemoved {
+        by_user_id: user.id.to_string(),
+    })
+    .to_json()
+    {
+        state
+            .broadcast_to_users(&[friend_id.to_string()], Message::Text(json.into()))
+            .await;
+    }
+
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -7,6 +7,7 @@ type FriendListProps = {
   friendList: Friend[];
   selectedFriend: string;
   unreadChannels: Set<string>;
+  unreadMessageCountByFriendId: Record<string, number>;
   onSelectFriend: (friend: Friend) => void;
   onRemoveFriend: (friendId: string) => void;
 };
@@ -15,6 +16,7 @@ export default function FriendList({
   friendList,
   selectedFriend,
   unreadChannels,
+  unreadMessageCountByFriendId,
   onSelectFriend,
   onRemoveFriend,
 }: FriendListProps) {
@@ -28,12 +30,13 @@ export default function FriendList({
         
         // On vérifie s'il y a un message non lu pour cet ami
         const isUnread = unreadChannels.has(friend.id) && !isSelected;
+        const unreadCount = isSelected ? 0 : (unreadMessageCountByFriendId[friend.id] ?? 0);
         const friendInitial = friend.name.charAt(0).toUpperCase();
 
         return (
           <div
             key={friend.id}
-            className={`group relative flex cursor-pointer items-center gap-3 rounded-[18px] border px-3.5 py-3 text-left transition ${
+            className={`group relative flex cursor-pointer items-center gap-3 rounded-[18px] border px-3.5 py-3 pr-14 text-left transition ${
               isSelected
                 ? "border-[rgba(21,209,255,0.5)] bg-[rgba(20,33,49,0.98)]"
                 : isUnread
@@ -49,10 +52,6 @@ export default function FriendList({
             role="button"
             tabIndex={0}
           >
-            {isUnread && (
-              <span className="absolute -left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)] animate-pulse" />
-            )}
-
             <div className="relative">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-base font-semibold text-white">
                 {friendInitial}
@@ -80,8 +79,18 @@ export default function FriendList({
               </p>
             </div>
 
+            {unreadCount > 0 ? (
+              <span
+                className="absolute bottom-1 right-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-[rgba(19,28,41,0.98)] bg-rose-500 px-1.5 text-[11px] font-bold leading-none text-white shadow-[0_0_12px_rgba(244,63,94,0.72)]"
+                aria-label={`${unreadCount} nouveaux messages`}
+                title={`${unreadCount} nouveaux messages`}
+              >
+                {Math.min(unreadCount, 99)}
+              </span>
+            ) : null}
+
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--stroke)] bg-[rgba(14,21,31,0.92)] text-slate-300 opacity-0 transition hover:border-[rgba(255,84,109,0.25)] hover:text-rose-400 group-hover:opacity-100 focus:opacity-100"
+              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--stroke)] bg-[rgba(14,21,31,0.92)] text-slate-300 opacity-0 transition hover:border-[rgba(255,84,109,0.25)] hover:text-rose-400 group-hover:opacity-100 focus:opacity-100"
               onClick={(event) => {
                 event.stopPropagation();
                 onRemoveFriend(friend.id);

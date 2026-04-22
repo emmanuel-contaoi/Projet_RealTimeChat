@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT \n            b.user_id as id, \n            u.username as \"username!\",\n            b.expires_at, \n            b.created_at\n        FROM server_bans b\n        JOIN users u ON b.user_id = u.id\n        WHERE b.server_id = $1::uuid\n        ORDER BY b.created_at DESC\n        ",
+  "query": "\n        SELECT \n            b.user_id as id, \n            u.username as \"username!\",\n            b.expires_at, \n            b.created_at\n        FROM server_bans b\n        JOIN users u ON b.user_id = u.id\n        WHERE b.server_id = $1\n        ORDER BY b.created_at DESC\n        ",
   "describe": {
     "columns": [
       {
@@ -36,5 +36,5 @@
       true
     ]
   },
-  "hash": "195ac41a89dfeebaa08806079cf62e5b4a11de451269ec94bd72923f319900af"
+  "hash": "728d03985c2b08d99eae13ed8bac61a94099ff9ca3be599958b0fa102f953fea"
 }

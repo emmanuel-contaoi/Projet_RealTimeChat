@@ -76,6 +76,18 @@ fn build_member_role_updated_event(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/servers/{server_id}/members",
+    tag = "Members",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    responses(
+        (status = 200, description = "Liste des membres du serveur")
+    )
+)]
 pub async fn list_members(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -94,6 +106,20 @@ pub async fn list_members(
     Ok(Json(serde_json::Value::Array(response)))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/servers/{server_id}/members/{target_user_id}",
+    tag = "Members",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur"),
+        ("target_user_id" = Uuid, Path, description = "ID du membre à expulser")
+    ),
+    responses(
+        (status = 200, description = "Membre expulsé"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn kick_member(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -118,6 +144,21 @@ pub async fn kick_member(
     Ok(StatusCode::OK)
 }
 
+#[utoipa::path(
+    post,
+    path = "/servers/{server_id}/members/{target_user_id}/ban",
+    tag = "Members",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur"),
+        ("target_user_id" = Uuid, Path, description = "ID du membre à bannir")
+    ),
+    request_body = BanRequest,
+    responses(
+        (status = 200, description = "Membre banni"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn ban_member(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -156,6 +197,21 @@ pub async fn ban_member(
     Ok(StatusCode::OK)
 }
 
+#[utoipa::path(
+    put,
+    path = "/servers/{server_id}/members/{target_user_id}/role",
+    tag = "Members",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur"),
+        ("target_user_id" = Uuid, Path, description = "ID du membre")
+    ),
+    request_body = UpdateRoleRequest,
+    responses(
+        (status = 200, description = "Rôle mis à jour"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn update_member_role(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -185,7 +241,7 @@ pub async fn update_member_role(
     Ok(StatusCode::OK)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct BannedUserResponse {
     pub id: Uuid,
     pub username: String,
@@ -193,14 +249,26 @@ pub struct BannedUserResponse {
     pub created_at: Option<NaiveDateTime>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/servers/{server_id}/bans",
+    tag = "Members",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    responses(
+        (status = 200, description = "Liste des membres bannis", body = Vec<BannedUserResponse>),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn list_bans(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Path(server_id): Path<Uuid>,
 ) -> Result<Json<Vec<BannedUserResponse>>, ServiceError> {
-    // AJOUT: Cast explicite ::uuid pour aider le compilateur SQLx
     let permission = sqlx::query!(
-        "SELECT role FROM members WHERE server_id = $1::uuid AND user_id = $2::uuid AND role IN ('admin', 'owner')",
+        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
         server_id,
         auth_user.0.id
     )
@@ -214,7 +282,6 @@ pub async fn list_bans(
         ));
     }
 
-    // AJOUT: Cast explicite ::uuid
     let bans = sqlx::query!(
         r#"
         SELECT 
@@ -224,7 +291,7 @@ pub async fn list_bans(
             b.created_at
         FROM server_bans b
         JOIN users u ON b.user_id = u.id
-        WHERE b.server_id = $1::uuid
+        WHERE b.server_id = $1
         ORDER BY b.created_at DESC
         "#,
         server_id
@@ -246,14 +313,27 @@ pub async fn list_bans(
     Ok(Json(response))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/servers/{server_id}/bans/{target_user_id}",
+    tag = "Members",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur"),
+        ("target_user_id" = Uuid, Path, description = "ID du membre")
+    ),
+    responses(
+        (status = 200, description = "Membre débanni"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn unban_member(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Path((server_id, target_user_id)): Path<(Uuid, Uuid)>,
 ) -> Result<StatusCode, ServiceError> {
-    // AJOUT: Cast explicite ::uuid
     let permission = sqlx::query!(
-        "SELECT role FROM members WHERE server_id = $1::uuid AND user_id = $2::uuid AND role IN ('admin', 'owner')",
+        "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
         server_id,
         auth_user.0.id
     )
@@ -267,9 +347,8 @@ pub async fn unban_member(
         ));
     }
 
-    // AJOUT: Cast explicite ::uuid
     sqlx::query!(
-        "DELETE FROM server_bans WHERE server_id = $1::uuid AND user_id = $2::uuid",
+        "DELETE FROM server_bans WHERE server_id = $1 AND user_id = $2",
         server_id,
         target_user_id
     )
@@ -280,7 +359,6 @@ pub async fn unban_member(
     Ok(StatusCode::OK)
 }
 
-// Les tests sont maintenant à leur place : tout en bas du fichier !
 #[cfg(test)]
 mod tests {
     use super::*;

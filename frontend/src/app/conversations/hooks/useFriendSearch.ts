@@ -1,6 +1,6 @@
 // Hook pour gerer la liste d'amis, les demandes et la recherche d'utilisateurs
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authService, friendsService } from "@/services/api";
 import { formatUserLabel } from "../utils";
 import type { Friend, FriendRequest, UserSearchResult } from "../types";
@@ -16,6 +16,14 @@ type ApiErrorShape = {
     data?: unknown;
   };
 };
+
+const FRIEND_WS_EVENTS = new Set([
+  "friend_request_received",
+  "friend_request_cancelled",
+  "friend_request_accepted",
+  "friend_request_rejected",
+  "friend_removed",
+]);
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   const apiError = error as ApiErrorShape;
@@ -60,6 +68,11 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     setOutgoingRequests(outgoingData);
   }, [mapFriends]);
 
+  const refreshFriendsDataRef = useRef(refreshFriendsData);
+  useEffect(() => {
+    refreshFriendsDataRef.current = refreshFriendsData;
+  }, [refreshFriendsData]);
+
   // Charger amis + demandes au demarrage
   useEffect(() => {
     if (!isReady) return;
@@ -89,8 +102,8 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
       setSelectedFriend("");
       return;
     }
-    if (!selectedFriend || !friendList.some((f) => f.name === selectedFriend)) {
-      setSelectedFriend(friendList[0].name);
+    if (!selectedFriend || !friendList.some((f) => f.id === selectedFriend)) {
+      setSelectedFriend(friendList[0].id);
     }
   }, [activeTab, selectedFriend, friendList]);
 
@@ -207,6 +220,15 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     }
   };
 
+  const handleWsEvent = useCallback(
+    (event: { type: string; [key: string]: unknown }) => {
+      if (FRIEND_WS_EVENTS.has(event.type)) {
+        refreshFriendsDataRef.current().catch(console.error);
+      }
+    },
+    []
+  );
+
   return {
     friendList,
     selectedFriend,
@@ -225,5 +247,6 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     handleRejectFriendRequest,
     handleCancelFriendRequest,
     handleRemoveFriend,
+    handleWsEvent,
   };
 }

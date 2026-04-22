@@ -53,6 +53,10 @@ npm run dev
 
 L'application est accessible sur `http://localhost:3000`.
 
+### CI
+
+Les tests sont automatiquement lancés à chaque push via le pipeline CI (`.github/workflows/ci.yml`).
+
 ## API
 
 ### Auth

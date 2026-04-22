@@ -14,7 +14,7 @@ fn serialize_object_id_as_hex<S: Serializer>(
     }
 }
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize, FromRow, utoipa::ToSchema)]
 pub struct Server {
     pub id: Uuid,
     pub name: String,
@@ -22,22 +22,22 @@ pub struct Server {
     pub created_at: Option<NaiveDateTime>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateServerRequest {
     pub name: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateServerRequest {
     pub name: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct TransferOwnershipRequest {
     pub new_owner_id: Uuid,
 }
 
-#[derive(Serialize, FromRow)]
+#[derive(Serialize, FromRow, utoipa::ToSchema)]
 pub struct Channel {
     pub id: Uuid,
     pub server_id: Uuid,
@@ -45,24 +45,25 @@ pub struct Channel {
     pub r#type: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateChannelRequest {
     pub name: String,
     pub r#type: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct JoinServerRequest {
     pub invite_code: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, utoipa::ToSchema)]
 pub struct Message {
     #[serde(
         rename(serialize = "id", deserialize = "_id"),
         skip_serializing_if = "Option::is_none",
         serialize_with = "serialize_object_id_as_hex"
     )]
+    #[schema(value_type = Option<String>)]
     pub id: Option<ObjectId>,
     pub channel_id: String,
     pub user_id: String,
@@ -74,44 +75,43 @@ pub struct Message {
     pub reactions: Vec<MessageReaction>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, utoipa::ToSchema)]
 pub struct MessageReaction {
     pub emoji: String,
     #[serde(default)]
     pub user_ids: Vec<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateChannelRequest {
     pub name: String,
     pub r#type: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateMessageRequest {
     pub content: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct ReactMessageRequest {
     pub emoji: String,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, utoipa::ToSchema)]
 pub struct MemberRow {
     pub user_id: Uuid,
     pub username: Option<String>,
     pub role: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateRoleRequest {
     pub role: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct BanRequest {
-    // Durée du ban en minutes. None ou absent = ban permanent
     pub duration_minutes: Option<i64>,
 }
 

@@ -65,6 +65,16 @@ fn build_transfer_ownership_events(
     ]
 }
 
+#[utoipa::path(
+    post,
+    path = "/servers",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    request_body = CreateServerRequest,
+    responses(
+        (status = 201, description = "Serveur créé avec succès")
+    )
+)]
 pub async fn create_server(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -74,6 +84,15 @@ pub async fn create_server(
     Ok((StatusCode::CREATED, Json(server)))
 }
 
+#[utoipa::path(
+    get,
+    path = "/servers",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 200, description = "Liste des serveurs rejoints")
+    )
+)]
 pub async fn list_servers(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -82,12 +101,22 @@ pub async fn list_servers(
     Ok(Json(servers))
 }
 
+#[utoipa::path(
+    post,
+    path = "/servers/join",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    request_body = JoinServerRequest,
+    responses(
+        (status = 200, description = "Serveur rejoint avec succès"),
+        (status = 404, description = "Code invalide")
+    )
+)]
 pub async fn join_server(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Json(payload): Json<JoinServerRequest>,
 ) -> Result<impl IntoResponse, ServiceError> {
-    // On recupere les membres existants avant de rejoindre, pour leur envoyer l'evenement
     let member_ids =
         ServerRepository::get_member_user_ids_by_invite(&state.pool, &payload.invite_code)
             .await
@@ -96,14 +125,6 @@ pub async fn join_server(
     let server =
         ServerService::join_server(&state.pool, auth_user.0.id, &payload.invite_code).await?;
 
-    let _username = auth_user
-        .0
-        .username
-        .clone()
-        .or_else(|| auth_user.0.first_name.clone())
-        .unwrap_or_else(|| auth_user.0.email.clone());
-
-    // On notifie tous les membres que quelqu'un a rejoint le serveur
     let event = build_member_joined_event(&auth_user.0, server.id);
     if let Ok(json) = event.to_json() {
         state
@@ -114,19 +135,29 @@ pub async fn join_server(
     Ok(Json(server))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/servers/{server_id}/leave",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur à quitter")
+    ),
+    responses(
+        (status = 204, description = "Serveur quitté")
+    )
+)]
 pub async fn leave_server(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Path(server_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    // On recupere les membres avant de quitter pour pouvoir leur envoyer l'evenement
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
         .await
         .unwrap_or_default();
 
     ServerService::leave_server(&state.pool, auth_user.0.id, server_id).await?;
 
-    // On notifie tous les membres que l'utilisateur a quitte le serveur
     let event = build_member_left_event(auth_user.0.id, server_id);
     if let Ok(json) = event.to_json() {
         state
@@ -137,19 +168,30 @@ pub async fn leave_server(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    delete,
+    path = "/servers/{server_id}",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    responses(
+        (status = 204, description = "Serveur supprimé"),
+        (status = 403, description = "Seul l'owner peut supprimer le serveur")
+    )
+)]
 pub async fn delete_server(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
     Path(server_id): Path<Uuid>,
 ) -> Result<StatusCode, ServiceError> {
-    // On recupere les membres avant la suppression pour pouvoir leur envoyer l'evenement
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
         .await
         .unwrap_or_default();
 
     ServerService::delete_server(&state.pool, auth_user.0.id, server_id).await?;
 
-    // On notifie tous les membres que le serveur a ete supprime
     let event = build_server_deleted_event(server_id);
     if let Ok(json) = event.to_json() {
         state
@@ -160,6 +202,18 @@ pub async fn delete_server(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[utoipa::path(
+    get,
+    path = "/servers/{server_id}",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    responses(
+        (status = 200, description = "Détails du serveur")
+    )
+)]
 pub async fn get_server(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -169,6 +223,20 @@ pub async fn get_server(
     Ok(Json(server))
 }
 
+#[utoipa::path(
+    put,
+    path = "/servers/{server_id}",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    request_body = UpdateServerRequest,
+    responses(
+        (status = 200, description = "Serveur mis à jour"),
+        (status = 403, description = "Interdit")
+    )
+)]
 pub async fn update_server(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -178,7 +246,6 @@ pub async fn update_server(
     let server =
         ServerService::update_server(&state.pool, auth_user.0.id, server_id, payload).await?;
 
-    // On notifie tous les membres du nouveau nom du serveur
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
         .await
         .unwrap_or_default();
@@ -192,6 +259,20 @@ pub async fn update_server(
     Ok(Json(server))
 }
 
+#[utoipa::path(
+    post,
+    path = "/servers/{server_id}/transfer",
+    tag = "Servers",
+    security(("bearerAuth" = [])),
+    params(
+        ("server_id" = Uuid, Path, description = "ID du serveur")
+    ),
+    request_body = TransferOwnershipRequest,
+    responses(
+        (status = 200, description = "Transfert de propriété réussi"),
+        (status = 403, description = "Seul l'owner peut transférer la propriété")
+    )
+)]
 pub async fn transfer_ownership(
     State(state): State<AppState>,
     Extension(auth_user): Extension<AuthUser>,
@@ -201,7 +282,6 @@ pub async fn transfer_ownership(
     let new_owner_id = payload.new_owner_id;
     ServerService::transfer_ownership(&state.pool, auth_user.0.id, server_id, new_owner_id).await?;
 
-    // On notifie tous les membres des changements de role (nouveau owner + ancien owner devenu admin)
     let member_ids = ServerRepository::get_member_user_ids(&state.pool, server_id)
         .await
         .unwrap_or_default();
