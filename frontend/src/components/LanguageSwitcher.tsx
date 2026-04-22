@@ -14,6 +14,10 @@ const LOCALES = [
   { code: "es", label: "Español" },
 ];
 
+function setLocaleCookie(code: string) {
+  document.cookie = `locale=${code}; path=/; max-age=31536000`;
+}
+
 export default function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const locale = useLocale();
   const router = useRouter();
@@ -23,7 +27,7 @@ export default function LanguageSwitcher({ compact = false }: LanguageSwitcherPr
   const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
 
   const select = (code: string) => {
-    document.cookie = `locale=${code}; path=/; max-age=31536000`;
+    setLocaleCookie(code);
     setOpen(false);
     router.refresh();
   };
