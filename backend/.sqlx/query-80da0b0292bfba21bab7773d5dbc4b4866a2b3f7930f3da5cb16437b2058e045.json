@@ -1,12 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT role FROM members WHERE server_id = $1 AND user_id = $2 AND role IN ('admin', 'owner')",
+  "query": "SELECT role FROM members WHERE server_id = $1::uuid AND user_id = $2::uuid AND role IN ('admin', 'owner')",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "role",
-        "type_info": "Text"
+        "type_info": "Varchar"
       }
     ],
     "parameters": {
@@ -16,8 +16,8 @@
       ]
     },
     "nullable": [
-      false
+      true
     ]
   },
-  "hash": "e803d30d61328990565604aeba98a3e644a2c68bd348ba315abb4b8ed1f09e31"
+  "hash": "80da0b0292bfba21bab7773d5dbc4b4866a2b3f7930f3da5cb16437b2058e045"
 }
