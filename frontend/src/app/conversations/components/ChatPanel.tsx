@@ -19,6 +19,7 @@ type ChatPanelProps = {
   typingUsers: string[];
   isDm?: boolean;
   friendStatus?: string;
+  friendAvatarUrl?: string | null;
   onSendMessage: (content: string) => void;
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
@@ -59,6 +60,7 @@ export default function ChatPanel({
   typingUsers,
   isDm,
   friendStatus,
+  friendAvatarUrl,
   onSendMessage,
   onTyping,
   onEditMessage,
@@ -210,12 +212,15 @@ export default function ChatPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(36,52,75,0.72)] bg-[rgba(20,28,39,0.9)] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           
-          {/* HEADER MODIFIÉ SELON isDm */}
           {isDm ? (
-            <div className="relative">
-              <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
-                {(channelName || "A").charAt(0).toUpperCase()}
-              </div>
+            <div className="relative shrink-0">
+              {friendAvatarUrl ? (
+                <img src={friendAvatarUrl} alt={channelName} className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
+              ) : (
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
+                  {(channelName || "A").charAt(0).toUpperCase()}
+                </div>
+              )}
               <span
                 className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[rgba(20,28,39,0.9)] ${
                   friendStatus === "En ligne" ? "bg-[var(--success)]" : "bg-slate-500"
@@ -223,7 +228,7 @@ export default function ChatPanel({
               />
             </div>
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(21,209,255,0.45)] bg-[rgba(21,209,255,0.08)] text-[1.45rem] font-semibold text-[var(--brand-1)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex shrink-0 h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(21,209,255,0.45)] bg-[rgba(21,209,255,0.08)] text-[1.45rem] font-semibold text-[var(--brand-1)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               #
             </div>
           )}
@@ -256,9 +261,12 @@ export default function ChatPanel({
             {messageGroups.map((group) => {
               const firstMessage = group.items[0];
               const isMe = firstMessage.user_id === currentUserId;
-              const displayName = isMe ? t("me") : firstMessage.username || "Utilisateur";
-              const avatarInitial = displayName.charAt(0).toUpperCase();
-              const avatarColor = getColorFromName(firstMessage.username || "User");
+              
+              const realName = firstMessage.username || "Utilisateur";
+              const displayName = isMe ? t("me") : realName;
+              const avatarInitial = realName.charAt(0).toUpperCase();
+              const avatarColor = getColorFromName(realName);
+              const messageAvatarUrl = firstMessage.avatar_url;
 
               return (
                 <div key={group.id} className={group.showDateSeparator ? "space-y-3" : "pt-3"}>
@@ -277,32 +285,32 @@ export default function ChatPanel({
                     </div>
                   ) : null}
 
-                  <div className={`group relative flex w-full ${isMe ? "justify-end" : "justify-start"} mx-2 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-white/[0.04] mb-1`}>
-                    <article className="overflow-visible max-w-[75%] relative">
-                      <div className={`flex items-start gap-2.5 ${isMe ? "flex-row-reverse" : ""}`}>
-                        <div className="relative shrink-0">
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
-                            {avatarInitial}
-                          </div>
+                  {/* ALIGNEMENT ICI : On force toujours justify-start, peu importe si c'est "moi" ou un autre */}
+                  <div className={`group relative flex w-full justify-start px-3 py-2 rounded-xl transition-all duration-300 hover:bg-white/[0.04] mb-1`}>
+                    <article className="overflow-visible max-w-[85%] relative">
+                      <div className="flex items-start gap-3">
+                        
+                        <div className="relative shrink-0 mt-0.5">
+                          {messageAvatarUrl ? (
+                            <img src={messageAvatarUrl} alt={realName} className="h-9 w-9 rounded-full object-cover shadow-[0_6px_18px_rgba(0,0,0,0.22)]" />
+                          ) : (
+                            <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
+                              {avatarInitial}
+                            </div>
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className={`mb-1.5 flex flex-wrap items-center gap-2 ${isMe ? "justify-end" : ""}`}>
-                            {isMe && firstMessage.created_at ? (
-                              <span className="text-[11px] text-slate-500">
-                                {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            ) : null}
+                          <div className="mb-1 flex flex-wrap items-baseline gap-2">
                             {isMe ? (
                               <span className="rounded-lg border border-[rgba(21,209,255,0.3)] bg-[rgba(21,209,255,0.14)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--brand-1)]">
                                 Vous
                               </span>
                             ) : null}
-                            <p className="text-[0.94rem] font-semibold leading-none text-white">{displayName}</p>
-                            {!isMe && firstMessage.created_at ? (
+                            <span className="text-[0.94rem] font-semibold leading-none text-white">
+                              {displayName}
+                            </span>
+                            {firstMessage.created_at ? (
                               <span className="text-[11px] text-slate-500">
                                 {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
                                   hour: "2-digit",
@@ -312,7 +320,7 @@ export default function ChatPanel({
                             ) : null}
                           </div>
 
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             {group.items.map((message, messageIndex) => {
                               const canDelete =
                                 message.user_id === currentUserId ||
@@ -322,7 +330,7 @@ export default function ChatPanel({
                               return (
                                 <div
                                   key={message.id ?? `${message.user_id}-${messageIndex}`}
-                                  className={`group/message flex items-center gap-2 ${isMe ? "flex-row-reverse" : ""} ${messageIndex > 0 ? "pt-1" : ""}`}
+                                  className={`group/message flex items-center gap-2 ${messageIndex > 0 ? "pt-1" : ""}`}
                                 >
                                   <div className="min-w-0 flex-1">
                                   {editingId === message.id ? (
@@ -369,7 +377,7 @@ export default function ChatPanel({
                                       unoptimized
                                     />
                                   ) : (
-                                    <p className="whitespace-pre-wrap break-words text-[0.86rem] leading-relaxed text-slate-100">
+                                    <p className="whitespace-pre-wrap break-words text-[0.9rem] leading-relaxed text-slate-200">
                                       {message.content}
                                     </p>
                                   )}
@@ -430,7 +438,7 @@ export default function ChatPanel({
                                         <span>Reaction</span>
                                       </button>
                                       {reactionPickerMessageId === message.id ? (
-                                        <div className={`absolute z-[100] ${reactionPickerDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} ${isMe ? "right-0" : "left-0"}`}>
+                                        <div className={`absolute z-[100] ${reactionPickerDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"} left-0`}>
                                           <div className="w-[300px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[18px] border border-[rgba(80,102,133,0.78)] bg-[rgba(25,31,41,0.98)] shadow-[0_18px_40px_rgba(2,8,18,0.45)]">
                                             <EmojiPicker
                                               theme={Theme.DARK}
@@ -471,7 +479,7 @@ export default function ChatPanel({
                                       </button>
 
                                       {openMessageMenuId === message.id ? (
-                                        <div className={`absolute top-10 z-[100] min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] ${isMe ? "right-0" : "left-0"}`}>
+                                        <div className="absolute top-10 z-[100] min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] left-0">
                                           {message.user_id === currentUserId ? (
                                             <button
                                               type="button"

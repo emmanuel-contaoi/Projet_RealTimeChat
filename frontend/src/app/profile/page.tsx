@@ -26,11 +26,13 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
-    const user = authService.getCurrentUser();
+    const user = authService.getCurrentUser() as any;
     if (!user) {
       router.push("/login");
     } else {
@@ -41,6 +43,7 @@ export default function ProfilePage() {
         email: user.email || "",
         username: user.username || "",
       }));
+      setAvatarUrl(user.avatar_url || null);
     }
   }, [router]);
 
@@ -65,6 +68,55 @@ export default function ProfilePage() {
       setAuthError(t("error_wrong_password"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // NOUVEAU : Fonction pour gérer l'upload de l'avatar
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setAuthError("");
+    setSuccessMsg("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const uploadData = new FormData();
+      uploadData.append("avatar", file);
+
+      // On utilise l'URL absolue car c'est un multipart/form-data
+      const response = await fetch("http://localhost:3001/users/me/avatar", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
+        body: uploadData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Erreur lors de l'envoi de l'image");
+      }
+
+      const data = await response.json();
+      setAvatarUrl(data.avatar_url);
+
+      // Mettre à jour l'utilisateur dans le localStorage pour que toute l'app soit au courant
+      const user = authService.getCurrentUser() as any;
+      if (user) {
+        user.avatar_url = data.avatar_url;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setSuccessMsg("Photo de profil mise à jour !");
+    } catch (error: any) {
+      console.error(error);
+      setAuthError(error.message || "Erreur d'upload");
+    } finally {
+      setUploadingAvatar(false);
+      // Reset de l'input file pour pouvoir ré-uploader la même image si besoin
+      e.target.value = "";
     }
   };
 
@@ -170,6 +222,35 @@ export default function ProfilePage() {
             </form>
           ) : (
             <form onSubmit={handleSaveProfile} className="grid gap-4 md:grid-cols-2">
+              
+              {/* NOUVEAU : Zone d'Avatar */}
+              <div className="col-span-full mb-4 flex flex-col items-center justify-center gap-3">
+                <div className="group relative h-24 w-24 overflow-hidden rounded-full border-4 border-[var(--stroke)] bg-[var(--surface-strong)] transition-all hover:border-[var(--brand-1)]">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--brand-2)] to-[var(--brand-1)] text-3xl font-bold text-white">
+                      {(formData.username || formData.prenom || formData.email || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  
+                  <label className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                      <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    <input 
+                      type="file" 
+                      accept="image/png, image/jpeg, image/jpg, image/webp, image/gif" 
+                      className="hidden" 
+                      onChange={handleAvatarChange} 
+                      disabled={uploadingAvatar} 
+                    />
+                  </label>
+                </div>
+                {uploadingAvatar && <p className="text-xs text-[var(--brand-1)] animate-pulse">Upload en cours...</p>}
+              </div>
+
               <label className="flex flex-col gap-2 text-sm text-slate-200">
                 {t("last_name")}
                 <input className="w-full rounded-2xl border border-[var(--stroke)] bg-transparent px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]" name="nom" type="text" value={formData.nom} onChange={handleChange} />
@@ -206,7 +287,7 @@ export default function ProfilePage() {
               </label>
 
               {authError && <p className="col-span-full mt-2 text-sm text-rose-500 text-center">{authError}</p>}
-              {successMsg && <p className="col-span-full mt-2 text-sm text-green-400 text-center">{successMsg}</p>}
+              {successMsg && <p className="col-span-full mt-2 text-sm text-emerald-400 text-center">{successMsg}</p>}
 
               <div className="col-span-full mt-4 flex flex-wrap items-center gap-3">
                 <button

@@ -18,15 +18,18 @@ use crate::state::AppState;
 use crate::utils::auth::AuthUser;
 use crate::websocket::events::ServerEvent;
 
+// 🔴 MODIFICATION : Ajout de avatar_url en paramètre
 fn serialize_member_presence(
     user_id: Uuid,
     username: Option<String>,
+    avatar_url: Option<String>,
     role: String,
     is_online: bool,
 ) -> Value {
     json!({
         "user_id": user_id,
         "username": username.unwrap_or_else(|| "Inconnu".to_string()),
+        "avatar_url": avatar_url, // 🔴 NOUVEAU
         "role": role,
         "is_online": is_online
     })
@@ -98,8 +101,9 @@ pub async fn list_members(
     let mut response = Vec::new();
     for m in members {
         let is_online = state.is_user_online(&m.user_id.to_string()).await;
+        // 🔴 MODIFICATION : On transmet m.avatar_url
         response.push(serialize_member_presence(
-            m.user_id, m.username, m.role, is_online,
+            m.user_id, m.username, m.avatar_url, m.role, is_online,
         ));
     }
 
@@ -374,6 +378,7 @@ mod tests {
             first_name: Some("Alice".to_string()),
             last_name: None,
             username: Some("alice".to_string()),
+            avatar_url: None,
             created_at: Utc::now(),
         }
     }
@@ -385,7 +390,8 @@ mod tests {
     #[test]
     fn serialize_member_presence_uses_unknown_username_fallback() {
         let user_id = Uuid::new_v4();
-        let value = serialize_member_presence(user_id, None, "member".to_string(), true);
+        // 🔴 MODIFICATION : On ajoute "None" pour l'avatar dans le test
+        let value = serialize_member_presence(user_id, None, None, "member".to_string(), true);
 
         assert_eq!(value["user_id"], user_id.to_string());
         assert_eq!(value["username"], "Inconnu");
@@ -398,11 +404,13 @@ mod tests {
         let value = serialize_member_presence(
             Uuid::new_v4(),
             Some("alice".to_string()),
+            Some("http://example.com/avatar.png".to_string()), // 🔴 MODIFICATION
             "admin".to_string(),
             false,
         );
 
         assert_eq!(value["username"], "alice");
+        assert_eq!(value["avatar_url"], "http://example.com/avatar.png");
         assert_eq!(value["role"], "admin");
         assert_eq!(value["is_online"], false);
     }

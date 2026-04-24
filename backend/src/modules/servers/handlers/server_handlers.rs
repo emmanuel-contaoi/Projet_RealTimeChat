@@ -312,6 +312,7 @@ mod tests {
             first_name: first_name.map(str::to_string),
             last_name: None,
             username: username.map(str::to_string),
+            avatar_url: None, // 🔴 AJOUT ICI
             created_at: Utc::now(),
         }
     }

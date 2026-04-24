@@ -34,6 +34,9 @@ impl AuthService {
             .as_deref()
             .filter(|s| !s.trim().is_empty());
         let username = payload.username.as_deref().filter(|s| !s.trim().is_empty());
+        
+        // On récupère l'avatar_url s'il a été fourni lors de l'inscription
+        let avatar_url = payload.avatar_url.as_deref().filter(|s| !s.trim().is_empty());
 
         let user = UserRepository::create(
             pool,
@@ -42,6 +45,7 @@ impl AuthService {
             first_name,
             last_name,
             username,
+            avatar_url, // 🔴 Le fameux 7ème argument ajouté ici !
         )
         .await
         .map_err(|e| {
@@ -114,6 +118,7 @@ mod tests {
                 first_name: Some(" Alice ".to_string()),
                 last_name: Some(" Martin ".to_string()),
                 username: Some(" alice ".to_string()),
+                avatar_url: None, // 🔴 Ajouté ici pour que le test compile !
             },
         )
         .await;

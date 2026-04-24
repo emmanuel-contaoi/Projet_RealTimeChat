@@ -1,10 +1,12 @@
 use axum::{
-    extract::{Query, State},
-    http::HeaderMap,
+    extract::{Multipart, Query, State},
+    http::{HeaderMap, StatusCode},
     Json,
 };
 use bcrypt::{hash, DEFAULT_COST};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use tokio::fs;
 use uuid::Uuid;
 
 use crate::repositories::user_repository::UserRepository;
@@ -24,6 +26,11 @@ pub struct UpdateProfileRequest {
     pub email: String,
     pub username: String,
     pub password: Option<String>,
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct AvatarUploadResponse {
+    pub avatar_url: String,
 }
 
 fn normalize_search_query(query: Option<String>) -> Option<String> {
@@ -119,7 +126,8 @@ pub async fn update_profile(
     let user_id = Uuid::parse_str(&claims.sub)
         .map_err(|_| ServiceError::BadRequest("ID utilisateur invalide".to_string()))?;
 
-    let updated_user = if let Some(new_password) = payload.password {
+    // CORRECTION ICI : On vérifie que le mot de passe n'est pas vide avant de le hacher
+    let updated_user = if let Some(new_password) = payload.password.filter(|p| !p.trim().is_empty()) {
         let password_hash = hash(new_password.as_bytes(), DEFAULT_COST)
             .map_err(|e| ServiceError::Internal(format!("Hash error: {}", e)))?;
 
@@ -161,6 +169,124 @@ pub async fn update_profile(
         updated_user.map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
 
     Ok(Json(UserResponse::from(user)))
+}
+
+#[utoipa::path(
+    post,
+    path = "/users/me/avatar",
+    tag = "Users",
+    security(
+        ("bearerAuth" = [])
+    ),
+    responses(
+        (status = 200, description = "Avatar mis à jour", body = AvatarUploadResponse),
+        (status = 400, description = "Fichier invalide"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
+pub async fn upload_avatar(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Result<Json<AvatarUploadResponse>, ServiceError> {
+    let auth_header = headers
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .ok_or_else(|| ServiceError::Forbidden("Token manquant".to_string()))?;
+
+    let claims = validate_token_claims(auth_header)
+        .map_err(|_| ServiceError::Forbidden("Token invalide".to_string()))?;
+
+    let user_id = Uuid::parse_str(&claims.sub)
+        .map_err(|_| ServiceError::BadRequest("ID utilisateur invalide".to_string()))?;
+
+    let mut file_data = None;
+    let mut file_extension = "png".to_string();
+
+    while let Some(field) = multipart.next_field().await.map_err(|_| ServiceError::BadRequest("Multipart error".to_string()))? {
+        if field.name() == Some("avatar") {
+            if let Some(content_type) = field.content_type() {
+                if !content_type.starts_with("image/") {
+                    return Err(ServiceError::BadRequest("Seules les images sont autorisées".to_string()));
+                }
+                
+                file_extension = match content_type {
+                    "image/jpeg" => "jpg".to_string(),
+                    "image/gif" => "gif".to_string(),
+                    "image/webp" => "webp".to_string(),
+                    _ => "png".to_string(),
+                };
+            }
+
+            let data = field.bytes().await.map_err(|_| ServiceError::Internal("Erreur lecture fichier".to_string()))?;
+            
+            if data.len() > 5 * 1024 * 1024 {
+                return Err(ServiceError::BadRequest("L'image est trop volumineuse (max 5MB)".to_string()));
+            }
+            
+            file_data = Some(data);
+            break;
+        }
+    }
+
+    let data = file_data.ok_or_else(|| ServiceError::BadRequest("Aucun fichier envoyé".to_string()))?;
+
+    let file_name = format!("{}.{}", Uuid::new_v4(), file_extension);
+    let file_path = format!("uploads/avatars/{}", file_name);
+
+    fs::write(Path::new(&file_path), &data)
+        .await
+        .map_err(|e| ServiceError::Internal(format!("Erreur d'écriture sur le disque: {}", e)))?;
+
+    let port = std::env::var("PORT").unwrap_or("3001".to_string());
+    let avatar_url = format!("http://localhost:{}/uploads/avatars/{}", port, file_name);
+
+    // CORRECTION ICI : On utilise sqlx::query avec .bind() pour éviter l'erreur de macro stricte
+    sqlx::query("UPDATE users SET avatar_url = $1 WHERE id = $2")
+        .bind(&avatar_url)
+        .bind(user_id)
+        .execute(&state.pool)
+        .await
+        .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+
+    Ok(Json(AvatarUploadResponse { avatar_url }))
+}
+
+#[utoipa::path(
+    delete,
+    path = "/users/me/avatar",
+    tag = "Users",
+    security(("bearerAuth" = [])),
+    responses(
+        (status = 204, description = "Avatar supprimé"),
+        (status = 401, description = "Non autorisé")
+    )
+)]
+pub async fn delete_avatar(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<StatusCode, ServiceError> {
+    let auth_header = headers
+        .get("Authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .ok_or_else(|| ServiceError::Forbidden("Token manquant".to_string()))?;
+
+    let claims = validate_token_claims(auth_header)
+        .map_err(|_| ServiceError::Forbidden("Token invalide".to_string()))?;
+
+    let user_id = Uuid::parse_str(&claims.sub)
+        .map_err(|_| ServiceError::BadRequest("ID utilisateur invalide".to_string()))?;
+
+    // CORRECTION ICI : De même, on utilise query avec .bind() pour éviter les caprices de typage
+    sqlx::query("UPDATE users SET avatar_url = NULL WHERE id = $1")
+        .bind(user_id)
+        .execute(&state.pool)
+        .await
+        .map_err(|e| ServiceError::Internal(format!("Database error: {}", e)))?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(test)]

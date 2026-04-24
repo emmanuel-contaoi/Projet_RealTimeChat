@@ -15,7 +15,10 @@ use axum::{
     Router,
 };
 use std::net::SocketAddr;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    services::ServeDir, // Permet de servir les fichiers d'upload (images)
+};
 use utoipa::{
     openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
     Modify, OpenApi,
@@ -41,6 +44,8 @@ use utoipa_swagger_ui::SwaggerUi;
         routes::users::search_users,
         routes::users::list_users,
         routes::users::update_profile,
+        routes::users::upload_avatar, // La route d'upload
+        routes::users::delete_avatar, // 🔴 NOUVEAU : La route de suppression dans Swagger
         modules::servers::handlers::server_handlers::create_server,
         modules::servers::handlers::server_handlers::list_servers,
         modules::servers::handlers::server_handlers::join_server,
@@ -72,6 +77,7 @@ use utoipa_swagger_ui::SwaggerUi;
             routes::friends::AddFriendRequest,
             routes::users::UpdateProfileRequest,
             routes::users::SearchUsersQuery,
+            routes::users::AvatarUploadResponse, 
             models::AuthResponse,
             models::LoginRequest,
             models::RegisterRequest,
@@ -133,6 +139,8 @@ fn build_app(state: AppState) -> Router {
         .route("/users/search", get(routes::users::search_users))
         .route("/users", get(routes::users::list_users))
         .route("/users/me", put(routes::users::update_profile))
+        // 🔴 NOUVEAU : On ajoute la méthode DELETE sur cette route
+        .route("/users/me/avatar", post(routes::users::upload_avatar).delete(routes::users::delete_avatar)) 
         .route(
             "/friends",
             get(routes::friends::list_friends).post(routes::friends::send_friend_request),
@@ -204,6 +212,7 @@ fn build_app(state: AppState) -> Router {
     let ws_route = Router::new().route("/ws", get(websocket::websocket_handler));
 
     Router::new()
+        .nest_service("/uploads", ServeDir::new("uploads")) // Rend le dossier public
         .merge(public_routes)
         .merge(protected_routes)
         .merge(server_routes)
@@ -222,6 +231,10 @@ fn build_app(state: AppState) -> Router {
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
+
+    // Crée le dossier d'uploads s'il n'existe pas
+    std::fs::create_dir_all("uploads/avatars")
+        .unwrap_or_else(|_| println!("⚠️ Impossible de créer le dossier uploads/avatars"));
 
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL doit être défini dans .env");

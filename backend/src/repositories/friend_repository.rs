@@ -115,6 +115,7 @@ impl FriendRepository {
                 u.first_name AS user_first_name,
                 u.last_name AS user_last_name,
                 u.username AS user_username,
+                u.avatar_url AS user_avatar_url,
                 u.created_at AS user_created_at
              FROM friend_requests fr
              INNER JOIN users u ON u.id = fr.sender_id
@@ -143,6 +144,7 @@ impl FriendRepository {
                 u.first_name AS user_first_name,
                 u.last_name AS user_last_name,
                 u.username AS user_username,
+                u.avatar_url AS user_avatar_url,
                 u.created_at AS user_created_at
              FROM friend_requests fr
              INNER JOIN users u ON u.id = fr.receiver_id

@@ -10,6 +10,7 @@ pub struct User {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub username: Option<String>,
+    pub avatar_url: Option<String>, // NOUVEAU
     pub created_at: DateTime<Utc>,
 }
 
@@ -38,6 +39,7 @@ pub struct RegisterRequest {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub username: Option<String>,
+    pub avatar_url: Option<String>, // NOUVEAU (Optionnel lors de l'inscription)
 }
 
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -59,6 +61,7 @@ pub struct UserResponse {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub username: Option<String>,
+    pub avatar_url: Option<String>, // NOUVEAU
     pub created_at: DateTime<Utc>,
 }
 
@@ -70,6 +73,7 @@ impl From<User> for UserResponse {
             first_name: user.first_name,
             last_name: user.last_name,
             username: user.username,
+            avatar_url: user.avatar_url, // NOUVEAU
             created_at: user.created_at,
         }
     }
@@ -97,6 +101,7 @@ pub struct FriendRequestListItem {
     pub user_first_name: Option<String>,
     pub user_last_name: Option<String>,
     pub user_username: Option<String>,
+    pub user_avatar_url: Option<String>, // NOUVEAU
     pub user_created_at: DateTime<Utc>,
 }
 
@@ -122,6 +127,7 @@ impl FriendRequestResponse {
                 first_name: item.user_first_name,
                 last_name: item.user_last_name,
                 username: item.user_username,
+                avatar_url: item.user_avatar_url, // NOUVEAU
                 created_at: item.user_created_at,
             },
         }
@@ -143,6 +149,7 @@ mod tests {
             first_name: Some("Alice".to_string()),
             last_name: Some("Martin".to_string()),
             username: Some("alice".to_string()),
+            avatar_url: Some("http://image.com/alice.png".to_string()),
             created_at,
         };
 
@@ -153,6 +160,7 @@ mod tests {
         assert_eq!(response.first_name.as_deref(), Some("Alice"));
         assert_eq!(response.last_name.as_deref(), Some("Martin"));
         assert_eq!(response.username.as_deref(), Some("alice"));
+        assert_eq!(response.avatar_url.as_deref(), Some("http://image.com/alice.png"));
         assert_eq!(response.created_at, created_at);
     }
 
@@ -172,6 +180,7 @@ mod tests {
             user_first_name: Some("Bob".to_string()),
             user_last_name: Some("Lee".to_string()),
             user_username: Some("bobby".to_string()),
+            user_avatar_url: None,
             user_created_at: created_at,
         };
 
@@ -186,6 +195,7 @@ mod tests {
         assert_eq!(response.user.first_name.as_deref(), Some("Bob"));
         assert_eq!(response.user.last_name.as_deref(), Some("Lee"));
         assert_eq!(response.user.username.as_deref(), Some("bobby"));
+        assert_eq!(response.user.avatar_url, None);
     }
 
     #[test]
@@ -198,6 +208,7 @@ mod tests {
             first_name: Some("Alice".to_string()),
             last_name: None,
             username: Some("alice42".to_string()),
+            avatar_url: None,
             created_at,
         };
 
@@ -229,6 +240,7 @@ mod tests {
             first_name: Some("  ".to_string()),
             last_name: None,
             username: Some("   ".to_string()),
+            avatar_url: None,
             created_at: Utc::now(),
         };
 
@@ -248,6 +260,7 @@ mod tests {
             user_first_name: None,
             user_last_name: None,
             user_username: None,
+            user_avatar_url: None,
             user_created_at: created_at,
         };
 
@@ -257,5 +270,6 @@ mod tests {
         assert_eq!(response.user.first_name, None);
         assert_eq!(response.user.last_name, None);
         assert_eq!(response.user.username, None);
+        assert_eq!(response.user.avatar_url, None);
     }
 }

@@ -29,7 +29,7 @@ export default function ConversationsPage() {
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
   const [dmChannelByFriendId, setDmChannelByFriendId] = useState<Record<string, string>>({});
   
-  const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string} | null>(null);
+  const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string, avatar_url?: string | null} | null>(null);
   
   const menuRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
@@ -178,10 +178,14 @@ export default function ConversationsPage() {
       return;
     }
 
-    // CORRECTION ESLINT : Typage propre sans "any"
     const f = friend as Friend & { username?: string };
     const friendName = f.username || f.name || "Utilisateur";
-    setCurrentDmUser({ name: friendName, status: friend.status || "Hors ligne" });
+    
+    setCurrentDmUser({ 
+      name: friendName, 
+      status: friend.status || "Hors ligne",
+      avatar_url: friend.avatar_url 
+    });
 
     try {
       const token = localStorage.getItem("token");
@@ -237,6 +241,27 @@ export default function ConversationsPage() {
       .map(([friendId, channelId]) => [friendId, unreadCountByChannel[channelId] ?? 0] as const)
       .filter(([, count]) => count > 0)
   );
+
+  // 🔴 AJOUT : On prépare les messages en leur injectant les avatars des membres/amis !
+  const currentUser = authService.getCurrentUser() as any;
+  const myAvatarUrl = currentUser?.avatar_url;
+
+  const messagesWithAvatars = chat.messages.map(msg => {
+    // Si c'est moi, je connais mon propre avatar
+    if (msg.user_id === currentUserId) {
+      return { ...msg, avatar_url: myAvatarUrl };
+    }
+    // Si on est dans un serveur, on cherche l'avatar dans la liste des membres du serveur
+    if (activeTab === "servers") {
+      const member = server.members.find(m => m.user_id === msg.user_id);
+      return { ...msg, avatar_url: member?.avatar_url };
+    }
+    // Si on est en DM, c'est forcément l'ami à qui on parle
+    if (activeTab === "friends") {
+      return { ...msg, avatar_url: currentDmUser?.avatar_url };
+    }
+    return msg;
+  });
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
@@ -414,7 +439,7 @@ export default function ConversationsPage() {
               channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
               selectedChannel={server.selectedChannel}
               selectedServer={server.selectedServerName}
-              messages={chat.messages}
+              messages={messagesWithAvatars} // 🔴 MODIFICATION : On passe les messages AVEC avatar !
               currentUserId={currentUserId}
               currentUserRole={server.currentUserRole}
               typingUsers={chat.typingUserNames}
@@ -430,12 +455,13 @@ export default function ConversationsPage() {
               channelName={currentFriendName}
               selectedChannel={activeDmChannel}
               selectedServer=""
-              messages={chat.messages}
+              messages={messagesWithAvatars} // 🔴 MODIFICATION : Pareil pour les DMs !
               currentUserId={currentUserId}
               currentUserRole="member"
               typingUsers={chat.typingUserNames}
               isDm={true}
               friendStatus={currentFriendStatus}
+              friendAvatarUrl={currentDmUser?.avatar_url}
               onSendMessage={chat.handleSendMessage}
               onTyping={chat.handleTyping}
               onEditMessage={chat.handleEditMessage}

@@ -102,6 +102,7 @@ pub struct ReactMessageRequest {
 pub struct MemberRow {
     pub user_id: Uuid,
     pub username: Option<String>,
+    pub avatar_url: Option<String>, // 🔴 L'AJOUT EST ICI !
     pub role: String,
 }
 
