@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type { Member } from "../types";
 import BannedList from "@/components/BannedList"; 
@@ -21,6 +22,22 @@ const ROLE_ORDER: Record<string, number> = {
   owner: 0,
   admin: 1,
   member: 2,
+};
+
+const getColorFromName = (name: string) => {
+  const colors = [
+    "from-rose-500 to-fuchsia-500",
+    "from-blue-500 to-cyan-400",
+    "from-emerald-500 to-teal-400",
+    "from-amber-500 to-orange-400",
+    "from-violet-500 to-purple-500",
+    "from-sky-500 to-blue-400",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
 };
 
 export default function MembersPanel({
@@ -98,9 +115,20 @@ export default function MembersPanel({
       >
         <div className="flex items-start gap-3">
           <div className="relative shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-sm font-semibold text-white">
-              {avatarInitial}
-            </div>
+            {member.avatar_url ? (
+              <Image 
+                src={member.avatar_url} 
+                alt={member.username} 
+                width={36}
+                height={36}
+                unoptimized
+                className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" 
+              />
+            ) : (
+              <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(member.username)} text-sm font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
+                {avatarInitial}
+              </div>
+            )}
             <span
               className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[var(--sidebar)] ${
                 isOnline ? "bg-[var(--success)]" : "bg-slate-600"

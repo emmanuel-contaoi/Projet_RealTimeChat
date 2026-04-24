@@ -22,7 +22,7 @@ impl UserRepository {
             .await
     }
 
-    // Cree un nouvel utilisateur dans la base de donnees
+    // Cree un nouvel utilisateur dans la base de donnees (Ajout de avatar_url)
     pub async fn create(
         pool: &PgPool,
         email: &str,
@@ -30,11 +30,12 @@ impl UserRepository {
         first_name: Option<&str>,
         last_name: Option<&str>,
         username: Option<&str>,
+        avatar_url: Option<&str>,
     ) -> sqlx::Result<User> {
         sqlx::query_as::<_, User>(
-            "INSERT INTO users (id, email, password_hash, first_name, last_name, username, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())
-             RETURNING *",
+            "INSERT INTO users (id, email, password_hash, first_name, last_name, username, avatar_url, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+             RETURNING *"
         )
         .bind(Uuid::new_v4())
         .bind(email)
@@ -42,6 +43,7 @@ impl UserRepository {
         .bind(first_name)
         .bind(last_name)
         .bind(username)
+        .bind(avatar_url)
         .fetch_one(pool)
         .await
     }
@@ -95,6 +97,7 @@ mod tests {
             Some("Alice"),
             Some("Martin"),
             Some("alice"),
+            None
         )
         .await
         .is_err());

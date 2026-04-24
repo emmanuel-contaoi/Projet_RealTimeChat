@@ -232,6 +232,7 @@ mod tests {
             first_name: Some("Alice".to_string()),
             last_name: None,
             username: Some("alice".to_string()),
+            avatar_url: None, // 🔴 AJOUT ICI
             created_at: Utc::now(),
         }
     }

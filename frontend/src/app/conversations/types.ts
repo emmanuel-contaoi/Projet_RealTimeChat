@@ -22,6 +22,7 @@ export type ChannelMessage = {
   channel_id: string;
   user_id: string;
   username: string;
+  avatar_url?: string | null; // 🔴 AJOUT ICI
   content: string;
   created_at?: string;
   reactions: MessageReaction[];
@@ -31,6 +32,7 @@ export type Friend = {
   id: string;
   name: string;
   status: string;
+  avatar_url?: string | null; // 🔴 AJOUT ICI
 };
 
 export type DmChannel = {
@@ -51,6 +53,7 @@ export type FriendRequest = {
 export type Member = {
   user_id: string;
   username: string;
+  avatar_url?: string | null; // 🔴 AJOUT ICI
   role: string;
   is_online: boolean;
 };
@@ -61,5 +64,6 @@ export type UserSearchResult = {
   first_name: string | null;
   last_name: string | null;
   username: string | null;
+  avatar_url?: string | null; // 🔴 AJOUT ICI
   created_at: string;
 };

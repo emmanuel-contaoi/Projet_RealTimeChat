@@ -110,8 +110,6 @@ impl ServerRepository {
             .map(|r| r.rows_affected())
     }
 
-    // Retourne les IDs de tous les membres du serveur correspondant a un code d'invitation
-    // (utilise avant le join pour savoir a qui envoyer l'evenement MemberJoined)
     pub async fn get_member_user_ids_by_invite(
         pool: &PgPool,
         invite_code: &str,
@@ -126,7 +124,6 @@ impl ServerRepository {
         .await
     }
 
-    // Retourne les IDs de tous les membres d'un serveur (pour diffuser des evenements WebSocket)
     pub async fn get_member_user_ids(pool: &PgPool, server_id: Uuid) -> sqlx::Result<Vec<String>> {
         sqlx::query_scalar::<_, String>("SELECT user_id::text FROM members WHERE server_id = $1")
             .bind(server_id)
@@ -134,9 +131,10 @@ impl ServerRepository {
             .await
     }
 
+    // 🔴 C'EST ICI QU'ON A AJOUTÉ L'AVATAR
     pub async fn list_members(pool: &PgPool, server_id: Uuid) -> sqlx::Result<Vec<MemberRow>> {
         sqlx::query_as::<_, MemberRow>(
-            "SELECT m.user_id, COALESCE(u.username, u.first_name, u.email) as username, m.role
+            "SELECT m.user_id, COALESCE(u.username, u.first_name, u.email) as username, u.avatar_url, m.role
              FROM members m
              JOIN users u ON m.user_id = u.id
              WHERE m.server_id = $1",

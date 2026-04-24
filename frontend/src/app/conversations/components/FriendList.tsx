@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import type { Friend } from "../types";
 
 type FriendListProps = {
@@ -10,6 +11,22 @@ type FriendListProps = {
   unreadMessageCountByFriendId: Record<string, number>;
   onSelectFriend: (friend: Friend) => void;
   onRemoveFriend: (friendId: string) => void;
+};
+
+const getColorFromName = (name: string) => {
+  const colors = [
+    "from-rose-500 to-fuchsia-500",
+    "from-blue-500 to-cyan-400",
+    "from-emerald-500 to-teal-400",
+    "from-amber-500 to-orange-400",
+    "from-violet-500 to-purple-500",
+    "from-sky-500 to-blue-400",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
 };
 
 export default function FriendList({
@@ -25,10 +42,7 @@ export default function FriendList({
   return (
     <div className="flex flex-col gap-2.5">
       {friendList.map((friend) => {
-        // On vérifie si c'est l'ami actuellement sélectionné
         const isSelected = selectedFriend === friend.id;
-        
-        // On vérifie s'il y a un message non lu pour cet ami
         const isUnread = unreadChannels.has(friend.id) && !isSelected;
         const unreadCount = isSelected ? 0 : (unreadMessageCountByFriendId[friend.id] ?? 0);
         const friendInitial = friend.name.charAt(0).toUpperCase();
@@ -52,10 +66,21 @@ export default function FriendList({
             role="button"
             tabIndex={0}
           >
-            <div className="relative">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-base font-semibold text-white">
-                {friendInitial}
-              </div>
+            <div className="relative shrink-0">
+              {friend.avatar_url ? (
+                <Image 
+                  src={friend.avatar_url} 
+                  alt={friend.name} 
+                  width={40}
+                  height={40}
+                  unoptimized
+                  className="h-10 w-10 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" 
+                />
+              ) : (
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(friend.name)} text-base font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
+                  {friendInitial}
+                </div>
+              )}
               <span
                 className={`absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[var(--sidebar)] ${
                   friend.status === "En ligne" ? "bg-[var(--success)]" : "bg-slate-600"

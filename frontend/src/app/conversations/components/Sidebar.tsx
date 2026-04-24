@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { authService } from "@/services/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { RefObject } from "react";
@@ -56,12 +57,15 @@ export default function Sidebar({
 }: SidebarProps) {
   const t = useTranslations("sidebar");
   const th = useTranslations("header");
-  const currentAccount = authService.getCurrentUser();
+  
+  const currentAccount = authService.getCurrentUser() as { username?: string; first_name?: string; last_name?: string; email?: string; avatar_url?: string } | null;
   const accountName =
     currentAccount?.username ||
     [currentAccount?.first_name, currentAccount?.last_name].filter(Boolean).join(" ").trim() ||
     currentAccount?.email ||
     "Nexus";
+  const avatarUrl = currentAccount?.avatar_url;
+  const initial = accountName.charAt(0).toUpperCase();
 
   return (
     <aside className="flex h-full min-h-0 bg-transparent">
@@ -145,9 +149,14 @@ export default function Sidebar({
                 onClick={onToggleMenu}
                 type="button"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-sm font-bold text-white">
-                  N
-                </div>
+                {avatarUrl ? (
+                  <Image src={avatarUrl} alt={accountName} width={32} height={32} unoptimized className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-sm font-bold text-white">
+                    {initial}
+                  </div>
+                )}
+                
                 <div className="flex flex-col items-start overflow-hidden">
                   <span className="w-full truncate text-[13px] font-semibold text-white leading-tight">{accountName}</span>
                 </div>
