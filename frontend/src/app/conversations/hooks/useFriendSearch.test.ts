@@ -12,7 +12,7 @@ type MockUser = {
   last_name: string | null;
   username: string | null;
   created_at: string;
-  avatar_url?: string | null; // 🔴 AJOUT DU TYPE
+  avatar_url?: string | null;
 };
 
 const currentUser: MockUser = {
@@ -29,7 +29,7 @@ const alice: MockUser = {
   email: "alice@example.com",
   first_name: "Alice",
   last_name: "Martin",
-  username: "Alice", // 🔴 AJOUT DU USERNAME
+  username: "Alice",
   created_at: "2026-03-16T10:00:00Z",
 };
 
@@ -97,9 +97,9 @@ describe("useFriendSearch", () => {
     );
 
     await waitFor(() => {
-      // 🔴 MODIFICATION ICI
+      // 🔴 CORRECTION : "Alice" au lieu de "Alice Martin"
       expect(result.current.friendList).toEqual([
-        { id: "friend-1", name: "Alice Martin", username: "Alice", avatar_url: undefined, status: "En ligne" },
+        { id: "friend-1", name: "Alice", username: "Alice", avatar_url: undefined, status: "En ligne" },
         { id: "friend-2", name: "bob", username: "bob", avatar_url: undefined, status: "Hors ligne" },
       ]);
       expect(result.current.selectedFriend).toBe("friend-1");
@@ -199,9 +199,9 @@ describe("useFriendSearch", () => {
     expect(incomingSpy).toHaveBeenCalledTimes(2);
     expect(outgoingSpy).toHaveBeenCalledTimes(2);
     
-    // 🔴 MODIFICATION ICI
+    // 🔴 CORRECTION : "Alice" au lieu de "Alice Martin"
     expect(result.current.friendList).toEqual([
-      { id: "friend-1", name: "Alice Martin", username: "Alice", avatar_url: undefined, status: "Hors ligne" },
+      { id: "friend-1", name: "Alice", username: "Alice", avatar_url: undefined, status: "Hors ligne" },
       { id: "friend-2", name: "bob", username: "bob", avatar_url: undefined, status: "Hors ligne" },
     ]);
     expect(result.current.outgoingRequests).toHaveLength(1);
