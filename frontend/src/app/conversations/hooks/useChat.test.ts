@@ -151,14 +151,14 @@ describe("useChat", () => {
     expect(notificationInstances).toHaveLength(1);
     expect(notificationInstances[0]).toMatchObject({
       title: "Nouveau message de alice",
-      options: { body: "hello", tag: "chat-channel-1" },
+      options: { body: "1 nouveau message", tag: "chat-channel-1" },
     });
     expect(result.current.toastNotifications).toEqual([
       {
-        id: "msg-1",
+        id: "chat-channel-1",
         channelId: "channel-1",
         title: "Nouveau message de alice",
-        body: "hello",
+        body: "1 nouveau message",
       },
     ]);
   });
@@ -219,7 +219,7 @@ describe("useChat", () => {
     expect(result.current.toastNotifications).toHaveLength(1);
 
     act(() => {
-      result.current.dismissToastNotification("msg-toast");
+      result.current.dismissToastNotification("chat-channel-9");
     });
 
     expect(result.current.toastNotifications).toEqual([]);
@@ -297,6 +297,18 @@ describe("useChat", () => {
     expect(result.current.unreadCountByChannel).toEqual({
       "channel-unread": 2,
     });
+    expect(notificationInstances[1]).toMatchObject({
+      title: "Nouveau message de charlie",
+      options: { body: "2 nouveaux messages", tag: "chat-channel-unread" },
+    });
+    expect(result.current.toastNotifications).toEqual([
+      {
+        id: "chat-channel-unread",
+        channelId: "channel-unread",
+        title: "Nouveau message de charlie",
+        body: "2 nouveaux messages",
+      },
+    ]);
 
     act(() => {
       result.current.setActiveChannel("channel-unread");

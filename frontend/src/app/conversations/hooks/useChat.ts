@@ -17,6 +17,9 @@ type ChatToastNotification = {
 const TOAST_NOTIFICATION_DURATION_MS = 12000;
 const UNREAD_STORAGE_PREFIX = "chat-unread-state:";
 
+const formatNewMessageCount = (count: number) =>
+  `${count} nouveau${count > 1 ? "x" : ""} message${count > 1 ? "s" : ""}`;
+
 export default function useChat(options?: UseChatOptions) {
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [unreadChannels, setUnreadChannels] = useState<Set<string>>(new Set());
@@ -34,6 +37,7 @@ export default function useChat(options?: UseChatOptions) {
   const seenMessageIdsRef = useRef<Set<string>>(new Set());
   const toastTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const hasHydratedUnreadStateRef = useRef(false);
+  const unreadCountByChannelRef = useRef<Record<string, number>>({});
 
   const getUnreadStorageKey = useCallback(() => {
     const currentUser = authService.getCurrentUser() as { id?: string } | null;
@@ -73,6 +77,7 @@ export default function useChat(options?: UseChatOptions) {
 
       const parsed = JSON.parse(rawValue) as { unreadCountByChannel?: unknown };
       const nextUnreadCountByChannel = sanitizeUnreadCounts(parsed.unreadCountByChannel);
+      unreadCountByChannelRef.current = nextUnreadCountByChannel;
       setUnreadCountByChannel(nextUnreadCountByChannel);
       setUnreadChannels(new Set(Object.keys(nextUnreadCountByChannel)));
     } catch {
@@ -103,6 +108,10 @@ export default function useChat(options?: UseChatOptions) {
     }
   }, [getUnreadStorageKey, unreadCountByChannel]);
 
+  useEffect(() => {
+    unreadCountByChannelRef.current = unreadCountByChannel;
+  }, [unreadCountByChannel]);
+
   const setActiveChannel = useCallback((channelId: string) => {
     activeChannelRef.current = channelId;
     setUnreadChannels((prev) => {
@@ -115,6 +124,7 @@ export default function useChat(options?: UseChatOptions) {
       if (!prev[channelId]) return prev;
       const next = { ...prev };
       delete next[channelId];
+      unreadCountByChannelRef.current = next;
       return next;
     });
   }, []);
@@ -135,16 +145,14 @@ export default function useChat(options?: UseChatOptions) {
       }));
   }, []);
 
-  const notifyNewMessage = useCallback((message: ChannelMessage) => {
+  const notifyNewMessage = useCallback((message: ChannelMessage, newMessageCount = 1) => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
 
     const currentUser = authService.getCurrentUser() as { id?: string } | null;
     if (message.user_id === currentUser?.id) return;
 
     const showNotification = () => {
-      const body = message.content.trim()
-        ? message.content.slice(0, 120)
-        : "Vous avez recu un nouveau message.";
+      const body = formatNewMessageCount(newMessageCount);
       const notification = new window.Notification(`Nouveau message de ${message.username}`, {
         body,
         tag: `chat-${message.channel_id}`,
@@ -181,14 +189,11 @@ export default function useChat(options?: UseChatOptions) {
     setToastNotifications((prev) => prev.filter((toast) => toast.id !== toastId));
   }, []);
 
-  const pushToastNotification = useCallback((message: ChannelMessage) => {
+  const pushToastNotification = useCallback((message: ChannelMessage, newMessageCount = 1) => {
     const currentUser = authService.getCurrentUser() as { id?: string } | null;
     if (message.user_id === currentUser?.id) return;
 
-    const preview = message.content.trim()
-      ? message.content.slice(0, 120)
-      : "Vous avez recu un nouveau message.";
-    const toastId = message.id ?? `${message.channel_id}-${Date.now()}`;
+    const toastId = `chat-${message.channel_id}`;
 
     setToastNotifications((prev) => {
       const next = prev.filter((toast) => toast.id !== toastId);
@@ -198,7 +203,7 @@ export default function useChat(options?: UseChatOptions) {
           id: toastId,
           channelId: message.channel_id,
           title: `Nouveau message de ${message.username}`,
-          body: preview,
+          body: formatNewMessageCount(newMessageCount),
         },
       ].slice(-3);
     });
@@ -242,15 +247,20 @@ export default function useChat(options?: UseChatOptions) {
         if (msgChannelId === activeChannelRef.current) {
           setMessages((prev) => [...prev, msg]);
         } else if (!isOwnMessage) {
+          const nextUnreadCount = (unreadCountByChannelRef.current[msgChannelId] ?? 0) + 1;
           setUnreadChannels((prev) => {
             const next = new Set(prev);
             next.add(msgChannelId);
             return next;
           });
-          setUnreadCountByChannel((prev) => ({
-            ...prev,
-            [msgChannelId]: (prev[msgChannelId] ?? 0) + 1,
-          }));
+          unreadCountByChannelRef.current = {
+            ...unreadCountByChannelRef.current,
+            [msgChannelId]: nextUnreadCount,
+          };
+          setUnreadCountByChannel(unreadCountByChannelRef.current);
+          notifyNewMessage(msg, nextUnreadCount);
+          pushToastNotification(msg, nextUnreadCount);
+          return;
         }
 
         notifyNewMessage(msg);
