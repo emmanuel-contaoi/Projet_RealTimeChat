@@ -18,6 +18,7 @@ import FriendsPanel from "./components/FriendsPanel";
 import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function ConversationsPage() {
   const router = useRouter();
@@ -240,6 +241,11 @@ export default function ConversationsPage() {
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
+      {activeTab === "friends" && (
+        <div className="fixed right-4 top-4 z-[9999]">
+          <LanguageSwitcher />
+        </div>
+      )}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(21,209,255,0.16),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(47,123,255,0.18),_transparent_34%)]" />
 
       <ConversationsHeader />

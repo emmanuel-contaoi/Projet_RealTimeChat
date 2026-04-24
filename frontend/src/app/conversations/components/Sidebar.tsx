@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { authService } from "@/services/api";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { RefObject } from "react";
 import type { Friend, Server } from "../types";
 import FriendList from "./FriendList";
@@ -205,9 +204,6 @@ export default function Sidebar({
             />
           </div>
 
-          <div className="p-3 border-t border-[rgba(255,255,255,0.05)]">
-            <LanguageSwitcher compact />
-          </div>
         </div>
       )}
     </aside>
