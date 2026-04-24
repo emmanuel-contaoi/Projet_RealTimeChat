@@ -127,7 +127,8 @@ pub async fn update_profile(
         .map_err(|_| ServiceError::BadRequest("ID utilisateur invalide".to_string()))?;
 
     // CORRECTION ICI : On vérifie que le mot de passe n'est pas vide avant de le hacher
-    let updated_user = if let Some(new_password) = payload.password.filter(|p| !p.trim().is_empty()) {
+    let updated_user = if let Some(new_password) = payload.password.filter(|p| !p.trim().is_empty())
+    {
         let password_hash = hash(new_password.as_bytes(), DEFAULT_COST)
             .map_err(|e| ServiceError::Internal(format!("Hash error: {}", e)))?;
 
@@ -204,13 +205,19 @@ pub async fn upload_avatar(
     let mut file_data = None;
     let mut file_extension = "png".to_string();
 
-    while let Some(field) = multipart.next_field().await.map_err(|_| ServiceError::BadRequest("Multipart error".to_string()))? {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|_| ServiceError::BadRequest("Multipart error".to_string()))?
+    {
         if field.name() == Some("avatar") {
             if let Some(content_type) = field.content_type() {
                 if !content_type.starts_with("image/") {
-                    return Err(ServiceError::BadRequest("Seules les images sont autorisées".to_string()));
+                    return Err(ServiceError::BadRequest(
+                        "Seules les images sont autorisées".to_string(),
+                    ));
                 }
-                
+
                 file_extension = match content_type {
                     "image/jpeg" => "jpg".to_string(),
                     "image/gif" => "gif".to_string(),
@@ -219,18 +226,24 @@ pub async fn upload_avatar(
                 };
             }
 
-            let data = field.bytes().await.map_err(|_| ServiceError::Internal("Erreur lecture fichier".to_string()))?;
-            
+            let data = field
+                .bytes()
+                .await
+                .map_err(|_| ServiceError::Internal("Erreur lecture fichier".to_string()))?;
+
             if data.len() > 5 * 1024 * 1024 {
-                return Err(ServiceError::BadRequest("L'image est trop volumineuse (max 5MB)".to_string()));
+                return Err(ServiceError::BadRequest(
+                    "L'image est trop volumineuse (max 5MB)".to_string(),
+                ));
             }
-            
+
             file_data = Some(data);
             break;
         }
     }
 
-    let data = file_data.ok_or_else(|| ServiceError::BadRequest("Aucun fichier envoyé".to_string()))?;
+    let data =
+        file_data.ok_or_else(|| ServiceError::BadRequest("Aucun fichier envoyé".to_string()))?;
 
     let file_name = format!("{}.{}", Uuid::new_v4(), file_extension);
     let file_path = format!("uploads/avatars/{}", file_name);

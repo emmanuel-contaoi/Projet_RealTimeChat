@@ -103,7 +103,11 @@ pub async fn list_members(
         let is_online = state.is_user_online(&m.user_id.to_string()).await;
         // 🔴 MODIFICATION : On transmet m.avatar_url
         response.push(serialize_member_presence(
-            m.user_id, m.username, m.avatar_url, m.role, is_online,
+            m.user_id,
+            m.username,
+            m.avatar_url,
+            m.role,
+            is_online,
         ));
     }
 

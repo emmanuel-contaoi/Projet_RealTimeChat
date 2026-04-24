@@ -160,7 +160,10 @@ mod tests {
         assert_eq!(response.first_name.as_deref(), Some("Alice"));
         assert_eq!(response.last_name.as_deref(), Some("Martin"));
         assert_eq!(response.username.as_deref(), Some("alice"));
-        assert_eq!(response.avatar_url.as_deref(), Some("http://image.com/alice.png"));
+        assert_eq!(
+            response.avatar_url.as_deref(),
+            Some("http://image.com/alice.png")
+        );
         assert_eq!(response.created_at, created_at);
     }
 

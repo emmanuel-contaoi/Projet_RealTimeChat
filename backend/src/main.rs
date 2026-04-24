@@ -77,7 +77,7 @@ use utoipa_swagger_ui::SwaggerUi;
             routes::friends::AddFriendRequest,
             routes::users::UpdateProfileRequest,
             routes::users::SearchUsersQuery,
-            routes::users::AvatarUploadResponse, 
+            routes::users::AvatarUploadResponse,
             models::AuthResponse,
             models::LoginRequest,
             models::RegisterRequest,
@@ -140,7 +140,10 @@ fn build_app(state: AppState) -> Router {
         .route("/users", get(routes::users::list_users))
         .route("/users/me", put(routes::users::update_profile))
         // 🔴 NOUVEAU : On ajoute la méthode DELETE sur cette route
-        .route("/users/me/avatar", post(routes::users::upload_avatar).delete(routes::users::delete_avatar)) 
+        .route(
+            "/users/me/avatar",
+            post(routes::users::upload_avatar).delete(routes::users::delete_avatar),
+        )
         .route(
             "/friends",
             get(routes::friends::list_friends).post(routes::friends::send_friend_request),

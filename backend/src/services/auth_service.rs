@@ -34,9 +34,12 @@ impl AuthService {
             .as_deref()
             .filter(|s| !s.trim().is_empty());
         let username = payload.username.as_deref().filter(|s| !s.trim().is_empty());
-        
+
         // On récupère l'avatar_url s'il a été fourni lors de l'inscription
-        let avatar_url = payload.avatar_url.as_deref().filter(|s| !s.trim().is_empty());
+        let avatar_url = payload
+            .avatar_url
+            .as_deref()
+            .filter(|s| !s.trim().is_empty());
 
         let user = UserRepository::create(
             pool,
