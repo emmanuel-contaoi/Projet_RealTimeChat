@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { authService } from "@/services/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -11,12 +12,10 @@ export default function ProfilePage() {
   const t = useTranslations("profile");
   const tc = useTranslations("common");
 
-  // États pour la sécurité
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordVerify, setPasswordVerify] = useState("");
   const [authError, setAuthError] = useState("");
 
-  // États pour le formulaire de profil
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -32,7 +31,7 @@ export default function ProfilePage() {
   const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
-    const user = authService.getCurrentUser() as any;
+    const user = authService.getCurrentUser() as { last_name?: string; first_name?: string; email?: string; username?: string; avatar_url?: string | null } | null;
     if (!user) {
       router.push("/login");
     } else {
@@ -71,7 +70,6 @@ export default function ProfilePage() {
     }
   };
 
-  // NOUVEAU : Fonction pour gérer l'upload de l'avatar
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -85,7 +83,6 @@ export default function ProfilePage() {
       const uploadData = new FormData();
       uploadData.append("avatar", file);
 
-      // On utilise l'URL absolue car c'est un multipart/form-data
       const response = await fetch("http://localhost:3001/users/me/avatar", {
         method: "POST",
         headers: {
@@ -102,20 +99,18 @@ export default function ProfilePage() {
       const data = await response.json();
       setAvatarUrl(data.avatar_url);
 
-      // Mettre à jour l'utilisateur dans le localStorage pour que toute l'app soit au courant
-      const user = authService.getCurrentUser() as any;
+      const user = authService.getCurrentUser() as { last_name?: string; first_name?: string; email?: string; username?: string; avatar_url?: string | null } | null;
       if (user) {
         user.avatar_url = data.avatar_url;
         localStorage.setItem("user", JSON.stringify(user));
       }
 
       setSuccessMsg("Photo de profil mise à jour !");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      setAuthError(error.message || "Erreur d'upload");
+      setAuthError((error as Error).message || "Erreur d'upload");
     } finally {
       setUploadingAvatar(false);
-      // Reset de l'input file pour pouvoir ré-uploader la même image si besoin
       e.target.value = "";
     }
   };
@@ -223,11 +218,10 @@ export default function ProfilePage() {
           ) : (
             <form onSubmit={handleSaveProfile} className="grid gap-4 md:grid-cols-2">
               
-              {/* NOUVEAU : Zone d'Avatar */}
               <div className="col-span-full mb-4 flex flex-col items-center justify-center gap-3">
                 <div className="group relative h-24 w-24 overflow-hidden rounded-full border-4 border-[var(--stroke)] bg-[var(--surface-strong)] transition-all hover:border-[var(--brand-1)]">
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                    <Image src={avatarUrl} alt="Avatar" width={96} height={96} unoptimized className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--brand-2)] to-[var(--brand-1)] text-3xl font-bold text-white">
                       {(formData.username || formData.prenom || formData.email || "U").charAt(0).toUpperCase()}

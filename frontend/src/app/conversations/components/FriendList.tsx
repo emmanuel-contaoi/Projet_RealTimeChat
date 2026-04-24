@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import type { Friend } from "../types";
 
 type FriendListProps = {
@@ -12,7 +13,6 @@ type FriendListProps = {
   onRemoveFriend: (friendId: string) => void;
 };
 
-// 🔴 AJOUT : Fonction pour générer une belle couleur basée sur le nom
 const getColorFromName = (name: string) => {
   const colors = [
     "from-rose-500 to-fuchsia-500",
@@ -42,10 +42,7 @@ export default function FriendList({
   return (
     <div className="flex flex-col gap-2.5">
       {friendList.map((friend) => {
-        // On vérifie si c'est l'ami actuellement sélectionné
         const isSelected = selectedFriend === friend.id;
-        
-        // On vérifie s'il y a un message non lu pour cet ami
         const isUnread = unreadChannels.has(friend.id) && !isSelected;
         const unreadCount = isSelected ? 0 : (unreadMessageCountByFriendId[friend.id] ?? 0);
         const friendInitial = friend.name.charAt(0).toUpperCase();
@@ -70,11 +67,13 @@ export default function FriendList({
             tabIndex={0}
           >
             <div className="relative shrink-0">
-              {/* 🔴 MODIFICATION ICI : Affichage de l'avatar */}
               {friend.avatar_url ? (
-                <img 
+                <Image 
                   src={friend.avatar_url} 
                   alt={friend.name} 
+                  width={40}
+                  height={40}
+                  unoptimized
                   className="h-10 w-10 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" 
                 />
               ) : (

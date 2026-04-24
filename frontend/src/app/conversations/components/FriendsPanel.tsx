@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import type { Friend, FriendRequest, UserSearchResult } from "../types";
 import { formatUserLabel } from "../utils";
 
@@ -21,7 +22,6 @@ type FriendsPanelProps = {
   onCancelRequest: (requestId: string) => void;
 };
 
-// 🔴 AJOUT : Fonction pour générer une belle couleur basée sur le nom
 const getColorFromName = (name: string) => {
   const colors = [
     "from-rose-500 to-fuchsia-500",
@@ -70,7 +70,6 @@ export default function FriendsPanel({
         const outgoing = outgoingByUserId.get(user.id);
         const isFriend = friendIds.has(user.id);
         
-        // 🔴 AJOUT : Préparation de l'avatar
         const initial = label.charAt(0).toUpperCase();
         const avatarColor = getColorFromName(label);
 
@@ -80,10 +79,9 @@ export default function FriendsPanel({
             className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] px-4 py-3"
           >
             <div className="flex items-center gap-3 min-w-0">
-              {/* 🔴 AJOUT : Affichage de l'avatar */}
               <div className="relative shrink-0">
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={label} className="h-10 w-10 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
+                  <Image src={user.avatar_url} alt={label} width={40} height={40} unoptimized className="h-10 w-10 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
                 ) : (
                   <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-base font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
                     {initial}
@@ -152,7 +150,6 @@ export default function FriendsPanel({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2">
-        {/* DEMANDES REÇUES */}
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-3 sm:p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300">
             {t("incoming")}
@@ -167,10 +164,9 @@ export default function FriendsPanel({
                 return (
                   <div key={request.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl bg-black/20 p-2 sm:p-0 sm:bg-transparent">
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* 🔴 AJOUT : Affichage de l'avatar */}
                       <div className="relative shrink-0">
                         {request.user.avatar_url ? (
-                          <img src={request.user.avatar_url} alt={label} className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
+                          <Image src={request.user.avatar_url} alt={label} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
                         ) : (
                           <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-sm font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
                             {initial}
@@ -207,7 +203,6 @@ export default function FriendsPanel({
           )}
         </div>
 
-        {/* DEMANDES ENVOYÉES */}
         <div className="rounded-2xl border border-[var(--stroke)] bg-[var(--surface-strong)] p-3 sm:p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-300">
             {t("outgoing")}
@@ -222,10 +217,9 @@ export default function FriendsPanel({
                 return (
                   <div key={request.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl bg-black/20 p-2 sm:p-0 sm:bg-transparent">
                     <div className="flex items-center gap-3 min-w-0">
-                      {/* 🔴 AJOUT : Affichage de l'avatar */}
                       <div className="relative shrink-0">
                         {request.user.avatar_url ? (
-                          <img src={request.user.avatar_url} alt={label} className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
+                          <Image src={request.user.avatar_url} alt={label} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
                         ) : (
                           <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-sm font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
                             {initial}
@@ -254,7 +248,6 @@ export default function FriendsPanel({
         </div>
       </div>
 
-      {/* RECHERCHE */}
       <div className="mt-4 flex flex-col gap-4">
         <label className="grid gap-2 text-sm text-slate-200">
           {t("search_users")}

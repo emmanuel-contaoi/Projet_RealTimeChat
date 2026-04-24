@@ -177,7 +177,7 @@ export default function ChatPanel({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [selectedChannel, messages.length]);
 
   const inputPlaceholder = channelName
     ? t("placeholder_channel", { channelName })
@@ -208,14 +208,14 @@ export default function ChatPanel({
   }, []);
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-[var(--panel)]">
+    <section className="flex flex-1 h-full min-h-0 w-full flex-col bg-[var(--panel)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(36,52,75,0.72)] bg-[rgba(20,28,39,0.9)] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           
           {isDm ? (
             <div className="relative shrink-0">
               {friendAvatarUrl ? (
-                <img src={friendAvatarUrl} alt={channelName} className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
+                <Image src={friendAvatarUrl} alt={channelName} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
               ) : (
                 <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
                   {(channelName || "A").charAt(0).toUpperCase()}
@@ -254,7 +254,6 @@ export default function ChatPanel({
         </div>
       </div>
 
-      {/* ZONE DES MESSAGES */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {selectedChannel && messages.length ? (
           <div className="px-2">
@@ -285,14 +284,13 @@ export default function ChatPanel({
                     </div>
                   ) : null}
 
-                  {/* ALIGNEMENT ICI : On force toujours justify-start, peu importe si c'est "moi" ou un autre */}
                   <div className={`group relative flex w-full justify-start px-3 py-2 rounded-xl transition-all duration-300 hover:bg-white/[0.04] mb-1`}>
                     <article className="overflow-visible max-w-[85%] relative">
                       <div className="flex items-start gap-3">
                         
                         <div className="relative shrink-0 mt-0.5">
                           {messageAvatarUrl ? (
-                            <img src={messageAvatarUrl} alt={realName} className="h-9 w-9 rounded-full object-cover shadow-[0_6px_18px_rgba(0,0,0,0.22)]" />
+                            <Image src={messageAvatarUrl} alt={realName} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_6px_18px_rgba(0,0,0,0.22)]" />
                           ) : (
                             <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
                               {avatarInitial}
@@ -531,7 +529,6 @@ export default function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* BARRE DU BAS RESPONSIVE */}
       <div className="relative z-50 border-t border-[rgba(36,52,75,0.72)] bg-[rgba(17,24,35,0.96)] px-3 py-3.5 sm:px-4 backdrop-blur-md">
         {typingUsers.length > 0 ? (
           <div className="mb-4 text-xs font-medium text-slate-400">

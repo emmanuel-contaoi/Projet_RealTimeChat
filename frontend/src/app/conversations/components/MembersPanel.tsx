@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type { Member } from "../types";
 import BannedList from "@/components/BannedList"; 
@@ -23,7 +24,6 @@ const ROLE_ORDER: Record<string, number> = {
   member: 2,
 };
 
-// 🔴 AJOUT : Fonction pour générer une belle couleur basée sur le nom
 const getColorFromName = (name: string) => {
   const colors = [
     "from-rose-500 to-fuchsia-500",
@@ -114,12 +114,14 @@ export default function MembersPanel({
         className="relative flex flex-col gap-2 rounded-[18px] border border-[rgba(36,52,75,0.9)] bg-[rgba(18,27,39,0.94)] px-3 py-2.5"
       >
         <div className="flex items-start gap-3">
-          {/* 🔴 MODIFICATION : Affichage de l'avatar du membre */}
           <div className="relative shrink-0">
             {member.avatar_url ? (
-              <img 
+              <Image 
                 src={member.avatar_url} 
                 alt={member.username} 
+                width={36}
+                height={36}
+                unoptimized
                 className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" 
               />
             ) : (

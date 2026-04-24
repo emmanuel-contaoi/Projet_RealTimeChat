@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { authService } from "@/services/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import type { RefObject } from "react";
@@ -57,8 +58,7 @@ export default function Sidebar({
   const t = useTranslations("sidebar");
   const th = useTranslations("header");
   
-  // 🔴 MODIFICATION ICI : On récupère l'avatar_url et on prépare la lettre initiale
-  const currentAccount = authService.getCurrentUser() as any;
+  const currentAccount = authService.getCurrentUser() as { username?: string; first_name?: string; last_name?: string; email?: string; avatar_url?: string } | null;
   const accountName =
     currentAccount?.username ||
     [currentAccount?.first_name, currentAccount?.last_name].filter(Boolean).join(" ").trim() ||
@@ -149,9 +149,8 @@ export default function Sidebar({
                 onClick={onToggleMenu}
                 type="button"
               >
-                {/* 🔴 MODIFICATION ICI : Affichage de l'image ou de l'initiale */}
                 {avatarUrl ? (
-                  <img src={avatarUrl} alt={accountName} className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                  <Image src={avatarUrl} alt={accountName} width={32} height={32} unoptimized className="h-8 w-8 shrink-0 rounded-full object-cover" />
                 ) : (
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,_var(--brand-2),_var(--brand-1))] text-sm font-bold text-white">
                     {initial}
