@@ -175,6 +175,8 @@ export default function ChannelsPanel({
           </p>
         )}
       </div>
+
+
     </section>
   );
 }
