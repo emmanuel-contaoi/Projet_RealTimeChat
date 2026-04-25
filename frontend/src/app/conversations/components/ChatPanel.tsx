@@ -19,6 +19,7 @@ type ChatPanelProps = {
   typingUsers: string[];
   isDm?: boolean;
   friendStatus?: string;
+  friendAvatarUrl?: string | null;
   onSendMessage: (content: string) => void;
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
@@ -59,6 +60,7 @@ export default function ChatPanel({
   typingUsers,
   isDm,
   friendStatus,
+  friendAvatarUrl,
   onSendMessage,
   onTyping,
   onEditMessage,
@@ -176,7 +178,7 @@ export default function ChatPanel({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [selectedChannel, messages.length]);
 
   const inputPlaceholder = channelName
     ? t("placeholder_channel", { channelName })
@@ -207,16 +209,19 @@ export default function ChatPanel({
   }, []);
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-[var(--panel)]">
+    <section className="flex flex-1 h-full min-h-0 w-full flex-col bg-[var(--panel)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[rgba(36,52,75,0.72)] bg-[rgba(20,28,39,0.9)] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           
-          {/* HEADER MODIFIÉ SELON isDm */}
           {isDm ? (
-            <div className="relative">
-              <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
-                {(channelName || "A").charAt(0).toUpperCase()}
-              </div>
+            <div className="relative shrink-0">
+              {friendAvatarUrl ? (
+                <Image src={friendAvatarUrl} alt={channelName} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
+              ) : (
+                <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
+                  {(channelName || "A").charAt(0).toUpperCase()}
+                </div>
+              )}
               <span
                 className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[rgba(20,28,39,0.9)] ${
                   friendStatus === "En ligne" ? "bg-[var(--success)]" : "bg-slate-500"
@@ -224,7 +229,7 @@ export default function ChatPanel({
               />
             </div>
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(21,209,255,0.45)] bg-[rgba(21,209,255,0.08)] text-[1.45rem] font-semibold text-[var(--brand-1)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex shrink-0 h-9 w-9 items-center justify-center rounded-[11px] border border-[rgba(21,209,255,0.45)] bg-[rgba(21,209,255,0.08)] text-[1.45rem] font-semibold text-[var(--brand-1)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
               #
             </div>
           )}
@@ -250,16 +255,18 @@ export default function ChatPanel({
         </div>
       </div>
 
-      {/* ZONE DES MESSAGES */}
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {selectedChannel && messages.length ? (
           <div className="px-2">
             {messageGroups.map((group) => {
               const firstMessage = group.items[0];
               const isMe = firstMessage.user_id === currentUserId;
-              const displayName = isMe ? t("me") : firstMessage.username || "Utilisateur";
-              const avatarInitial = displayName.charAt(0).toUpperCase();
-              const avatarColor = getColorFromName(firstMessage.username || "User");
+              
+              const realName = firstMessage.username || "Utilisateur";
+              const displayName = isMe ? t("me") : realName;
+              const avatarInitial = realName.charAt(0).toUpperCase();
+              const avatarColor = getColorFromName(realName);
+              const messageAvatarUrl = firstMessage.avatar_url;
 
               return (
                 <div key={group.id} className={group.showDateSeparator ? "space-y-3" : "pt-3"}>
@@ -305,7 +312,7 @@ export default function ChatPanel({
                             ) : null}
                           </div>
 
-                          <div className="space-y-2">
+                          <div className="space-y-1">
                             {group.items.map((message, messageIndex) => {
                               const canDelete =
                                 message.user_id === currentUserId ||
@@ -362,7 +369,7 @@ export default function ChatPanel({
                                       unoptimized
                                     />
                                   ) : (
-                                    <p className="whitespace-pre-wrap break-words text-[0.86rem] leading-relaxed text-slate-100">
+                                    <p className="whitespace-pre-wrap break-words text-[0.9rem] leading-relaxed text-slate-200">
                                       {message.content}
                                     </p>
                                   )}
@@ -518,7 +525,6 @@ export default function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* BARRE DU BAS RESPONSIVE */}
       <div className="relative z-50 border-t border-[rgba(36,52,75,0.72)] bg-[rgba(17,24,35,0.96)] px-3 py-3.5 sm:px-4 backdrop-blur-md">
         {typingUsers.length > 0 ? (
           <div className="mb-4 text-xs font-medium text-slate-400">

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import { authService } from "@/services/api";
 
 type BannedUser = {
   id: string;
@@ -40,14 +39,12 @@ export default function BannedList({ serverId, onClose }: BannedListProps) {
       const data = await response.json();
       setBannedUsers(data);
     } catch {
-      // CORRECTION ESLINT : "catch (err)" remplacé par "catch" tout court
       setError(t("ban_load_error"));
     } finally {
       setLoading(false);
     }
-  }, [serverId, t]); // useCallback a besoin de ses dépendances
+  }, [serverId, t]);
 
-  // CORRECTION ESLINT : fetchBans est maintenant dans le tableau de dépendances
   useEffect(() => {
     fetchBans();
   }, [fetchBans]);
@@ -66,10 +63,8 @@ export default function BannedList({ serverId, onClose }: BannedListProps) {
         throw new Error("Erreur de débannissement");
       }
 
-      // Met à jour la liste localement après un succès
       setBannedUsers((prev) => prev.filter((user) => user.id !== userId));
     } catch {
-      // CORRECTION ESLINT : "catch (err)" remplacé par "catch"
       alert(t("unban_error"));
     }
   };

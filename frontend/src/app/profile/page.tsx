@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { authService } from "@/services/api";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -11,12 +12,10 @@ export default function ProfilePage() {
   const t = useTranslations("profile");
   const tc = useTranslations("common");
 
-  // États pour la sécurité
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [passwordVerify, setPasswordVerify] = useState("");
   const [authError, setAuthError] = useState("");
 
-  // États pour le formulaire de profil
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
@@ -26,11 +25,13 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
-    const user = authService.getCurrentUser();
+    const user = authService.getCurrentUser() as { last_name?: string; first_name?: string; email?: string; username?: string; avatar_url?: string | null } | null;
     if (!user) {
       router.push("/login");
     } else {
@@ -41,6 +42,7 @@ export default function ProfilePage() {
         email: user.email || "",
         username: user.username || "",
       }));
+      setAvatarUrl(user.avatar_url || null);
     }
   }, [router]);
 
@@ -65,6 +67,51 @@ export default function ProfilePage() {
       setAuthError(t("error_wrong_password"));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    setAuthError("");
+    setSuccessMsg("");
+
+    try {
+      const token = localStorage.getItem("token");
+      const uploadData = new FormData();
+      uploadData.append("avatar", file);
+
+      const response = await fetch("http://localhost:3001/users/me/avatar", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
+        body: uploadData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Erreur lors de l'envoi de l'image");
+      }
+
+      const data = await response.json();
+      setAvatarUrl(data.avatar_url);
+
+      const user = authService.getCurrentUser() as { last_name?: string; first_name?: string; email?: string; username?: string; avatar_url?: string | null } | null;
+      if (user) {
+        user.avatar_url = data.avatar_url;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+
+      setSuccessMsg("Photo de profil mise à jour !");
+    } catch (error: unknown) {
+      console.error(error);
+      setAuthError((error as Error).message || "Erreur d'upload");
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = "";
     }
   };
 
@@ -170,6 +217,34 @@ export default function ProfilePage() {
             </form>
           ) : (
             <form onSubmit={handleSaveProfile} className="grid gap-4 md:grid-cols-2">
+              
+              <div className="col-span-full mb-4 flex flex-col items-center justify-center gap-3">
+                <div className="group relative h-24 w-24 overflow-hidden rounded-full border-4 border-[var(--stroke)] bg-[var(--surface-strong)] transition-all hover:border-[var(--brand-1)]">
+                  {avatarUrl ? (
+                    <Image src={avatarUrl} alt="Avatar" width={96} height={96} unoptimized className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[var(--brand-2)] to-[var(--brand-1)] text-3xl font-bold text-white">
+                      {(formData.username || formData.prenom || formData.email || "U").charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  
+                  <label className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                      <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    <input 
+                      type="file" 
+                      accept="image/png, image/jpeg, image/jpg, image/webp, image/gif" 
+                      className="hidden" 
+                      onChange={handleAvatarChange} 
+                      disabled={uploadingAvatar} 
+                    />
+                  </label>
+                </div>
+                {uploadingAvatar && <p className="text-xs text-[var(--brand-1)] animate-pulse">Upload en cours...</p>}
+              </div>
+
               <label className="flex flex-col gap-2 text-sm text-slate-200">
                 {t("last_name")}
                 <input className="w-full rounded-2xl border border-[var(--stroke)] bg-transparent px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]" name="nom" type="text" value={formData.nom} onChange={handleChange} />
@@ -206,7 +281,7 @@ export default function ProfilePage() {
               </label>
 
               {authError && <p className="col-span-full mt-2 text-sm text-rose-500 text-center">{authError}</p>}
-              {successMsg && <p className="col-span-full mt-2 text-sm text-green-400 text-center">{successMsg}</p>}
+              {successMsg && <p className="col-span-full mt-2 text-sm text-emerald-400 text-center">{successMsg}</p>}
 
               <div className="col-span-full mt-4 flex flex-wrap items-center gap-3">
                 <button

@@ -47,11 +47,14 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
   const currentUserId = authService.getCurrentUser()?.id ?? "";
 
+  // 🔴 LA CORRECTION EST ICI : On ajoute avatar_url et username dans le mapping !
   const mapFriends = useCallback(
     (users: UserSearchResult[]) =>
       users.map((user) => ({
         id: user.id,
         name: formatUserLabel(user),
+        username: user.username || user.first_name || "Ami",
+        avatar_url: user.avatar_url, 
         status: onlineUserIds.has(user.id) ? "En ligne" : "Hors ligne",
       })),
     [onlineUserIds]

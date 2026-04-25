@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { DmChannel, Friend } from "./types";
 
@@ -30,7 +30,7 @@ export default function ConversationsPage() {
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
   const [dmChannelByFriendId, setDmChannelByFriendId] = useState<Record<string, string>>({});
   
-  const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string} | null>(null);
+  const [currentDmUser, setCurrentDmUser] = useState<{name: string, status: string, avatar_url?: string | null} | null>(null);
   
   const menuRef = useRef<HTMLDivElement | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
@@ -179,10 +179,14 @@ export default function ConversationsPage() {
       return;
     }
 
-    // CORRECTION ESLINT : Typage propre sans "any"
     const f = friend as Friend & { username?: string };
     const friendName = f.username || f.name || "Utilisateur";
-    setCurrentDmUser({ name: friendName, status: friend.status || "Hors ligne" });
+    
+    setCurrentDmUser({ 
+      name: friendName, 
+      status: friend.status || "Hors ligne",
+      avatar_url: friend.avatar_url 
+    });
 
     try {
       const token = localStorage.getItem("token");
@@ -221,6 +225,25 @@ export default function ConversationsPage() {
       console.error(error);
     }
   };
+
+  const currentUser = authService.getCurrentUser() as { avatar_url?: string } | null;
+  const myAvatarUrl = currentUser?.avatar_url;
+
+  const messagesWithAvatars = useMemo(() => {
+    return chat.messages.map(msg => {
+      if (msg.user_id === currentUserId) {
+        return { ...msg, avatar_url: myAvatarUrl };
+      }
+      if (activeTab === "servers") {
+        const member = server.members.find(m => m.user_id === msg.user_id);
+        return { ...msg, avatar_url: member?.avatar_url };
+      }
+      if (activeTab === "friends") {
+        return { ...msg, avatar_url: currentDmUser?.avatar_url };
+      }
+      return msg;
+    });
+  }, [chat.messages, currentUserId, myAvatarUrl, activeTab, server.members, currentDmUser?.avatar_url]);
 
   if (!isReady) {
     return <LoadingScreen />;
@@ -420,7 +443,7 @@ export default function ConversationsPage() {
               channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
               selectedChannel={server.selectedChannel}
               selectedServer={server.selectedServerName}
-              messages={chat.messages}
+              messages={messagesWithAvatars}
               currentUserId={currentUserId}
               currentUserRole={server.currentUserRole}
               typingUsers={chat.typingUserNames}
@@ -436,12 +459,13 @@ export default function ConversationsPage() {
               channelName={currentFriendName}
               selectedChannel={activeDmChannel}
               selectedServer=""
-              messages={chat.messages}
+              messages={messagesWithAvatars}
               currentUserId={currentUserId}
               currentUserRole="member"
               typingUsers={chat.typingUserNames}
               isDm={true}
               friendStatus={currentFriendStatus}
+              friendAvatarUrl={currentDmUser?.avatar_url}
               onSendMessage={chat.handleSendMessage}
               onTyping={chat.handleTyping}
               onEditMessage={chat.handleEditMessage}

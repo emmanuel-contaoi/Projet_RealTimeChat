@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 # Framework web (AXUM - choisi pour le projet)
-axum = { version = "0.8", features = ["ws"] }
-tower-http = { version = "0.6", features = ["cors"] }
+axum = { version = "0.8", features = ["multipart", "ws"] }
+tower-http = { version = "0.6", features = ["cors", "fs"] }
 tokio = { version = "1", features = ["full"] }
 
 # --- Base de données SQL (Postgres) ---
