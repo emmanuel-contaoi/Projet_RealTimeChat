@@ -7,7 +7,8 @@
     "add": "Añadir",
     "delete": "Eliminar",
     "save": "Guardar",
-    "loading": "Cargando..."
+    "loading": "Cargando...",
+    "saving": "Guardando..."
   },
   "home": {
     "title": "Nexus - Proyecto Epitech 2026",
