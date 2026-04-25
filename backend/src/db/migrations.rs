@@ -149,4 +149,9 @@ pub async fn run_migrations(pool: &PgPool) {
     .execute(pool)
     .await
     .ok();
+
+    sqlx::query("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255) DEFAULT NULL")
+        .execute(pool)
+        .await
+        .expect("Migration avatar_url echouee");
 }
