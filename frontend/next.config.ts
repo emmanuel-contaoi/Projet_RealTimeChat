@@ -16,4 +16,4 @@ const nextConfig: NextConfig = {
   }),
 };
 
-export default isTauri ? nextConfig : withNextIntl(nextConfig);
+export default withNextIntl(nextConfig);

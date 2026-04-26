@@ -1,9 +1,14 @@
 import { getRequestConfig } from "next-intl/server";
-import { cookies } from "next/headers";
 
 export default getRequestConfig(async () => {
-  // Lit le cookie "locale" posé par le LanguageSwitcher
-  // Si absent → français par défaut
+  if (process.env.NEXT_TAURI === "1") {
+    return {
+      locale: "fr",
+      messages: (await import("../../messages/fr.json")).default,
+    };
+  }
+
+  const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   const locale = cookieStore.get("locale")?.value ?? "fr";
 
