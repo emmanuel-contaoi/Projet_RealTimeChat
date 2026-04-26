@@ -157,7 +157,7 @@ jobs:
 
       - name: Compiler l'application Tauri
         working-directory: ./frontend
-        run: npx tauri build
+        run: npx tauri build --bundles deb,rpm
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
