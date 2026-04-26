@@ -81,12 +81,12 @@ export default function useFriendSearch({ isReady, activeTab, onlineUserIds }: U
     if (!isReady) return;
     (async () => {
       try {
-        await refreshFriendsData();
+        await refreshFriendsDataRef.current();
       } catch (error) {
         setFriendSearchError(getErrorMessage(error, "Impossible de charger les donnees des amis."));
       }
     })();
-  }, [isReady, refreshFriendsData]);
+  }, [isReady]);
 
   // Mettre a jour le statut en ligne quand onlineUserIds change
   useEffect(() => {

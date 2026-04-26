@@ -335,10 +335,10 @@ export default function useChat(options?: UseChatOptions) {
           username: string;
         }>;
         setOnlineUserIds((prev) => {
+          const hasNew = users.some((u) => !prev.has(u.user_id));
+          if (!hasNew) return prev;
           const next = new Set(prev);
-          for (const u of users) {
-            next.add(u.user_id);
-          }
+          for (const u of users) next.add(u.user_id);
           return next;
         });
       }

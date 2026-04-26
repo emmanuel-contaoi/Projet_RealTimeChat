@@ -265,7 +265,7 @@ export default function ConversationsPage() {
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       {activeTab === "friends" && (
-        <div className="fixed right-4 top-4 z-[9999]">
+        <div className="fixed right-16 top-3 z-[9999] lg:right-4 lg:top-4">
           <LanguageSwitcher />
         </div>
       )}
