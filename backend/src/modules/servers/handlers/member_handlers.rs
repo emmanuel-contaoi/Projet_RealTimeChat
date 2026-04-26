@@ -550,4 +550,26 @@ mod tests {
             _ => panic!("unexpected update_member_role result"),
         }
     }
+
+    #[tokio::test]
+    async fn list_bans_and_unban_member_return_internal_errors_when_database_is_unavailable() {
+        let state = State(build_state().await);
+        let auth_user = Extension(AuthUser(build_user()));
+        let server_id = Uuid::new_v4();
+        let target_user_id = Uuid::new_v4();
+
+        match list_bans(state.clone(), auth_user.clone(), Path(server_id)).await {
+            Err(ServiceError::Internal(message)) => {
+                assert!(message.starts_with("Database error:"))
+            }
+            _ => panic!("expected Internal error for list_bans"),
+        }
+
+        match unban_member(state, auth_user, Path((server_id, target_user_id))).await {
+            Err(ServiceError::Internal(message)) => {
+                assert!(message.starts_with("Database error:"))
+            }
+            _ => panic!("expected Internal error for unban_member"),
+        }
+    }
 }

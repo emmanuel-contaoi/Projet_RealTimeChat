@@ -44,3 +44,34 @@ pub async fn test_app_state() -> crate::state::AppState {
         user_info: Arc::new(RwLock::new(HashMap::new())),
     }
 }
+
+#[cfg(test)]
+pub async fn live_pg_pool() -> Option<sqlx::PgPool> {
+    let url = std::env::var("DATABASE_URL").ok()?;
+    sqlx::PgPool::connect(&url).await.ok()
+}
+
+#[cfg(test)]
+pub async fn live_mongo_client() -> Option<mongodb::Client> {
+    let url =
+        std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
+    mongodb::Client::with_uri_str(&url).await.ok()
+}
+
+#[cfg(test)]
+pub async fn live_app_state() -> Option<crate::state::AppState> {
+    use crate::websocket::rooms::RoomManager;
+    use std::{collections::HashMap, sync::Arc};
+    use tokio::sync::{Mutex, RwLock};
+
+    let pool = live_pg_pool().await?;
+    let mongo = live_mongo_client().await?;
+
+    Some(crate::state::AppState {
+        pool,
+        mongo,
+        connections: Arc::new(RwLock::new(HashMap::new())),
+        room_manager: Arc::new(Mutex::new(RoomManager::new())),
+        user_info: Arc::new(RwLock::new(HashMap::new())),
+    })
+}

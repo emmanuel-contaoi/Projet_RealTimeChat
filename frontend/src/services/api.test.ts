@@ -1,6 +1,7 @@
-import { describe, expect, it } from "@jest/globals";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import axios from "axios";
 
-import { mapGiphyGif } from "./api";
+import { authService, gifService, mapGiphyGif } from "./api";
 
 describe("mapGiphyGif", () => {
   it("maps the animated and preview urls from the Giphy payload", () => {
@@ -64,5 +65,39 @@ describe("mapGiphyGif", () => {
         },
       })
     ).toBeNull();
+  });
+});
+
+describe("authService.getCurrentUser", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it("returns null when no user is stored in localStorage", () => {
+    expect(authService.getCurrentUser()).toBeNull();
+  });
+
+  it("returns the parsed user object when one is stored", () => {
+    const user = { id: "u1", email: "test@example.com" };
+    window.localStorage.setItem("user", JSON.stringify(user));
+    expect(authService.getCurrentUser()).toEqual(user);
+  });
+});
+
+describe("gifService", () => {
+  it("isConfigured returns false when GIPHY_API_KEY is not set", () => {
+    expect(gifService.isConfigured()).toBe(false);
+  });
+
+  it("trending throws when GIPHY_API_KEY is missing", async () => {
+    await expect(gifService.trending()).rejects.toThrow(
+      "NEXT_PUBLIC_GIPHY_API_KEY is missing"
+    );
+  });
+
+  it("search throws when GIPHY_API_KEY is missing", async () => {
+    await expect(gifService.search("cats")).rejects.toThrow(
+      "NEXT_PUBLIC_GIPHY_API_KEY is missing"
+    );
   });
 });

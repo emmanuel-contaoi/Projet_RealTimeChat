@@ -148,4 +148,29 @@ describe("useWebSocket", () => {
     expect(socketInstances).toHaveLength(2);
     expect(socketInstances[1].url).toBe("ws://localhost:3001/ws?token=token-123");
   });
+
+  it("closes the socket when an error occurs", () => {
+    renderHook(() => useWebSocket());
+
+    act(() => {
+      socketInstances[0].onerror?.();
+    });
+
+    expect(socketInstances[0].close).toHaveBeenCalled();
+  });
+
+  it("logs a warning when send is called while the socket is not open", () => {
+    const { result } = renderHook(() => useWebSocket());
+
+    socketInstances[0].readyState = 3;
+
+    act(() => {
+      result.current.sendMessage("ch-1", "hello");
+    });
+
+    expect(console.log).toHaveBeenCalledWith(
+      "[WS] Cannot send, ws not open. readyState:",
+      3
+    );
+  });
 });
