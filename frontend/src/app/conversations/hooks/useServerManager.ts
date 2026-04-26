@@ -105,6 +105,8 @@ export default function useServerManager({
   // Valeurs calculees a partir du state
   const selectedServerName =
     serverList.find((s) => s.id === selectedServer)?.name ?? "";
+  const selectedServerInviteCode =
+    serverList.find((s) => s.id === selectedServer)?.invite_code ?? "";
   const currentUserRole =
     members.find((m) => m.user_id === currentUserId)?.role ?? "";
   const canManageChannels =
@@ -501,6 +503,7 @@ export default function useServerManager({
     serverList,
     selectedServer,
     selectedServerName,
+    selectedServerInviteCode,
     setSelectedServer,
 
     // State des channels
