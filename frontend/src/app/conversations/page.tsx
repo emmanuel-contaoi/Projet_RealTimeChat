@@ -25,6 +25,7 @@ export default function ConversationsPage() {
   
   const [isMenuOpen, setIsMenuOpen] = useState(false); 
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isMembersPanelOpen, setIsMembersPanelOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<"servers" | "friends">("servers");
   const [activeDmChannel, setActiveDmChannel] = useState<string | null>(null);
@@ -303,78 +304,53 @@ export default function ConversationsPage() {
 
         <div
           ref={drawerRef}
-          className={`absolute inset-y-0 left-0 z-50 flex h-full w-[85vw] sm:w-[340px] snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth bg-[rgba(15,22,33,0.98)] transform transition-transform duration-300 ease-out [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] lg:static lg:w-auto lg:max-w-none lg:overflow-visible lg:bg-transparent lg:translate-x-0 lg:shadow-none ${
+          className={`absolute inset-y-0 left-0 z-50 flex h-full w-[85vw] sm:w-[400px] overflow-hidden bg-[rgba(15,22,33,0.98)] transform transition-transform duration-300 ease-out lg:static lg:w-auto lg:overflow-visible lg:bg-transparent lg:translate-x-0 lg:shadow-none ${
             isMobileDrawerOpen ? "translate-x-0 shadow-[10px_0_50px_rgba(0,0,0,0.8)]" : "-translate-x-full"
           }`}
         >
-          <div className="snap-start snap-always flex-shrink-0 h-full w-full transition-all duration-300 lg:w-auto flex">
-            <Sidebar
-              activeTab={activeTab}
-              serverList={server.serverList}
-              friendList={friends.friendList}
-              incomingFriendRequestCount={friends.incomingRequests.length}
-              unreadMessageCountByFriendId={unreadMessageCountByFriendId}
-              selectedServer={server.selectedServer}
-              selectedFriend={friends.selectedFriend}
-              currentUserRole={server.currentUserRole}
-              isMenuOpen={isMenuOpen} 
-              menuRef={menuRef}       
-              unreadChannels={activeTab === "friends" ? unreadDirectMessages : unreadChannelIds}
-              onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
-              onTabChange={async (tab) => {
-                setActiveTab(tab);
-                if (tab === "servers") {
-                  setActiveDmChannel(null);
-                  if (server.selectedChannel) {
-                    chat.setMessages([]);
-                    await chat.loadMessages(server.selectedChannel);
-                    chat.syncChannel(server.selectedChannel);
-                    chat.setActiveChannel(server.selectedChannel);
-                  }
-                }
-              }}
-              onSelectServer={(serverId) => {
-                server.setSelectedServer(serverId);
-                setActiveTab("servers");
+          <Sidebar
+            activeTab={activeTab}
+            serverList={server.serverList}
+            friendList={friends.friendList}
+            incomingFriendRequestCount={friends.incomingRequests.length}
+            unreadMessageCountByFriendId={unreadMessageCountByFriendId}
+            selectedServer={server.selectedServer}
+            selectedFriend={friends.selectedFriend}
+            currentUserRole={server.currentUserRole}
+            isMenuOpen={isMenuOpen}
+            menuRef={menuRef}
+            unreadChannels={activeTab === "friends" ? unreadDirectMessages : unreadChannelIds}
+            onToggleMenu={() => setIsMenuOpen((prev) => !prev)}
+            onTabChange={async (tab) => {
+              setActiveTab(tab);
+              if (tab === "servers") {
                 setActiveDmChannel(null);
-                
-                if (window.innerWidth < 1024 && drawerRef.current) {
-                  setTimeout(() => {
-                    const drawerWidth = drawerRef.current?.clientWidth || 0;
-                    drawerRef.current?.scrollTo({ left: drawerWidth, behavior: 'smooth' });
-                  }, 50);
+                if (server.selectedChannel) {
+                  chat.setMessages([]);
+                  await chat.loadMessages(server.selectedChannel);
+                  chat.syncChannel(server.selectedChannel);
+                  chat.setActiveChannel(server.selectedChannel);
                 }
-              }}
-              onCreateServer={() => server.setIsCreateServerOpen(true)}
-              onJoinServer={() => server.setIsJoinServerOpen(true)}
-              onLeaveServer={server.handleLeaveServer}
-              onDeleteServer={server.handleDeleteServer}
-              onUpdateServer={server.handleUpdateServer}
-              onEditProfile={() => { setIsMenuOpen(false); setIsMobileDrawerOpen(false); handleEditProfile(); }}
-              onLogout={() => { setIsMenuOpen(false); setIsMobileDrawerOpen(false); handleLogout(); }}
-              onSelectFriend={handleSelectFriend}
-              onRemoveFriend={friends.handleRemoveFriend}
-            />
-          </div>
+              }
+            }}
+            onSelectServer={(serverId) => {
+              server.setSelectedServer(serverId);
+              setActiveTab("servers");
+              setActiveDmChannel(null);
+            }}
+            onCreateServer={() => server.setIsCreateServerOpen(true)}
+            onJoinServer={() => server.setIsJoinServerOpen(true)}
+            onLeaveServer={server.handleLeaveServer}
+            onDeleteServer={server.handleDeleteServer}
+            onUpdateServer={server.handleUpdateServer}
+            onEditProfile={() => { setIsMenuOpen(false); setIsMobileDrawerOpen(false); handleEditProfile(); }}
+            onLogout={() => { setIsMenuOpen(false); setIsMobileDrawerOpen(false); handleLogout(); }}
+            onSelectFriend={handleSelectFriend}
+            onRemoveFriend={friends.handleRemoveFriend}
+          />
 
           {activeTab === "servers" && (
-            <div className="flex flex-col snap-start snap-always flex-shrink-0 h-full w-full lg:w-[240px] border-l border-[rgba(255,255,255,0.03)] bg-[rgba(20,28,39,0.98)] lg:bg-transparent lg:border-none">
-              <div className="flex items-center px-4 py-3 border-b border-[rgba(255,255,255,0.05)] lg:hidden">
-                <button
-                  onClick={() => {
-                    if (drawerRef.current) {
-                      drawerRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-                    }
-                  }}
-                  className="flex items-center gap-2 text-[0.85rem] font-medium text-slate-400 transition-colors hover:text-white"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 18 9 12 15 6"></polyline>
-                  </svg>
-                  Retour aux serveurs
-                </button>
-              </div>
-
+            <div className="flex flex-col flex-1 min-w-0 h-full border-l border-[rgba(255,255,255,0.03)] bg-[rgba(20,28,39,0.98)] lg:w-[240px] lg:flex-none lg:bg-transparent lg:border-none">
               <div className="min-h-0 flex-1">
                 <ChannelsPanel
                   channels={server.channels}
@@ -383,12 +359,8 @@ export default function ConversationsPage() {
                   unreadChannels={unreadChannelIds}
                   onSelectChannel={(channelId) => {
                     server.setSelectedChannel(channelId);
-                    
                     if (window.innerWidth < 1024) {
                       setIsMobileDrawerOpen(false);
-                      setTimeout(() => {
-                        drawerRef.current?.scrollTo({ left: 0 });
-                      }, 300);
                     }
                   }}
                   onDeleteChannel={server.handleDeleteChannel}
@@ -493,6 +465,23 @@ export default function ConversationsPage() {
           )}
         </div>
 
+        {/* Bouton membres — mobile only, à côté du hamburger */}
+        {activeTab === "servers" && server.selectedServer && (
+          <button
+            onClick={() => setIsMembersPanelOpen(true)}
+            className="absolute right-16 top-3 z-[60] flex h-10 w-10 items-center justify-center text-slate-300 transition-all hover:scale-110 hover:text-[var(--brand-1)] active:scale-95 lg:hidden"
+            aria-label="Membres"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </button>
+        )}
+
+        {/* Panel membres desktop — inchangé par rapport à l'original */}
         {activeTab === "servers" && (
           <div className="hidden w-[240px] flex-shrink-0 border-l border-[rgba(255,255,255,0.05)] xl:block">
             <MembersPanel
@@ -509,6 +498,37 @@ export default function ConversationsPage() {
           </div>
         )}
       </main>
+
+      {/* Drawer membres mobile — hors de main pour ne pas affecter le layout */}
+      {isMembersPanelOpen && (
+        <div className="fixed inset-0 z-[200] lg:hidden" onClick={() => setIsMembersPanelOpen(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="absolute inset-y-0 right-0 w-[75vw] sm:w-[300px] bg-[rgba(15,22,33,0.98)] shadow-[-10px_0_50px_rgba(0,0,0,0.8)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-[rgba(255,255,255,0.05)] px-4 py-3">
+              <span className="text-sm font-semibold text-slate-300">Membres</span>
+              <button onClick={() => setIsMembersPanelOpen(false)} className="text-slate-400 hover:text-white">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <MembersPanel
+              serverId={server.selectedServer || ""}
+              members={server.members}
+              onlineUserIds={chat.onlineUserIds}
+              currentUserId={currentUserId}
+              currentUserRole={server.currentUserRole}
+              onUpdateRole={server.handleUpdateRole}
+              onTransferOwnership={server.handleTransferOwnership}
+              onKickMember={server.handleKickMember}
+              onBanMember={server.handleBanMember}
+            />
+          </div>
+        </div>
+      )}
 
       <CreateServerModal
         isOpen={server.isCreateServerOpen}
