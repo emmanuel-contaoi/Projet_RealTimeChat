@@ -157,7 +157,6 @@ export default function useChat(options?: UseChatOptions) {
     // Tauri : notification OS native
     if ("__TAURI_INTERNALS__" in window) {
       // webpackIgnore: Tauri-only module, not available in browser build
-      // @ts-expect-error module only exists in Tauri runtime
       import(/* webpackIgnore: true */ "@tauri-apps/plugin-notification").then(
         ({ sendNotification, isPermissionGranted, requestPermission }: { sendNotification: (opts: { title: string; body: string }) => void; isPermissionGranted: () => Promise<boolean>; requestPermission: () => Promise<string> }) => {
           void isPermissionGranted().then((granted: boolean) => {
