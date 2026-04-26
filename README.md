@@ -134,3 +134,48 @@ Exemple :
 ```json
 { "type": "message_new", "id": "uuid", "channel_id": "uuid", "user_id": "uuid", "username": "alice", "content": "Hello!", "created_at": "2026-02-08T12:00:00+00:00" }
 ```
+
+
+## Swagger
+
+Documentation interactive de l’API disponible via Swagger UI.
+
+### Accès
+
+| Type            | URL                                      |
+|-----------------|------------------------------------------|
+| Swagger UI      | http://localhost:3001/swagger-ui/        |
+| OpenAPI JSON    | http://localhost:3001/api-docs/openapi.json |
+
+---
+
+### Description
+
+Swagger permet de visualiser toutes les routes de l’API, tester les endpoints directement depuis le navigateur et consulter les schémas de requêtes et réponses.
+
+---
+
+### Authentification
+
+Certaines routes nécessitent un token JWT.
+
+| Étape | Action |
+|------|--------|
+| 1 | POST /auth/signup ou POST /auth/login |
+| 2 | Copier le token JWT retourné |
+| 3 | Cliquer sur Authorize dans Swagger |
+| 4 | Entrer le token au format : Bearer <JWT> |
+
+Exemple : Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+---
+
+### Test rapide
+
+| Action       | Endpoint          |
+|-------------|-------------------|
+| Inscription | POST /auth/signup |
+| Connexion   | POST /auth/login  |
+| Profil      | GET /me           |
+
+Une fois authentifié, toutes les routes protégées deviennent testables directement dans Swagger.
