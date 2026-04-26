@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, Space_Grotesk } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import type { AbstractIntlMessages } from "next-intl";
 import "./globals.css";
 
 const bodyFont = Sora({
@@ -27,8 +28,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLocale();
-  const messages = await getMessages();
+  const isTauri = process.env.NEXT_TAURI === "1";
+  const locale = isTauri ? "fr" : await getLocale();
+  const messages: AbstractIntlMessages = isTauri
+    ? ((await import("../../messages/fr.json")).default as AbstractIntlMessages)
+    : await getMessages();
 
   return (
     <html lang={locale}>
