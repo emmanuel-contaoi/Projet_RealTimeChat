@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { gifService } from "@/services/api";
 import type { GifItem } from "@/services/api";
-import type { ChannelMessage } from "../types";
+import type { ChannelMessage, Member } from "../types"; // 🔴 AJOUT DE Member
 import { isGifUrl } from "../utils";
 
 type ChatPanelProps = {
@@ -20,6 +20,8 @@ type ChatPanelProps = {
   isDm?: boolean;
   friendStatus?: string;
   friendAvatarUrl?: string | null;
+  myAvatarUrl?: string | null; // 🔴 AJOUT DU BACKUP AVATAR
+  serverMembers?: Member[];    // 🔴 AJOUT DE LA LISTE DES MEMBRES
   onSendMessage: (content: string) => void;
   onTyping: () => void;
   onEditMessage: (messageId: string, content: string) => void;
@@ -61,6 +63,8 @@ export default function ChatPanel({
   isDm,
   friendStatus,
   friendAvatarUrl,
+  myAvatarUrl,
+  serverMembers,
   onSendMessage,
   onTyping,
   onEditMessage,
@@ -83,7 +87,6 @@ export default function ChatPanel({
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [reactionPickerDirection, setReactionPickerDirection] = useState<"up" | "down">("up");
   const [openMessageMenuId, setOpenMessageMenuId] = useState<string | null>(null);
-  const [messageMenuDirection, setMessageMenuDirection] = useState<"up" | "down">("up");
   const emojiPickerRef = useRef<HTMLDivElement | null>(null);
   const gifPickerRef = useRef<HTMLDivElement | null>(null);
   const reactionPickerRef = useRef<HTMLDivElement | null>(null);
@@ -215,7 +218,7 @@ export default function ChatPanel({
           
           {isDm ? (
             <div className="relative shrink-0">
-              {friendAvatarUrl ? (
+              {friendAvatarUrl && friendAvatarUrl !== "null" ? (
                 <Image src={friendAvatarUrl} alt={channelName} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_2px_8px_rgba(0,0,0,0.2)]" />
               ) : (
                 <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${getColorFromName(channelName || "A")} text-[1.1rem] font-semibold text-white shadow-[0_2px_8px_rgba(0,0,0,0.2)]`}>
@@ -260,13 +263,36 @@ export default function ChatPanel({
           <div className="px-2">
             {messageGroups.map((group) => {
               const firstMessage = group.items[0];
-              const isMe = firstMessage.user_id === currentUserId;
+              const isMe = String(firstMessage.user_id) === String(currentUserId);
               
               const realName = firstMessage.username || "Utilisateur";
               const displayName = isMe ? t("me") : realName;
               const avatarInitial = realName.charAt(0).toUpperCase();
               const avatarColor = getColorFromName(realName);
-              const messageAvatarUrl = firstMessage.avatar_url;
+              
+              // 🔴 LOGIQUE EN BÉTON ARMÉ : On cherche l'avatar partout au moment de l'affichage
+              let messageAvatarUrl = firstMessage.avatar_url;
+              if (messageAvatarUrl === "null") messageAvatarUrl = undefined;
+
+              if (!messageAvatarUrl) {
+                if (!isDm && serverMembers) {
+                  // Priorité 1 : La liste des membres à droite (Celle qui a ta photo !)
+                  const member = serverMembers.find(m => String(m.user_id) === String(firstMessage.user_id));
+                  if (member?.avatar_url && member.avatar_url !== "null") {
+                    messageAvatarUrl = member.avatar_url;
+                  }
+                }
+                
+                // Priorité 2 : Si c'est en privé et que c'est l'autre personne
+                if (!messageAvatarUrl && isDm && !isMe && friendAvatarUrl && friendAvatarUrl !== "null") {
+                  messageAvatarUrl = friendAvatarUrl;
+                }
+
+                // Priorité 3 : La session locale pour toi-même
+                if (!messageAvatarUrl && isMe && myAvatarUrl && myAvatarUrl !== "null") {
+                  messageAvatarUrl = myAvatarUrl;
+                }
+              }
 
               return (
                 <div key={group.id} className={group.showDateSeparator ? "space-y-3" : "pt-3"}>
@@ -285,23 +311,30 @@ export default function ChatPanel({
                     </div>
                   ) : null}
 
-                  <div className="group relative flex w-full justify-start mx-2 px-3 py-2 rounded-xl transition-all duration-300 hover:bg-white/[0.04] mb-1">
-                    <article className="overflow-visible max-w-[75%] relative">
-                      <div className="flex items-start gap-2.5">
-                        <div className="relative shrink-0">
-                          <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
-                            {avatarInitial}
-                          </div>
+                  <div className={`group relative flex w-full justify-start px-3 py-2 rounded-xl transition-all duration-300 hover:bg-white/[0.04] mb-1`}>
+                    <article className="overflow-visible max-w-[85%] relative">
+                      <div className="flex items-start gap-3">
+                        
+                        <div className="relative shrink-0 mt-0.5">
+                          {messageAvatarUrl ? (
+                            <Image src={messageAvatarUrl} alt={realName} width={36} height={36} unoptimized className="h-9 w-9 rounded-full object-cover shadow-[0_6px_18px_rgba(0,0,0,0.22)]" />
+                          ) : (
+                            <div className={`flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br ${avatarColor} text-[13px] font-semibold text-white shadow-[0_6px_18px_rgba(0,0,0,0.22)]`}>
+                              {avatarInitial}
+                            </div>
+                          )}
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                            <p className="text-[0.94rem] font-semibold leading-none text-white">{displayName}</p>
+                          <div className="mb-1 flex flex-wrap items-baseline gap-2">
                             {isMe ? (
                               <span className="rounded-lg border border-[rgba(21,209,255,0.3)] bg-[rgba(21,209,255,0.14)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--brand-1)]">
                                 Vous
                               </span>
                             ) : null}
+                            <span className="text-[0.94rem] font-semibold leading-none text-white">
+                              {displayName}
+                            </span>
                             {firstMessage.created_at ? (
                               <span className="text-[11px] text-slate-500">
                                 {new Date(firstMessage.created_at).toLocaleTimeString("fr-FR", {
@@ -315,7 +348,7 @@ export default function ChatPanel({
                           <div className="space-y-1">
                             {group.items.map((message, messageIndex) => {
                               const canDelete =
-                                message.user_id === currentUserId ||
+                                String(message.user_id) === String(currentUserId) ||
                                 currentUserRole === "owner" ||
                                 currentUserRole === "admin";
 
@@ -458,9 +491,7 @@ export default function ChatPanel({
                                       <button
                                         type="button"
                                         className="flex h-7.5 w-7.5 items-center justify-center rounded-[10px] bg-[rgba(47,61,84,0.96)] text-slate-300 transition hover:bg-[rgba(60,77,104,0.96)] hover:text-white"
-                                        onClick={(e) => {
-                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                          setMessageMenuDirection(rect.top > window.innerHeight / 2 ? "up" : "down");
+                                        onClick={() => {
                                           setOpenMessageMenuId((prev) => (prev === message.id ? null : message.id!));
                                         }}
                                         title="Options"
@@ -473,8 +504,8 @@ export default function ChatPanel({
                                       </button>
 
                                       {openMessageMenuId === message.id ? (
-                                        <div className={`absolute z-[100] min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] left-0 ${messageMenuDirection === "up" ? "bottom-full mb-2" : "top-full mt-2"}`}>
-                                          {message.user_id === currentUserId ? (
+                                        <div className="absolute top-10 z-[100] min-w-[150px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)] left-0">
+                                          {String(message.user_id) === String(currentUserId) ? (
                                             <button
                                               type="button"
                                               className="flex w-full items-center rounded-[12px] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-[rgba(21,209,255,0.1)] hover:text-white"
