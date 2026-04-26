@@ -305,13 +305,13 @@ pub async fn delete_avatar(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::jwt::create_token;
     use axum::{
         body::Body,
         http::{header::AUTHORIZATION, HeaderMap, Request, StatusCode as HttpStatus},
         routing::post,
         Router,
     };
-    use crate::utils::jwt::create_token;
     use tower::util::ServiceExt;
 
     async fn build_state() -> AppState {

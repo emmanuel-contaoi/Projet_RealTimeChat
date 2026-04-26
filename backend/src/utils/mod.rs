@@ -53,8 +53,8 @@ pub async fn live_pg_pool() -> Option<sqlx::PgPool> {
 
 #[cfg(test)]
 pub async fn live_mongo_client() -> Option<mongodb::Client> {
-    let url = std::env::var("MONGODB_URI")
-        .unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
+    let url =
+        std::env::var("MONGODB_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
     mongodb::Client::with_uri_str(&url).await.ok()
 }
 

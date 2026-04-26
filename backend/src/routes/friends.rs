@@ -399,21 +399,37 @@ mod tests {
 
         let email1 = format!("cov_fr1_{}@test.example", Uuid::new_v4());
         let email2 = format!("cov_fr2_{}@test.example", Uuid::new_v4());
-        let u1 = create_live_user(&pool, &email1, &format!("fr1_{}", &Uuid::new_v4().to_string()[..8])).await;
-        let u2 = create_live_user(&pool, &email2, &format!("fr2_{}", &Uuid::new_v4().to_string()[..8])).await;
+        let u1 = create_live_user(
+            &pool,
+            &email1,
+            &format!("fr1_{}", &Uuid::new_v4().to_string()[..8]),
+        )
+        .await;
+        let u2 = create_live_user(
+            &pool,
+            &email2,
+            &format!("fr2_{}", &Uuid::new_v4().to_string()[..8]),
+        )
+        .await;
 
         let auth1 = axum::extract::Extension(AuthUser(u1.clone()));
         let auth2 = axum::extract::Extension(AuthUser(u2.clone()));
         let s = State(state.clone());
 
         // list_friends (empty)
-        let friends = list_friends(s.clone(), auth1.clone()).await.expect("list_friends ok");
+        let friends = list_friends(s.clone(), auth1.clone())
+            .await
+            .expect("list_friends ok");
         assert!(friends.0.is_empty());
 
         // list_incoming and outgoing (empty)
-        let incoming = list_incoming_requests(s.clone(), auth1.clone()).await.expect("incoming ok");
+        let incoming = list_incoming_requests(s.clone(), auth1.clone())
+            .await
+            .expect("incoming ok");
         assert!(incoming.0.is_empty());
-        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone())
+            .await
+            .expect("outgoing ok");
         assert!(outgoing.0.is_empty());
 
         // send friend request u1 → u2
@@ -427,11 +443,15 @@ mod tests {
         assert_eq!(send_result, StatusCode::CREATED);
 
         // outgoing now has one request
-        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone())
+            .await
+            .expect("outgoing ok");
         let request_id = outgoing.0[0].id;
 
         // incoming for u2
-        let incoming = list_incoming_requests(s.clone(), auth2.clone()).await.expect("incoming ok");
+        let incoming = list_incoming_requests(s.clone(), auth2.clone())
+            .await
+            .expect("incoming ok");
         assert_eq!(incoming.0.len(), 1);
 
         // cancel the request
@@ -448,7 +468,9 @@ mod tests {
         )
         .await
         .expect("re-send ok");
-        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone())
+            .await
+            .expect("outgoing ok");
         let request_id2 = outgoing.0[0].id;
 
         let reject_result = reject_friend_request(s.clone(), auth2.clone(), Path(request_id2))
@@ -464,7 +486,9 @@ mod tests {
         )
         .await
         .expect("third send ok");
-        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone())
+            .await
+            .expect("outgoing ok");
         let request_id3 = outgoing.0[0].id;
 
         let accept_result = accept_friend_request(s.clone(), auth2.clone(), Path(request_id3))
@@ -473,7 +497,9 @@ mod tests {
         assert_eq!(accept_result, StatusCode::OK);
 
         // list friends now has u2
-        let friends = list_friends(s.clone(), auth1.clone()).await.expect("list ok");
+        let friends = list_friends(s.clone(), auth1.clone())
+            .await
+            .expect("list ok");
         assert_eq!(friends.0.len(), 1);
 
         // remove friend

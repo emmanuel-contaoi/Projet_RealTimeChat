@@ -106,7 +106,7 @@ mod tests {
         let email2 = format!("cov_dm2_{}@test.example", Uuid::new_v4());
 
         let u1 = sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *"
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
         )
         .bind(&email1)
         .bind("hashed")
@@ -115,7 +115,7 @@ mod tests {
         .expect("create u1 failed");
 
         let u2 = sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *"
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
         )
         .bind(&email2)
         .bind("hashed")
@@ -129,7 +129,9 @@ mod tests {
         let result = get_or_create_dm(
             State(state.clone()),
             auth1.clone(),
-            Json(CreateDmRequest { target_user_id: u2.id }),
+            Json(CreateDmRequest {
+                target_user_id: u2.id,
+            }),
         )
         .await
         .expect("get_or_create_dm should succeed");
@@ -139,7 +141,9 @@ mod tests {
         let result2 = get_or_create_dm(
             State(state),
             auth1,
-            Json(CreateDmRequest { target_user_id: u2.id }),
+            Json(CreateDmRequest {
+                target_user_id: u2.id,
+            }),
         )
         .await
         .expect("get_or_create_dm should return existing");
