@@ -110,6 +110,72 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn register_and_login_succeed_with_real_database() {
+        let pool = match crate::utils::live_pg_pool().await {
+            Some(p) => p,
+            None => return,
+        };
+        let email = format!("cov_auth_{}@test.example", uuid::Uuid::new_v4());
+        let username = format!("cov_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+
+        let response = AuthService::register(
+            &pool,
+            RegisterRequest {
+                email: email.clone(),
+                password: "password123".to_string(),
+                first_name: Some("Test".to_string()),
+                last_name: Some("Coverage".to_string()),
+                username: Some(username.clone()),
+                avatar_url: None,
+            },
+        )
+        .await
+        .expect("registration should succeed");
+        assert!(!response.token.is_empty());
+
+        let dup = AuthService::register(
+            &pool,
+            RegisterRequest {
+                email: email.clone(),
+                password: "other".to_string(),
+                first_name: None,
+                last_name: None,
+                username: Some(format!("cov_{}", &uuid::Uuid::new_v4().to_string()[..8])),
+                avatar_url: None,
+            },
+        )
+        .await;
+        assert!(matches!(dup, Err(ServiceError::Conflict(_))));
+
+        let login = AuthService::login(
+            &pool,
+            LoginRequest {
+                email: email.clone(),
+                password: "password123".to_string(),
+            },
+        )
+        .await
+        .expect("login should succeed");
+        assert!(!login.token.is_empty());
+
+        let bad_login = AuthService::login(
+            &pool,
+            LoginRequest {
+                email: email.clone(),
+                password: "wrong".to_string(),
+            },
+        )
+        .await;
+        assert!(matches!(bad_login, Err(ServiceError::Unauthorized(_))));
+
+        sqlx::query("DELETE FROM users WHERE email = $1")
+            .bind(&email)
+            .execute(&pool)
+            .await
+            .expect("cleanup failed");
+    }
+
+    #[tokio::test]
     async fn register_and_login_return_internal_errors_when_database_is_unavailable() {
         let pool = crate::utils::test_pg_pool();
 

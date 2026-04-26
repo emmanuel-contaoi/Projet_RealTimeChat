@@ -151,6 +151,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn register_and_login_handlers_succeed_with_real_database() {
+        let state = match crate::utils::live_app_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let email = format!("cov_route_auth_{}@test.example", Uuid::new_v4());
+        let username = format!("cov_{}", &Uuid::new_v4().to_string()[..8]);
+
+        let reg = register(
+            State(state.clone()),
+            Json(RegisterRequest {
+                email: email.clone(),
+                password: "password123".to_string(),
+                first_name: Some("Test".to_string()),
+                last_name: None,
+                username: Some(username),
+                avatar_url: None,
+            }),
+        )
+        .await
+        .expect("register handler should succeed");
+        assert!(!reg.0.token.is_empty());
+
+        let log = login(
+            State(state.clone()),
+            Json(LoginRequest {
+                email: email.clone(),
+                password: "password123".to_string(),
+            }),
+        )
+        .await
+        .expect("login handler should succeed");
+        assert!(!log.0.token.is_empty());
+
+        sqlx::query("DELETE FROM users WHERE email = $1")
+            .bind(&email)
+            .execute(&state.pool)
+            .await
+            .expect("cleanup failed");
+    }
+
+    #[tokio::test]
     async fn login_returns_internal_error_when_database_is_unavailable() {
         let result = login(
             State(build_state().await),

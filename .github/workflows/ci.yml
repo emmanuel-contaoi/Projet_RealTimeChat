@@ -109,7 +109,7 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Lancer les tests frontend avec couverture
+      - name: Lancer les tests frontend
         working-directory: ./frontend
         run: npx jest --runInBand --coverage --passWithNoTests
 

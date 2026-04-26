@@ -54,3 +54,111 @@ pub async fn get_or_create_dm(
 
     Ok(Json(new_dm))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{models::User, utils::auth::AuthUser};
+    use chrono::Utc;
+    use uuid::Uuid;
+
+    async fn build_state() -> AppState {
+        crate::utils::test_app_state().await
+    }
+
+    fn build_user(id: Uuid) -> User {
+        User {
+            id,
+            email: "alice@example.com".to_string(),
+            password_hash: "hashed".to_string(),
+            first_name: Some("Alice".to_string()),
+            last_name: Some("Martin".to_string()),
+            username: Some("alice".to_string()),
+            avatar_url: None,
+            created_at: Utc::now(),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_or_create_dm_returns_server_error_when_database_is_unavailable() {
+        let user_id = Uuid::new_v4();
+        let result = get_or_create_dm(
+            State(build_state().await),
+            axum::extract::Extension(AuthUser(build_user(user_id))),
+            Json(CreateDmRequest {
+                target_user_id: Uuid::new_v4(),
+            }),
+        )
+        .await;
+
+        assert!(matches!(result, Err(StatusCode::INTERNAL_SERVER_ERROR)));
+    }
+
+    #[tokio::test]
+    async fn get_or_create_dm_creates_and_returns_channel_with_real_database() {
+        let state = match crate::utils::live_app_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let pool = state.pool.clone();
+
+        let email1 = format!("cov_dm1_{}@test.example", Uuid::new_v4());
+        let email2 = format!("cov_dm2_{}@test.example", Uuid::new_v4());
+
+        let u1 = sqlx::query_as::<_, User>(
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
+        )
+        .bind(&email1)
+        .bind("hashed")
+        .fetch_one(&pool)
+        .await
+        .expect("create u1 failed");
+
+        let u2 = sqlx::query_as::<_, User>(
+            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
+        )
+        .bind(&email2)
+        .bind("hashed")
+        .fetch_one(&pool)
+        .await
+        .expect("create u2 failed");
+
+        let auth1 = axum::extract::Extension(AuthUser(u1.clone()));
+
+        // First call creates the DM channel
+        let result = get_or_create_dm(
+            State(state.clone()),
+            auth1.clone(),
+            Json(CreateDmRequest {
+                target_user_id: u2.id,
+            }),
+        )
+        .await
+        .expect("get_or_create_dm should succeed");
+        let dm_id = result.0.id;
+
+        // Second call returns existing channel
+        let result2 = get_or_create_dm(
+            State(state),
+            auth1,
+            Json(CreateDmRequest {
+                target_user_id: u2.id,
+            }),
+        )
+        .await
+        .expect("get_or_create_dm should return existing");
+        assert_eq!(result2.0.id, dm_id);
+
+        sqlx::query("DELETE FROM dm_channels WHERE id = $1")
+            .bind(dm_id)
+            .execute(&pool)
+            .await
+            .expect("cleanup dm failed");
+        sqlx::query("DELETE FROM users WHERE email = $1 OR email = $2")
+            .bind(&email1)
+            .bind(&email2)
+            .execute(&pool)
+            .await
+            .expect("cleanup users failed");
+    }
+}
