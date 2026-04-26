@@ -149,14 +149,12 @@ export default function useChat(options?: UseChatOptions) {
     if (typeof window === "undefined") return;
 
     const currentUser = authService.getCurrentUser() as { id?: string } | null;
-    if (message.user_id === currentUser?.id) return;
+    if (String(message.user_id) === String(currentUser?.id)) return;
 
     const title = `Nouveau message de ${message.username}`;
     const body = formatNewMessageCount(newMessageCount);
 
-    // Tauri : notification OS native
     if ("__TAURI_INTERNALS__" in window) {
-      // webpackIgnore: Tauri-only module, not available in browser build
       import(/* webpackIgnore: true */ "@tauri-apps/plugin-notification").then(
         ({ sendNotification, isPermissionGranted, requestPermission }: { sendNotification: (opts: { title: string; body: string }) => void; isPermissionGranted: () => Promise<boolean>; requestPermission: () => Promise<string> }) => {
           void isPermissionGranted().then((granted: boolean) => {
@@ -173,7 +171,6 @@ export default function useChat(options?: UseChatOptions) {
       return;
     }
 
-    // Navigateur : Web Notification API
     if (!("Notification" in window)) return;
 
     const showNotification = () => {
@@ -212,7 +209,7 @@ export default function useChat(options?: UseChatOptions) {
 
   const pushToastNotification = useCallback((message: ChannelMessage, newMessageCount = 1) => {
     const currentUser = authService.getCurrentUser() as { id?: string } | null;
-    if (message.user_id === currentUser?.id) return;
+    if (String(message.user_id) === String(currentUser?.id)) return;
 
     const toastId = `chat-${message.channel_id}`;
 
@@ -246,15 +243,18 @@ export default function useChat(options?: UseChatOptions) {
   const handleWsMessage = useCallback(
     (event: { type: string; [key: string]: unknown }) => {
       if (event.type === "message_new") {
-        const msgChannelId = event.channel_id as string;
+        const msgChannelId = String(event.channel_id);
         const currentUser = authService.getCurrentUser() as { id?: string } | null;
+        
+        // 🔴 CORRECTION MAJEURE ICI : On cast tout en String
         const msg: ChannelMessage = {
-          id: event.id as string | undefined,
+          id: event.id ? String(event.id) : undefined,
           channel_id: msgChannelId,
-          user_id: event.user_id as string,
-          username: event.username as string,
-          content: event.content as string,
-          created_at: event.created_at as string | undefined,
+          user_id: String(event.user_id),
+          username: String(event.username),
+          avatar_url: typeof event.avatar_url === "string" ? event.avatar_url : undefined,
+          content: String(event.content),
+          created_at: event.created_at ? String(event.created_at) : undefined,
           reactions: normalizeReactions(event.reactions),
         };
 
@@ -263,7 +263,7 @@ export default function useChat(options?: UseChatOptions) {
           seenMessageIdsRef.current.add(msg.id);
         }
 
-        const isOwnMessage = msg.user_id === currentUser?.id;
+        const isOwnMessage = msg.user_id === String(currentUser?.id);
 
         if (msgChannelId === activeChannelRef.current) {
           setMessages((prev) => [...prev, msg]);
@@ -289,7 +289,7 @@ export default function useChat(options?: UseChatOptions) {
       }
 
       if (event.type === "user_connected") {
-        const uid = event.user_id as string;
+        const uid = String(event.user_id);
         setOnlineUserIds((prev) => {
           const next = new Set(prev);
           next.add(uid);
@@ -298,7 +298,7 @@ export default function useChat(options?: UseChatOptions) {
       }
 
       if (event.type === "user_disconnected") {
-        const uid = event.user_id as string;
+        const uid = String(event.user_id);
         setOnlineUserIds((prev) => {
           const next = new Set(prev);
           next.delete(uid);
@@ -307,10 +307,10 @@ export default function useChat(options?: UseChatOptions) {
       }
 
       if (event.type === "user_typing") {
-        const uid = event.user_id as string;
-        const uname = event.username as string;
+        const uid = String(event.user_id);
+        const uname = String(event.username);
         
-        if (event.channel_id !== activeChannelRef.current) return;
+        if (String(event.channel_id) !== activeChannelRef.current) return;
 
         setTypingUsers((prev) => {
           if (prev[uid]) clearTimeout(prev[uid].timer);
@@ -326,20 +326,20 @@ export default function useChat(options?: UseChatOptions) {
       }
 
       if (event.type === "message_edited") {
-        const mid = event.message_id as string;
-        const content = event.content as string;
+        const mid = String(event.message_id);
+        const content = String(event.content);
         setMessages((prev) =>
           prev.map((m) => (m.id === mid ? { ...m, content } : m))
         );
       }
 
       if (event.type === "message_deleted") {
-        const mid = event.message_id as string;
+        const mid = String(event.message_id);
         setMessages((prev) => prev.filter((m) => m.id !== mid));
       }
 
       if (event.type === "message_reaction_updated") {
-        const mid = event.message_id as string;
+        const mid = String(event.message_id);
         const reactions = normalizeReactions(event.reactions);
         setMessages((prev) =>
           prev.map((m) => (m.id === mid ? { ...m, reactions } : m))
@@ -352,14 +352,14 @@ export default function useChat(options?: UseChatOptions) {
 
       if (event.type === "channel_users") {
         const users = event.users as Array<{
-          user_id: string;
-          username: string;
+          user_id: unknown;
+          username: unknown;
         }>;
         setOnlineUserIds((prev) => {
-          const hasNew = users.some((u) => !prev.has(u.user_id));
+          const hasNew = users.some((u) => !prev.has(String(u.user_id)));
           if (!hasNew) return prev;
           const next = new Set(prev);
-          for (const u of users) next.add(u.user_id);
+          for (const u of users) next.add(String(u.user_id));
           return next;
         });
       }
@@ -378,14 +378,24 @@ export default function useChat(options?: UseChatOptions) {
     setTypingUsers({});
     try {
       const data = await messagesService.history(channelId);
-      const nextMessages = Array.isArray(data)
-        ? data.map((msg) => ({
-            ...msg,
-            reactions: normalizeReactions(
-              (msg as { reactions?: unknown }).reactions
-            ),
-          }))
+      
+      // 🔴 CORRECTION MAJEURE ICI : Création explicite du message sans spread operator
+      const nextMessages: ChannelMessage[] = Array.isArray(data)
+        ? data.map((item) => {
+            const msg = item as Record<string, unknown>;
+            return {
+              id: msg.id ? String(msg.id) : undefined,
+              channel_id: msg.channel_id ? String(msg.channel_id) : channelId,
+              user_id: String(msg.user_id),
+              username: String(msg.username),
+              avatar_url: typeof msg.avatar_url === "string" ? msg.avatar_url : undefined,
+              content: String(msg.content),
+              created_at: msg.created_at ? String(msg.created_at) : undefined,
+              reactions: normalizeReactions(msg.reactions),
+            };
+          })
         : [];
+        
       nextMessages.forEach((message) => {
         if (message.id) {
           seenMessageIdsRef.current.add(message.id);

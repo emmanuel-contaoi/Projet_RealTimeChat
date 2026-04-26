@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DmChannel, Friend } from "./types";
 
@@ -18,7 +18,6 @@ import FriendsPanel from "./components/FriendsPanel";
 import LoadingScreen from "./components/LoadingScreen";
 import MembersPanel from "./components/MembersPanel";
 import Sidebar from "./components/Sidebar";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function ConversationsPage() {
   const router = useRouter();
@@ -43,7 +42,7 @@ export default function ConversationsPage() {
     const token = localStorage.getItem("token");
     const user = token ? authService.getCurrentUser() : null;
     if (token && user?.id) {
-      setAuth({ isReady: true, currentUserId: user.id });
+      setAuth({ isReady: true, currentUserId: String(user.id) });
     } else {
       router.replace("/login");
     }
@@ -230,22 +229,6 @@ export default function ConversationsPage() {
   const currentUser = authService.getCurrentUser() as { avatar_url?: string } | null;
   const myAvatarUrl = currentUser?.avatar_url;
 
-  const messagesWithAvatars = useMemo(() => {
-    return chat.messages.map(msg => {
-      if (msg.user_id === currentUserId) {
-        return { ...msg, avatar_url: myAvatarUrl };
-      }
-      if (activeTab === "servers") {
-        const member = server.members.find(m => m.user_id === msg.user_id);
-        return { ...msg, avatar_url: member?.avatar_url };
-      }
-      if (activeTab === "friends") {
-        return { ...msg, avatar_url: currentDmUser?.avatar_url };
-      }
-      return msg;
-    });
-  }, [chat.messages, currentUserId, myAvatarUrl, activeTab, server.members, currentDmUser?.avatar_url]);
-
   if (!isReady) {
     return <LoadingScreen />;
   }
@@ -265,11 +248,6 @@ export default function ConversationsPage() {
 
   return (
     <div className="relative flex h-screen max-h-screen flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
-      {activeTab === "friends" && (
-        <div className="fixed right-16 top-3 z-[9999] lg:right-4 lg:top-4">
-          <LanguageSwitcher />
-        </div>
-      )}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(21,209,255,0.16),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(47,123,255,0.18),_transparent_34%)]" />
 
       <ConversationsHeader />
@@ -415,10 +393,12 @@ export default function ConversationsPage() {
               channelName={server.channels.find((c) => c.id === server.selectedChannel)?.name ?? ""}
               selectedChannel={server.selectedChannel}
               selectedServer={server.selectedServerName}
-              messages={messagesWithAvatars}
+              messages={chat.messages} // 🔴 Fini le trafic en arrière-plan, on envoie les vrais messages !
               currentUserId={currentUserId}
               currentUserRole={server.currentUserRole}
               typingUsers={chat.typingUserNames}
+              myAvatarUrl={myAvatarUrl} // On l'envoie direct
+              serverMembers={server.members} // On envoie la liste qui MARCHE (celle de droite)
               onSendMessage={chat.handleSendMessage}
               onTyping={chat.handleTyping}
               onEditMessage={chat.handleEditMessage}
@@ -431,13 +411,14 @@ export default function ConversationsPage() {
               channelName={currentFriendName}
               selectedChannel={activeDmChannel}
               selectedServer=""
-              messages={messagesWithAvatars}
+              messages={chat.messages}
               currentUserId={currentUserId}
               currentUserRole="member"
               typingUsers={chat.typingUserNames}
               isDm={true}
               friendStatus={currentFriendStatus}
               friendAvatarUrl={currentDmUser?.avatar_url}
+              myAvatarUrl={myAvatarUrl}
               onSendMessage={chat.handleSendMessage}
               onTyping={chat.handleTyping}
               onEditMessage={chat.handleEditMessage}
