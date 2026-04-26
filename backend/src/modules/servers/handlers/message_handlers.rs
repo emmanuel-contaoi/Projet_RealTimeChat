@@ -267,6 +267,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_chat_history_and_send_message_return_internal_errors_when_backends_are_unavailable(
+    ) {
+        let state = State(build_state().await);
+        let auth_user = Extension(AuthUser(build_user()));
+        let channel_id = Uuid::new_v4();
+
+        match get_chat_history(state.clone(), auth_user.clone(), Path(channel_id)).await {
+            Err(ServiceError::Internal(_)) => {}
+            _ => panic!("expected Internal error for get_chat_history"),
+        }
+
+        match send_message(
+            state,
+            auth_user,
+            Path(channel_id),
+            Json(CreateMessageRequest {
+                content: "hello".to_string(),
+            }),
+        )
+        .await
+        {
+            Err(ServiceError::Internal(_)) => {}
+            _ => panic!("expected Internal error for send_message"),
+        }
+    }
+
+    #[tokio::test]
     async fn edit_message_returns_bad_request_for_invalid_message_id() {
         let state = build_state().await;
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();

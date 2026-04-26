@@ -74,4 +74,27 @@ describe("ConnexionPage", () => {
     ).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it("shows the fallback error when login fails without a response body", async () => {
+    jest.spyOn(authService, "login").mockRejectedValueOnce({
+      response: { data: "" },
+    });
+
+    render(
+      <AppRouterContext.Provider value={mockRouter}>
+        <ConnexionPage />
+      </AppRouterContext.Provider>
+    );
+
+    fireEvent.change(screen.getByLabelText("Email"), {
+      target: { value: "manu@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Mot de passe"), {
+      target: { value: "bad-password" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Se connecter" }));
+
+    expect(await screen.findByText("Identifiants invalides")).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
 });

@@ -529,4 +529,222 @@ describe("useServerManager", () => {
     expect(result.current.members).toEqual([]);
     expect(setMessages).toHaveBeenCalledWith([]);
   });
+
+  it("shows an alert when handleLeaveServer fails", async () => {
+    jest.spyOn(serversService, "leave").mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.selectedServer).toBe("server-1"));
+
+    await act(async () => {
+      await result.current.handleLeaveServer("server-1");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de quitter ce serveur.");
+  });
+
+  it("shows a string error alert when handleLeaveServer fails with a string response", async () => {
+    jest
+      .spyOn(serversService, "leave")
+      .mockRejectedValueOnce({ response: { data: "Vous êtes le propriétaire." } });
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.selectedServer).toBe("server-1"));
+
+    await act(async () => {
+      await result.current.handleLeaveServer("server-1");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Vous êtes le propriétaire.");
+  });
+
+  it("shows an alert when handleDeleteServer fails", async () => {
+    jest.spyOn(serversService, "delete").mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.selectedServer).toBe("server-1"));
+
+    await act(async () => {
+      await result.current.handleDeleteServer("server-1");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de supprimer ce serveur.");
+  });
+
+  it("does nothing when handleJoinServer is called with an empty invite code", async () => {
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.serverList).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.handleJoinServer({
+        preventDefault: jest.fn(),
+      } as unknown as React.FormEvent<HTMLFormElement>);
+    });
+
+    expect(serversService.join).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when handleUpdateRole is called with no selected server", async () => {
+    jest.spyOn(serversService, "list").mockResolvedValue([]);
+
+    const { result } = renderHook(() =>
+      useServerManager({
+        isReady: true,
+        isConnected: true,
+        currentUserId: "current-user",
+        joinChannel,
+        loadMessages,
+        syncChannel,
+        setActiveChannel,
+        setMessages: setMessages as React.Dispatch<React.SetStateAction<ChannelMessage[]>>,
+      })
+    );
+    await waitFor(() => expect(result.current.serverList).toHaveLength(0));
+
+    await act(async () => {
+      await result.current.handleUpdateRole("user-2", "admin");
+    });
+
+    expect(serversService.updateRole).not.toHaveBeenCalled();
+  });
+
+  it("shows an alert when handleUpdateRole fails", async () => {
+    jest
+      .spyOn(serversService, "updateRole")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.members).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.handleUpdateRole("user-2", "admin");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de changer le role.");
+  });
+
+  it("shows an alert when handleJoinServer fails", async () => {
+    jest
+      .spyOn(serversService, "join")
+      .mockRejectedValueOnce({ response: { data: "Code invalide" } });
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.serverList).toHaveLength(1));
+
+    act(() => {
+      result.current.setJoinInviteCode("bad-code");
+    });
+
+    await act(async () => {
+      await result.current.handleJoinServer({
+        preventDefault: jest.fn(),
+      } as unknown as React.FormEvent<HTMLFormElement>);
+    });
+
+    expect(result.current.joinServerError).toBe("Code invalide");
+    expect(alertMock).not.toHaveBeenCalled();
+  });
+
+  it("shows an alert when handleDeleteChannel fails", async () => {
+    jest
+      .spyOn(channelsService, "delete")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.selectedChannel).toBe("channel-1"));
+
+    await act(async () => {
+      await result.current.handleDeleteChannel("channel-1");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de supprimer ce channel.");
+  });
+
+  it("shows an alert when handleUpdateServer fails", async () => {
+    jest
+      .spyOn(serversService, "update")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.selectedServer).toBe("server-1"));
+
+    await act(async () => {
+      await result.current.handleUpdateServer("server-1", "New Name");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de renommer ce serveur.");
+  });
+
+  it("shows an alert when handleUpdateChannel fails", async () => {
+    jest
+      .spyOn(channelsService, "update")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.selectedChannel).toBe("channel-1"));
+
+    await act(async () => {
+      await result.current.handleUpdateChannel("channel-1", "renamed");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de renommer ce channel.");
+  });
+
+  it("shows an alert when handleBanMember fails", async () => {
+    jest
+      .spyOn(serversService, "ban")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.members).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.handleBanMember("user-2", 30);
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible de bannir ce membre.");
+  });
+
+  it("shows an alert when handleKickMember fails", async () => {
+    jest
+      .spyOn(serversService, "kick")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.members).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.handleKickMember("user-2");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith("Impossible d'expulser ce membre.");
+  });
+
+  it("shows an alert when handleTransferOwnership fails", async () => {
+    jest
+      .spyOn(serversService, "transferOwnership")
+      .mockRejectedValueOnce(new Error("fail"));
+    const alertMock = globalThis.alert as jest.Mock;
+
+    const { result } = renderServerManager();
+    await waitFor(() => expect(result.current.members).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.handleTransferOwnership("user-2");
+    });
+
+    expect(alertMock).toHaveBeenCalledWith(
+      "Impossible de transferer la propriete."
+    );
+  });
 });

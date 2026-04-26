@@ -366,4 +366,123 @@ mod tests {
             other => panic!("unexpected remove_friend result: {:?}", other),
         }
     }
+
+    async fn create_live_user(pool: &sqlx::PgPool, email: &str, username: &str) -> User {
+        sqlx::query_as::<_, User>(
+            "INSERT INTO users (email, password_hash, first_name, last_name, username) VALUES ($1, $2, $3, $4, $5) RETURNING *"
+        )
+        .bind(email)
+        .bind("hashed_test_password")
+        .bind("Test")
+        .bind("User")
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .expect("create user failed")
+    }
+
+    async fn delete_live_user(pool: &sqlx::PgPool, email: &str) {
+        sqlx::query("DELETE FROM users WHERE email = $1")
+            .bind(email)
+            .execute(pool)
+            .await
+            .expect("delete user failed");
+    }
+
+    #[tokio::test]
+    async fn friend_routes_succeed_with_real_database() {
+        let state = match crate::utils::live_app_state().await {
+            Some(s) => s,
+            None => return,
+        };
+        let pool = state.pool.clone();
+
+        let email1 = format!("cov_fr1_{}@test.example", Uuid::new_v4());
+        let email2 = format!("cov_fr2_{}@test.example", Uuid::new_v4());
+        let u1 = create_live_user(&pool, &email1, &format!("fr1_{}", &Uuid::new_v4().to_string()[..8])).await;
+        let u2 = create_live_user(&pool, &email2, &format!("fr2_{}", &Uuid::new_v4().to_string()[..8])).await;
+
+        let auth1 = axum::extract::Extension(AuthUser(u1.clone()));
+        let auth2 = axum::extract::Extension(AuthUser(u2.clone()));
+        let s = State(state.clone());
+
+        // list_friends (empty)
+        let friends = list_friends(s.clone(), auth1.clone()).await.expect("list_friends ok");
+        assert!(friends.0.is_empty());
+
+        // list_incoming and outgoing (empty)
+        let incoming = list_incoming_requests(s.clone(), auth1.clone()).await.expect("incoming ok");
+        assert!(incoming.0.is_empty());
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        assert!(outgoing.0.is_empty());
+
+        // send friend request u1 → u2
+        let send_result = send_friend_request(
+            s.clone(),
+            auth1.clone(),
+            Json(AddFriendRequest { friend_id: u2.id }),
+        )
+        .await
+        .expect("send request ok");
+        assert_eq!(send_result, StatusCode::CREATED);
+
+        // outgoing now has one request
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let request_id = outgoing.0[0].id;
+
+        // incoming for u2
+        let incoming = list_incoming_requests(s.clone(), auth2.clone()).await.expect("incoming ok");
+        assert_eq!(incoming.0.len(), 1);
+
+        // cancel the request
+        let cancel_result = cancel_friend_request(s.clone(), auth1.clone(), Path(request_id))
+            .await
+            .expect("cancel ok");
+        assert_eq!(cancel_result, StatusCode::NO_CONTENT);
+
+        // re-send and reject
+        send_friend_request(
+            s.clone(),
+            auth1.clone(),
+            Json(AddFriendRequest { friend_id: u2.id }),
+        )
+        .await
+        .expect("re-send ok");
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let request_id2 = outgoing.0[0].id;
+
+        let reject_result = reject_friend_request(s.clone(), auth2.clone(), Path(request_id2))
+            .await
+            .expect("reject ok");
+        assert_eq!(reject_result, StatusCode::OK);
+
+        // re-send and accept
+        send_friend_request(
+            s.clone(),
+            auth1.clone(),
+            Json(AddFriendRequest { friend_id: u2.id }),
+        )
+        .await
+        .expect("third send ok");
+        let outgoing = list_outgoing_requests(s.clone(), auth1.clone()).await.expect("outgoing ok");
+        let request_id3 = outgoing.0[0].id;
+
+        let accept_result = accept_friend_request(s.clone(), auth2.clone(), Path(request_id3))
+            .await
+            .expect("accept ok");
+        assert_eq!(accept_result, StatusCode::OK);
+
+        // list friends now has u2
+        let friends = list_friends(s.clone(), auth1.clone()).await.expect("list ok");
+        assert_eq!(friends.0.len(), 1);
+
+        // remove friend
+        let remove_result = remove_friend(s.clone(), auth1.clone(), Path(u2.id))
+            .await
+            .expect("remove ok");
+        assert_eq!(remove_result, StatusCode::NO_CONTENT);
+
+        delete_live_user(&pool, &email1).await;
+        delete_live_user(&pool, &email2).await;
+    }
 }

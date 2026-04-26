@@ -305,9 +305,23 @@ pub async fn delete_avatar(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::{
+        body::Body,
+        http::{header::AUTHORIZATION, HeaderMap, Request, StatusCode as HttpStatus},
+        routing::post,
+        Router,
+    };
+    use crate::utils::jwt::create_token;
+    use tower::util::ServiceExt;
 
     async fn build_state() -> AppState {
         crate::utils::test_app_state().await
+    }
+
+    fn build_upload_app(state: AppState) -> Router {
+        Router::new()
+            .route("/users/me/avatar", post(upload_avatar))
+            .with_state(state)
     }
 
     #[tokio::test]
@@ -384,6 +398,279 @@ mod tests {
         assert_eq!(
             normalize_search_query(Some("alice".to_string())),
             Some("alice".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn update_profile_returns_forbidden_when_authorization_header_is_missing() {
+        let result = update_profile(
+            State(build_state().await),
+            HeaderMap::new(),
+            Json(UpdateProfileRequest {
+                first_name: "Alice".to_string(),
+                last_name: "Martin".to_string(),
+                email: "alice@example.com".to_string(),
+                username: "alice".to_string(),
+                password: None,
+            }),
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn update_profile_returns_forbidden_when_token_is_invalid() {
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, "Bearer invalid_token".parse().unwrap());
+
+        let result = update_profile(
+            State(build_state().await),
+            headers,
+            Json(UpdateProfileRequest {
+                first_name: "Alice".to_string(),
+                last_name: "Martin".to_string(),
+                email: "alice@example.com".to_string(),
+                username: "alice".to_string(),
+                password: None,
+            }),
+        )
+        .await;
+
+        assert!(matches!(result, Err(ServiceError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn update_profile_returns_internal_error_without_password_when_database_is_unavailable() {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
+
+        let result = update_profile(
+            State(build_state().await),
+            headers,
+            Json(UpdateProfileRequest {
+                first_name: "Alice".to_string(),
+                last_name: "Martin".to_string(),
+                email: "alice@example.com".to_string(),
+                username: "alice".to_string(),
+                password: None,
+            }),
+        )
+        .await;
+
+        match result {
+            Err(ServiceError::Internal(message)) => assert!(message.starts_with("Database error:")),
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn update_profile_returns_internal_error_with_password_when_database_is_unavailable() {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
+
+        let result = update_profile(
+            State(build_state().await),
+            headers,
+            Json(UpdateProfileRequest {
+                first_name: "Alice".to_string(),
+                last_name: "Martin".to_string(),
+                email: "alice@example.com".to_string(),
+                username: "alice".to_string(),
+                password: Some("newpassword".to_string()),
+            }),
+        )
+        .await;
+
+        match result {
+            Err(ServiceError::Internal(message)) => assert!(message.starts_with("Database error:")),
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_avatar_returns_forbidden_when_authorization_header_is_missing() {
+        let result = delete_avatar(State(build_state().await), HeaderMap::new()).await;
+        assert!(matches!(result, Err(ServiceError::Forbidden(_))));
+    }
+
+    #[tokio::test]
+    async fn delete_avatar_returns_internal_error_when_database_is_unavailable() {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(AUTHORIZATION, format!("Bearer {token}").parse().unwrap());
+
+        let result = delete_avatar(State(build_state().await), headers).await;
+
+        match result {
+            Err(ServiceError::Internal(message)) => assert!(message.starts_with("Database error:")),
+            other => panic!("unexpected result: {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn upload_avatar_returns_forbidden_when_authorization_header_is_missing() {
+        let app = build_upload_app(build_state().await);
+        let boundary = "boundary123";
+        let body = format!("--{boundary}--\r\n");
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/users/me/avatar")
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn upload_avatar_returns_bad_request_when_file_exceeds_size_limit() {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let app = build_upload_app(build_state().await);
+        let boundary = "boundary123";
+        let large_data = vec![0u8; 5 * 1024 * 1024 + 1];
+        let header = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"avatar\"; filename=\"big.png\"\r\nContent-Type: image/png\r\n\r\n"
+        );
+        let footer = format!("\r\n--{boundary}--\r\n");
+        let mut body = header.into_bytes();
+        body.extend_from_slice(&large_data);
+        body.extend_from_slice(footer.as_bytes());
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/users/me/avatar")
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .header(AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn upload_avatar_returns_bad_request_when_no_file_is_provided() {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let app = build_upload_app(build_state().await);
+        let boundary = "boundary123";
+        let body = format!("--{boundary}--\r\n");
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/users/me/avatar")
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .header(AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn upload_avatar_returns_bad_request_when_file_is_not_an_image() {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let app = build_upload_app(build_state().await);
+        let boundary = "boundary123";
+        let body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"avatar\"\r\nContent-Type: text/plain\r\n\r\nhello\r\n--{boundary}--\r\n"
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/users/me/avatar")
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .header(AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn upload_avatar_returns_internal_error_when_database_is_unavailable_after_writing_file()
+    {
+        let token = create_token(Uuid::new_v4()).unwrap();
+        let app = build_upload_app(build_state().await);
+        let boundary = "boundary123";
+        let body = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"avatar\"; filename=\"test.png\"\r\nContent-Type: image/png\r\n\r\nfake_png_data\r\n--{boundary}--\r\n"
+        );
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/users/me/avatar")
+                    .header(
+                        "Content-Type",
+                        format!("multipart/form-data; boundary={boundary}"),
+                    )
+                    .header(AUTHORIZATION, format!("Bearer {token}"))
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), HttpStatus::INTERNAL_SERVER_ERROR);
+    }
+
+    #[tokio::test]
+    async fn search_and_list_users_succeed_with_real_database() {
+        let state = match crate::utils::live_app_state().await {
+            Some(s) => s,
+            None => return,
+        };
+
+        let result = list_users(State(state.clone())).await;
+        assert!(result.is_ok(), "list_users should succeed: {:?}", result);
+
+        let search_result = search_users(
+            State(state),
+            Query(SearchUsersQuery {
+                q: Some("te".to_string()),
+            }),
+        )
+        .await;
+        assert!(
+            search_result.is_ok(),
+            "search_users should succeed: {:?}",
+            search_result
         );
     }
 }

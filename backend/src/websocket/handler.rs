@@ -465,6 +465,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn message_send_with_valid_uuids_is_silently_dropped_when_database_is_unavailable() {
+        let state = build_state().await;
+        let channel_id = Uuid::new_v4().to_string();
+        let user_id = Uuid::new_v4().to_string();
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+
+        state.add_connection("conn-1".to_string(), tx).await;
+
+        handle_client_event(
+            ClientEvent::MessageSend {
+                channel_id: channel_id.clone(),
+                content: "hello".to_string(),
+            },
+            &user_id,
+            "conn-1",
+            "alice",
+            &state,
+        )
+        .await;
+
+        assert!(matches!(rx.try_recv(), Err(TryRecvError::Empty)));
+        assert!(state
+            .room_manager
+            .lock()
+            .await
+            .get_room_connections(&channel_id)
+            .await
+            .is_empty());
+    }
+
+    #[tokio::test]
     async fn message_send_with_invalid_channel_id_returns_early() {
         let state = build_state().await;
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
