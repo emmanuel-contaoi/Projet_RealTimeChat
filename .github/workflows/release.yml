@@ -110,6 +110,65 @@ jobs:
           draft: false
           prerelease: false
 
+  # Compile et package l'application Tauri desktop (après create-release)
+  build-tauri:
+    name: Build Tauri Desktop App
+    runs-on: self-hosted
+    needs: create-release
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Installer les dépendances système (GTK/WebKit pour Tauri)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Mettre en cache les dépendances Cargo (Tauri)
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            frontend/src-tauri/target
+          key: ${{ runner.os }}-cargo-tauri-${{ hashFiles('frontend/src-tauri/Cargo.lock') }}
+
+      - name: Installer les dépendances npm
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Compiler l'application Tauri
+        working-directory: ./frontend
+        run: npx tauri build --bundles deb,rpm
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+
+      - name: Uploader les artefacts sur la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            frontend/src-tauri/target/release/bundle/deb/*.deb
+            frontend/src-tauri/target/release/bundle/appimage/*.AppImage
+
   # Compile le backend en mode release et l'uploade sur la release (après create-release)
   build-binaries:
     name: Build Binaries

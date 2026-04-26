@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { authService } from "@/services/api";
@@ -40,6 +41,7 @@ export default function Sidebar({
   incomingFriendRequestCount,
   unreadMessageCountByFriendId,
   selectedServer,
+  currentUserRole,
   selectedFriend,
   isMenuOpen,
   menuRef,
@@ -49,6 +51,9 @@ export default function Sidebar({
   onSelectServer,
   onCreateServer,
   onJoinServer,
+  onLeaveServer,
+  onDeleteServer,
+  onUpdateServer,
   onSelectFriend,
   onRemoveFriend,
   onEditProfile,
@@ -56,6 +61,82 @@ export default function Sidebar({
 }: SidebarProps) {
   const t = useTranslations("sidebar");
   const th = useTranslations("header");
+
+  const [openServerMenuId, setOpenServerMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [hoveredServerId, setHoveredServerId] = useState<string | null>(null);
+  const [dotsPos, setDotsPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [copiedServerId, setCopiedServerId] = useState<string | null>(null);
+  const serverMenuRef = useRef<HTMLDivElement | null>(null);
+  const dotsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hideDotsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (serverMenuRef.current && !serverMenuRef.current.contains(e.target as Node)) {
+        setOpenServerMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLogoMouseEnter = (e: React.MouseEvent<HTMLButtonElement>, serverId: string) => {
+    if (hideDotsTimer.current) clearTimeout(hideDotsTimer.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDotsPos({ top: rect.top + rect.height / 2 - 14, left: rect.right + 2 });
+    setHoveredServerId(serverId);
+  };
+
+  const handleLogoMouseLeave = () => {
+    hideDotsTimer.current = setTimeout(() => setHoveredServerId(null), 150);
+  };
+
+  const handleDotsMouseEnter = () => {
+    if (hideDotsTimer.current) clearTimeout(hideDotsTimer.current);
+  };
+
+  const handleDotsMouseLeave = () => {
+    if (!openServerMenuId) {
+      hideDotsTimer.current = setTimeout(() => setHoveredServerId(null), 150);
+    }
+  };
+
+  const handleOpenMenu = (e: React.MouseEvent<HTMLButtonElement>, serverId: string) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMenuPos({ top: rect.top, left: rect.right + 8 });
+    setOpenServerMenuId((prev) => (prev === serverId ? null : serverId));
+  };
+
+  const handleCopyInvite = (e: React.MouseEvent, server: Server) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(server.invite_code);
+    setCopiedServerId(server.id);
+    setOpenServerMenuId(null);
+    setTimeout(() => setCopiedServerId(null), 2000);
+  };
+
+  const handleLeave = (e: React.MouseEvent, serverId: string) => {
+    e.stopPropagation();
+    setOpenServerMenuId(null);
+    onLeaveServer(serverId);
+  };
+
+  const handleRename = (e: React.MouseEvent, server: Server) => {
+    e.stopPropagation();
+    setOpenServerMenuId(null);
+    const newName = prompt("Nouveau nom du serveur :", server.name);
+    if (newName && newName.trim() && newName.trim() !== server.name) {
+      onUpdateServer(server.id, newName.trim().slice(0, 20));
+    }
+  };
+
+  const handleDelete = (e: React.MouseEvent, serverId: string) => {
+    e.stopPropagation();
+    setOpenServerMenuId(null);
+    onDeleteServer(serverId);
+  };
   
   const currentAccount = authService.getCurrentUser() as { username?: string; first_name?: string; last_name?: string; email?: string; avatar_url?: string } | null;
   const accountName =
@@ -94,6 +175,10 @@ export default function Sidebar({
         <div className="flex flex-col gap-2 w-full items-center">
           {serverList.map((server) => {
             const isSelected = activeTab === "servers" && selectedServer === server.id;
+            const isOwner = isSelected && currentUserRole === "owner";
+            const isMenuOpen = openServerMenuId === server.id;
+            const isCopied = copiedServerId === server.id;
+
             return (
               <div key={server.id} className="relative group w-full flex justify-center">
                 <div className={`absolute left-0 top-1/2 w-1 -translate-y-1/2 rounded-r-md bg-white transition-all duration-300 ${isSelected ? "h-10" : "h-0 group-hover:h-5"}`} />
@@ -108,10 +193,18 @@ export default function Sidebar({
                     onTabChange("servers");
                     onSelectServer(server.id);
                   }}
+                  onMouseEnter={(e) => handleLogoMouseEnter(e, server.id)}
+                  onMouseLeave={handleLogoMouseLeave}
                   title={server.name}
                   type="button"
                 >
-                  {server.name.charAt(0).toUpperCase()}
+                  {isCopied ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    server.name.charAt(0).toUpperCase()
+                  )}
                 </button>
               </div>
             );
@@ -215,6 +308,97 @@ export default function Sidebar({
 
         </div>
       )}
+
+      {/* Bouton "..." fixed — apparaît à droite du logo au hover, hors du rail overflow */}
+      {(hoveredServerId || openServerMenuId) && (() => {
+        const visibleId = openServerMenuId ?? hoveredServerId;
+        const server = serverList.find((s) => s.id === visibleId);
+        if (!server) return null;
+        const isOwner = visibleId === selectedServer && currentUserRole === "owner";
+        return (
+          <button
+            ref={dotsButtonRef}
+            type="button"
+            className="fixed z-[9998] flex h-7 w-7 items-center justify-center rounded-[10px] bg-[rgba(20,30,45,0.97)] border border-[var(--stroke)] text-slate-300 transition hover:border-[rgba(21,209,255,0.4)] hover:text-white"
+            style={{ top: dotsPos.top, left: dotsPos.left }}
+            onMouseEnter={handleDotsMouseEnter}
+            onMouseLeave={handleDotsMouseLeave}
+            onClick={(e) => {
+              handleOpenMenu(e, visibleId!);
+              const rect = e.currentTarget.getBoundingClientRect();
+              setMenuPos({ top: rect.top, left: rect.right + 8 });
+            }}
+            title="Options"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2.2" />
+              <circle cx="12" cy="12" r="2.2" />
+              <circle cx="12" cy="19" r="2.2" />
+            </svg>
+          </button>
+        );
+      })()}
+
+      {/* Dropdown menu des serveurs — fixed pour échapper au overflow du rail */}
+      {openServerMenuId && (() => {
+        const server = serverList.find((s) => s.id === openServerMenuId);
+        const isOwner = openServerMenuId === selectedServer && currentUserRole === "owner";
+        if (!server) return null;
+        return (
+          <div
+            ref={serverMenuRef}
+            className="fixed z-[9999] min-w-[168px] rounded-[16px] border border-[var(--stroke)] bg-[rgba(12,19,29,0.98)] p-1.5 shadow-[0_20px_40px_rgba(2,8,18,0.42)]"
+            style={{ top: menuPos.top, left: menuPos.left }}
+          >
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-[rgba(21,209,255,0.1)] hover:text-white"
+              onClick={(e) => handleCopyInvite(e, server)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              Code d&apos;invitation
+            </button>
+            {isOwner && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-[rgba(21,209,255,0.1)] hover:text-white"
+                onClick={(e) => handleRename(e, server)}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Renommer
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-[12px] px-3 py-2 text-left text-sm text-rose-300 transition hover:bg-[rgba(255,84,109,0.12)] hover:text-rose-200"
+              onClick={(e) => isOwner ? handleDelete(e, server.id) : handleLeave(e, server.id)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {isOwner ? (
+                  <>
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6" /><path d="M14 11v6" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </>
+                )}
+              </svg>
+              {isOwner ? "Supprimer" : "Quitter"}
+            </button>
+          </div>
+        );
+      })()}
     </aside>
   );
 }

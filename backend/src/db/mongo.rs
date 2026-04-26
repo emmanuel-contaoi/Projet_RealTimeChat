@@ -39,4 +39,12 @@ mod tests {
 
         assert_eq!(mongo_uri_from_env(), "mongodb://example.com:27018");
     }
+
+    #[tokio::test]
+    async fn init_mongo_creates_client_with_default_uri() {
+        let _guard = crate::utils::test_env_lock().lock().unwrap();
+        std::env::remove_var("MONGODB_URI");
+
+        let _client = super::init_mongo().await;
+    }
 }

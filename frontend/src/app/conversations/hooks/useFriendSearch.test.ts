@@ -228,4 +228,141 @@ describe("useFriendSearch", () => {
       );
     });
   });
+
+  it("sets error when handleSendFriendRequest fails", async () => {
+    jest
+      .spyOn(friendsService, "sendRequest")
+      .mockRejectedValueOnce(new Error("network error"));
+
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.handleSendFriendRequest(alice);
+    });
+
+    expect(result.current.friendSearchError).toBe(
+      "Impossible d'envoyer cette demande."
+    );
+  });
+
+  it("sets error when handleAcceptFriendRequest fails with a string response", async () => {
+    jest
+      .spyOn(friendsService, "acceptRequest")
+      .mockRejectedValueOnce({ response: { data: "Demande introuvable" } });
+
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.handleAcceptFriendRequest("req-1");
+    });
+
+    expect(result.current.friendSearchError).toBe("Demande introuvable");
+  });
+
+  it("sets error when handleRejectFriendRequest fails", async () => {
+    jest
+      .spyOn(friendsService, "rejectRequest")
+      .mockRejectedValueOnce(new Error("network error"));
+
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.handleRejectFriendRequest("req-1");
+    });
+
+    expect(result.current.friendSearchError).toBe(
+      "Impossible de refuser la demande."
+    );
+  });
+
+  it("sets error when handleCancelFriendRequest fails", async () => {
+    jest
+      .spyOn(friendsService, "cancelRequest")
+      .mockRejectedValueOnce(new Error("network error"));
+
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.handleCancelFriendRequest("req-1");
+    });
+
+    expect(result.current.friendSearchError).toBe(
+      "Impossible d'annuler la demande."
+    );
+  });
+
+  it("sets error when handleRemoveFriend fails", async () => {
+    jest
+      .spyOn(friendsService, "remove")
+      .mockRejectedValueOnce(new Error("network error"));
+
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.handleRemoveFriend("friend-1");
+    });
+
+    expect(result.current.friendSearchError).toBe(
+      "Impossible de supprimer cet ami."
+    );
+  });
+
+  it("refreshes friend data when a relevant websocket event is received", async () => {
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    jest.spyOn(friendsService, "list").mockResolvedValue([alice]);
+
+    act(() => {
+      result.current.handleWsEvent({ type: "friend_removed" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.friendList).toHaveLength(1);
+    });
+  });
+
+  it("does not refresh friend data for unrelated websocket events", async () => {
+    const onlineUserIds = new Set<string>();
+    const { result } = renderHook(() =>
+      useFriendSearch({ isReady: true, activeTab: "servers", onlineUserIds })
+    );
+
+    await waitFor(() => expect(result.current.incomingRequests).toHaveLength(1));
+
+    jest
+      .spyOn(friendsService, "list")
+      .mockResolvedValue([]);
+
+    act(() => {
+      result.current.handleWsEvent({ type: "message_new" });
+    });
+
+    // list was NOT called again — friendList stays with alice and bob
+    expect(result.current.friendList).toHaveLength(2);
+  });
 });

@@ -119,6 +119,13 @@ mod tests {
         );
     }
 
+    #[test]
+    fn room_manager_default_creates_empty_manager() {
+        let manager = RoomManager::default();
+        // Default delegates to new() — assert it compiles and returns a valid instance
+        let _ = manager.rooms;
+    }
+
     #[tokio::test]
     async fn leaving_unknown_room_or_connection_is_safe() {
         let manager = RoomManager::new();

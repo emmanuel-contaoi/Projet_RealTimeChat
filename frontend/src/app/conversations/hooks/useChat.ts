@@ -146,18 +146,41 @@ export default function useChat(options?: UseChatOptions) {
   }, []);
 
   const notifyNewMessage = useCallback((message: ChannelMessage, newMessageCount = 1) => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (typeof window === "undefined") return;
 
     const currentUser = authService.getCurrentUser() as { id?: string } | null;
     if (message.user_id === currentUser?.id) return;
 
+    const title = `Nouveau message de ${message.username}`;
+    const body = formatNewMessageCount(newMessageCount);
+
+    // Tauri : notification OS native
+    if ("__TAURI_INTERNALS__" in window) {
+      // webpackIgnore: Tauri-only module, not available in browser build
+      import(/* webpackIgnore: true */ "@tauri-apps/plugin-notification").then(
+        ({ sendNotification, isPermissionGranted, requestPermission }: { sendNotification: (opts: { title: string; body: string }) => void; isPermissionGranted: () => Promise<boolean>; requestPermission: () => Promise<string> }) => {
+          void isPermissionGranted().then((granted: boolean) => {
+            if (granted) {
+              sendNotification({ title, body });
+            } else {
+              void requestPermission().then((permission: string) => {
+                if (permission === "granted") sendNotification({ title, body });
+              });
+            }
+          });
+        }
+      );
+      return;
+    }
+
+    // Navigateur : Web Notification API
+    if (!("Notification" in window)) return;
+
     const showNotification = () => {
-      const body = formatNewMessageCount(newMessageCount);
-      const notification = new window.Notification(`Nouveau message de ${message.username}`, {
+      const notification = new window.Notification(title, {
         body,
         tag: `chat-${message.channel_id}`,
       });
-
       notification.onclick = () => {
         window.focus();
         notification.close();
@@ -172,9 +195,7 @@ export default function useChat(options?: UseChatOptions) {
     if (window.Notification.permission === "default") {
       void window.Notification.requestPermission()
         .then((permission) => {
-          if (permission === "granted") {
-            showNotification();
-          }
+          if (permission === "granted") showNotification();
         })
         .catch(() => {});
     }
@@ -335,10 +356,10 @@ export default function useChat(options?: UseChatOptions) {
           username: string;
         }>;
         setOnlineUserIds((prev) => {
+          const hasNew = users.some((u) => !prev.has(u.user_id));
+          if (!hasNew) return prev;
           const next = new Set(prev);
-          for (const u of users) {
-            next.add(u.user_id);
-          }
+          for (const u of users) next.add(u.user_id);
           return next;
         });
       }

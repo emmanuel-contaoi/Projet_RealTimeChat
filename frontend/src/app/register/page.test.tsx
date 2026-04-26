@@ -122,4 +122,31 @@ describe("InscriptionPage", () => {
     ).toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
+
+  it("shows the string error when registration fails with a string payload", async () => {
+    jest.spyOn(authService, "register").mockRejectedValueOnce({
+      response: {
+        data: "Email déjà utilisé",
+      },
+    });
+
+    render(
+      <AppRouterContext.Provider value={mockRouter}>
+        <InscriptionPage />
+      </AppRouterContext.Provider>
+    );
+
+    fireEvent.change(screen.getByLabelText("Mail *"), {
+      target: { value: "manu@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("Mot de passe *"), {
+      target: { value: "secret123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
+
+    expect(
+      await screen.findByText("Email déjà utilisé")
+    ).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
+  });
 });
