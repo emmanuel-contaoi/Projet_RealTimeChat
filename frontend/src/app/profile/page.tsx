@@ -115,16 +115,37 @@ export default function ProfilePage() {
     }
   };
 
+  // 🔴 Validation locale du mot de passe (si fourni)
+  const validatePassword = (password: string): string | null => {
+    if (!password) return null; // S'il est vide, on ne valide pas (changement optionnel)
+    if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+    if (!/[A-Z]/.test(password)) return "Le mot de passe doit contenir au moins une lettre majuscule.";
+    if (!/[a-z]/.test(password)) return "Le mot de passe doit contenir au moins une lettre minuscule.";
+    if (!/[0-9]/.test(password)) return "Le mot de passe doit contenir au moins un chiffre.";
+    if (!/[^A-Za-z0-9]/.test(password)) return "Le mot de passe doit contenir au moins un caractère spécial.";
+    return null;
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setSuccessMsg("");
     setAuthError("");
 
-    if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
-      setAuthError(t("error_password_mismatch"));
-      setLoading(false);
-      return;
+    // 🔴 On bloque si l'utilisateur essaie de changer de mot de passe et qu'il est trop faible
+    if (formData.newPassword) {
+      const pwdError = validatePassword(formData.newPassword);
+      if (pwdError) {
+        setAuthError(pwdError);
+        setLoading(false);
+        return;
+      }
+      
+      if (formData.newPassword !== formData.confirmPassword) {
+        setAuthError(t("error_password_mismatch"));
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -156,6 +177,16 @@ export default function ProfilePage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  // 🔴 Règles visuelles en temps réel pour l'UX (uniquement si le champ n'est pas vide)
+  const pwd = formData.newPassword;
+  const passwordRules = [
+    { label: "8 caractères min.", valid: pwd.length >= 8 },
+    { label: "1 Majuscule", valid: /[A-Z]/.test(pwd) },
+    { label: "1 Minuscule", valid: /[a-z]/.test(pwd) },
+    { label: "1 Chiffre", valid: /[0-9]/.test(pwd) },
+    { label: "1 Caractère spécial", valid: /[^A-Za-z0-9]/.test(pwd) },
+  ];
 
   return (
     <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -273,6 +304,24 @@ export default function ProfilePage() {
               <label className="flex flex-col gap-2 text-sm text-slate-200 md:col-span-2">
                 {t("new_password")}
                 <input className="w-full rounded-2xl border border-[var(--stroke)] bg-transparent px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)] placeholder:text-slate-600" name="newPassword" type="password" value={formData.newPassword} onChange={handleChange} placeholder="••••••••" />
+                
+                {/* 🔴 Affichage dynamique uniquement si l'utilisateur commence à taper */}
+                {formData.newPassword.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {passwordRules.map((rule, idx) => (
+                      <span 
+                        key={idx} 
+                        className={`text-[10px] px-2 py-1 rounded-full border transition-colors duration-300 ${
+                          rule.valid 
+                            ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
+                            : 'border-slate-700 bg-slate-800/50 text-slate-400'
+                        }`}
+                      >
+                        {rule.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </label>
 
               <label className="flex flex-col gap-2 text-sm text-slate-200 md:col-span-2">
