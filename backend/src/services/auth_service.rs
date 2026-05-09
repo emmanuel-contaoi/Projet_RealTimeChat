@@ -1,12 +1,12 @@
-use bcrypt::{hash, verify, DEFAULT_COST};
-use hmac::{Hmac, Mac, KeyInit}; 
-use sha2::Sha256;
-use sqlx::PgPool;
-use std::fmt::Write;
 use crate::models::{AuthResponse, LoginRequest, RegisterRequest};
 use crate::repositories::user_repository::UserRepository;
 use crate::services::ServiceError;
 use crate::utils::jwt::create_token;
+use bcrypt::{hash, verify, DEFAULT_COST};
+use hmac::{Hmac, KeyInit, Mac};
+use sha2::Sha256;
+use sqlx::PgPool;
+use std::fmt::Write;
 
 // Définition de notre type HMAC-SHA256 pour le Poivre
 type HmacSha256 = Hmac<Sha256>;
@@ -19,7 +19,7 @@ impl AuthService {
         if password.len() < 8 {
             return Err("Le mot de passe doit contenir au moins 8 caractères.".to_string());
         }
-        
+
         let has_uppercase = password.chars().any(|c| c.is_uppercase());
         let has_lowercase = password.chars().any(|c| c.is_lowercase());
         let has_digit = password.chars().any(|c| c.is_numeric());
@@ -52,8 +52,8 @@ impl AuthService {
             }
         });
 
-        let mut mac = HmacSha256::new_from_slice(pepper.as_bytes())
-            .expect("HMAC can take key of any size");
+        let mut mac =
+            HmacSha256::new_from_slice(pepper.as_bytes()).expect("HMAC can take key of any size");
         mac.update(password.as_bytes());
         let result = mac.finalize().into_bytes();
 
@@ -61,7 +61,7 @@ impl AuthService {
         for b in result {
             write!(&mut hex_string, "{:02x}", b).unwrap();
         }
-        
+
         hex_string
     }
 
@@ -70,10 +70,9 @@ impl AuthService {
         pool: &PgPool,
         payload: RegisterRequest,
     ) -> Result<AuthResponse, ServiceError> {
-        
         // 1. Validation du mot de passe (Politique de sécurité)
         if let Err(validation_error) = Self::validate_password(&payload.password) {
-            return Err(ServiceError::Conflict(validation_error)); 
+            return Err(ServiceError::Conflict(validation_error));
         }
 
         // 2. Vérification de l'email

@@ -104,7 +104,7 @@ mod tests {
 
         let email1 = format!("cov_dm1_{}@test.example", Uuid::new_v4());
         let email2 = format!("cov_dm2_{}@test.example", Uuid::new_v4());
-        
+
         // 🔴 AJOUT : Génération de usernames uniques pour les tests
         let username1 = format!("u1_{}", &Uuid::new_v4().to_string()[..8]);
         let username2 = format!("u2_{}", &Uuid::new_v4().to_string()[..8]);
