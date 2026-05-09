@@ -105,20 +105,28 @@ mod tests {
         let email1 = format!("cov_dm1_{}@test.example", Uuid::new_v4());
         let email2 = format!("cov_dm2_{}@test.example", Uuid::new_v4());
 
+        // 🔴 AJOUT : Génération de usernames uniques pour les tests
+        let username1 = format!("u1_{}", &Uuid::new_v4().to_string()[..8]);
+        let username2 = format!("u2_{}", &Uuid::new_v4().to_string()[..8]);
+
+        // 🔴 CORRECTION : Ajout de la colonne username dans l'INSERT
         let u1 = sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
+            "INSERT INTO users (email, password_hash, username) VALUES ($1, $2, $3) RETURNING *",
         )
         .bind(&email1)
         .bind("hashed")
+        .bind(&username1)
         .fetch_one(&pool)
         .await
         .expect("create u1 failed");
 
+        // 🔴 CORRECTION : Ajout de la colonne username dans l'INSERT
         let u2 = sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
+            "INSERT INTO users (email, password_hash, username) VALUES ($1, $2, $3) RETURNING *",
         )
         .bind(&email2)
         .bind("hashed")
+        .bind(&username2)
         .fetch_one(&pool)
         .await
         .expect("create u2 failed");

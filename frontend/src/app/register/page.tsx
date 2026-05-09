@@ -22,9 +22,27 @@ export default function InscriptionPage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 🔴 Fonction de validation locale
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+    if (!/[A-Z]/.test(password)) return "Le mot de passe doit contenir au moins une lettre majuscule.";
+    if (!/[a-z]/.test(password)) return "Le mot de passe doit contenir au moins une lettre minuscule.";
+    if (!/[0-9]/.test(password)) return "Le mot de passe doit contenir au moins un chiffre.";
+    if (!/[^A-Za-z0-9]/.test(password)) return "Le mot de passe doit contenir au moins un caractère spécial.";
+    return null;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
+
+    // 🔴 On bloque la soumission si le mot de passe est faible
+    const pwdError = validatePassword(formData.password);
+    if (pwdError) {
+      setError(pwdError);
+      return;
+    }
+
     setLoading(true);
     try {
       await authService.register(
@@ -42,6 +60,16 @@ export default function InscriptionPage() {
       setLoading(false);
     }
   };
+
+  // 🔴 Règles visuelles en temps réel pour l'UX
+  const pwd = formData.password;
+  const passwordRules = [
+    { label: "8 caractères min.", valid: pwd.length >= 8 },
+    { label: "1 Majuscule", valid: /[A-Z]/.test(pwd) },
+    { label: "1 Minuscule", valid: /[a-z]/.test(pwd) },
+    { label: "1 Chiffre", valid: /[0-9]/.test(pwd) },
+    { label: "1 Caractère spécial", valid: /[^A-Za-z0-9]/.test(pwd) },
+  ];
 
   return (
     <div className="relative min-h-screen bg-[var(--background)] text-[var(--foreground)]">
@@ -82,10 +110,26 @@ export default function InscriptionPage() {
             <label className="flex flex-col gap-2 text-sm text-slate-200 md:col-span-2">
               {t('password')}
               <input className="w-full rounded-2xl border border-[var(--stroke)] bg-transparent px-4 py-3 text-sm text-white outline-none transition focus:border-[var(--brand-1)]" name="password" type="password" value={formData.password} onChange={handleChange} placeholder={t('password_placeholder')} required />
+              
+              {/* 🔴 Affichage dynamique des règles de sécurité du mot de passe */}
+              <div className="mt-1 flex flex-wrap gap-2">
+                {passwordRules.map((rule, idx) => (
+                  <span 
+                    key={idx} 
+                    className={`text-[10px] px-2 py-1 rounded-full border transition-colors duration-300 ${
+                      rule.valid 
+                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400' 
+                        : 'border-slate-700 bg-slate-800/50 text-slate-400'
+                    }`}
+                  >
+                    {rule.label}
+                  </span>
+                ))}
+              </div>
             </label>
           </div>
 
-          {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-4 text-sm font-medium text-rose-400">{error}</p>}
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link className="flex-1 rounded-full border border-[var(--stroke)] bg-[var(--surface)] px-6 py-3 text-center text-base font-semibold text-slate-200 transition hover:bg-[var(--surface-strong)]" href="/">

@@ -133,7 +133,7 @@ mod tests {
             State(build_state().await),
             Json(RegisterRequest {
                 email: "alice@example.com".to_string(),
-                password: "secret".to_string(),
+                password: "P@ssw0rd123!".to_string(), // 🔴 CORRECTION DU MDP ICI
                 first_name: Some("Alice".to_string()),
                 last_name: Some("Martin".to_string()),
                 username: Some("alice".to_string()),
@@ -163,7 +163,7 @@ mod tests {
             State(state.clone()),
             Json(RegisterRequest {
                 email: email.clone(),
-                password: "password123".to_string(),
+                password: "P@ssw0rd123!".to_string(), // 🔴 CORRECTION DU MDP ICI
                 first_name: Some("Test".to_string()),
                 last_name: None,
                 username: Some(username),
@@ -178,7 +178,7 @@ mod tests {
             State(state.clone()),
             Json(LoginRequest {
                 email: email.clone(),
-                password: "password123".to_string(),
+                password: "P@ssw0rd123!".to_string(), // 🔴 CORRECTION DU MDP ICI
             }),
         )
         .await
@@ -198,7 +198,7 @@ mod tests {
             State(build_state().await),
             Json(LoginRequest {
                 email: "alice@example.com".to_string(),
-                password: "secret".to_string(),
+                password: "P@ssw0rd123!".to_string(), // 🔴 CORRECTION DU MDP ICI
             }),
         )
         .await;

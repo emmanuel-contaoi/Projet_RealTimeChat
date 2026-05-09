@@ -49,15 +49,15 @@ describe("InscriptionPage", () => {
     fireEvent.change(screen.getByLabelText("Pseudo"), {
       target: { value: "manu" },
     });
-    fireEvent.change(screen.getByLabelText("Mot de passe *"), {
-      target: { value: "secret123" },
+    fireEvent.change(screen.getByLabelText(/mot de passe/i), {
+      target: { value: "Secret123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
 
     await waitFor(() => {
       expect(registerSpy).toHaveBeenCalledWith(
         "manu@example.com",
-        "secret123",
+        "Secret123!",
         "Manu",
         "Dupont",
         "manu"
@@ -80,15 +80,15 @@ describe("InscriptionPage", () => {
     fireEvent.change(screen.getByLabelText("Mail *"), {
       target: { value: "manu@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Mot de passe *"), {
-      target: { value: "secret123" },
+    fireEvent.change(screen.getByLabelText(/mot de passe/i), {
+      target: { value: "Secret123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
 
     await waitFor(() => {
       expect(registerSpy).toHaveBeenCalledWith(
         "manu@example.com",
-        "secret123",
+        "Secret123!",
         undefined,
         undefined,
         undefined
@@ -112,8 +112,8 @@ describe("InscriptionPage", () => {
     fireEvent.change(screen.getByLabelText("Mail *"), {
       target: { value: "manu@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Mot de passe *"), {
-      target: { value: "secret123" },
+    fireEvent.change(screen.getByLabelText(/mot de passe/i), {
+      target: { value: "Secret123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
 
@@ -139,8 +139,8 @@ describe("InscriptionPage", () => {
     fireEvent.change(screen.getByLabelText("Mail *"), {
       target: { value: "manu@example.com" },
     });
-    fireEvent.change(screen.getByLabelText("Mot de passe *"), {
-      target: { value: "secret123" },
+    fireEvent.change(screen.getByLabelText(/mot de passe/i), {
+      target: { value: "Secret123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Créer mon compte" }));
 

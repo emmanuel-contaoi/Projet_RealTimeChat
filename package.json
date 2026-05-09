@@ -8,5 +8,9 @@
     "coverage:front": "npm --prefix frontend test -- --runInBand --coverage",
     "coverage:back": "SQLX_OFFLINE=true cargo tarpaulin --manifest-path backend/Cargo.toml",
     "coverage": "npm run coverage:front && npm run coverage:back"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.4.2"
   }
 }
